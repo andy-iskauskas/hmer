@@ -31,10 +31,10 @@ Associated functions (not an exhaustive list; see ``lsf.str("package:emulatorr")
 - ``generate_new_runs``: Given a set of trained emulators, suggests a new set of points to be entered into the simulator.
 - Plotting functions (``output_plot``, ``emulator_plot``, ...): Various plotting functions for visualising output.
 - ``full_wave``: Rolls together the key components of a wave, generating emulators from data, checking diagnostics, finding implausibilities, and creating a new set of points on which to run the simulator.
+- Basic variance emulation using `variance_emulator_from_data`, and derivative emulation built in to trained emulator functionality.
 
 ### Installation ###
 Using RStudio with ``devtools`` enabled, the command ``devtools::install_github("Tandethsquire/emulatorr")`` will install the package. Henceforth, entering ``library(emulatorr)`` will make it available for use. For generic help on the package, use ``help(package = 'emulatorr')`` and for a specific function use the ``?`` syntax: e.g. ``?generate_new_runs``.
-An introductory vignette is available in the ``doc`` folder: both the source code and the compiled html are provided.
 
 ### Comments and Suggestions ###
 Suggestions for improvement, and comments on functionality, are welcome. For preference these should be addressed via pull requests and/or issue logging, but if in doubt email andrew.iskauskas@durham.ac.uk.
