@@ -1,0 +1,34 @@
+Package: hmer
+Type: Package
+Title: History Matching And Emulation Package
+Version: 0.8.0
+Author: person("Andrew", "Iskauskas", email = "andrew.iskauskas@durham.ac.uk", role = c('aut', 'cre'))
+Maintainer: Andrew Iskauskas <andrew.iskauskas@durham.ac.uk>
+Description: A set of objects and functions for Bayes Linear emulation and history matching.
+  For details on the mathematical background, there are many papers available on the topic;
+  for details of the functions in this package, consult the manual or help files (eg ?Emulator).
+Suggests: knitr, rmarkdown, SimInf, tidyr
+VignetteBuilder: knitr
+Depends: R (>= 4.0.0)
+Imports:
+  stringr,
+  lhs,
+  MASS,
+  purrr,
+  R6,
+  ggplot2,
+  viridis,
+  viridisLite,
+  reshape2,
+  plyr,
+  patchwork,
+  cowplot,
+  mvtnorm,
+  GGally,
+  rlang,
+  dfoptim
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+useDynLib: emulatorr, .registration = TRUE
+RoxygenNote: 7.1.1
