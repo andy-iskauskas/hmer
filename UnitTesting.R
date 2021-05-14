@@ -195,11 +195,11 @@ unit_test <- function() {
 
   ## Nth Implausibility Checks
 
-  ro <- round(nth_implausible(ems, GillespieValidation, targets)[1], 8) == 3.3074479
-  ro <- round(nth_implausible(ems, GillespieValidation, targets, n = 2)[1], 6) == 1.303807
-  ro <- round(nth_implausible(ems, GillespieValidation, targets, n = 6)[1], 6) == 0.117748
+  ro <- round(nth_implausible(ems, GillespieValidation, targets)[1], 6) == 3.30738
+  ro <- round(nth_implausible(ems, GillespieValidation, targets, n = 2)[1], 6) == 1.30417
+  ro <- round(nth_implausible(ems, GillespieValidation, targets, n = 6)[1], 6) == 0.121097
   ro <- sum(nth_implausible(ems, GillespieValidation, targets, cutoff = c(4, 1, 5))) == 25
-  ro <- round(nth_implausible(ems, data.frame(aSI = 0.4, aIR = 0.25, aSR = 0.025), targets), 6) == 1.038516
+  ro <- round(nth_implausible(ems, data.frame(aSI = 0.4, aIR = 0.25, aSR = 0.025), targets), 6) == 1.038521
 
   if (!ro) stop("Nth Implausibility not working as expected.")
   print("Nth implausibility working...")
@@ -316,3 +316,5 @@ unit_test <- function() {
 library(hmer)
 library(ggplot2)
 unit_test()
+
+IDEMC(rbind(GillespieSIR, GillespieValidation)[,names(ranges)], ems, targets, 200, 400, 0.3)

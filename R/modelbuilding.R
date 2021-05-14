@@ -97,7 +97,7 @@ likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_
     func_vals <- purrr::map_dbl(h, purrr::exec, point_vec)
     sum(func_vals) > 1
   })
-  if (all(av == FALSE)) av <- c(TRUE, rep(FALSE, length(av)-1))
+  if (all(av == FALSE)) av <- c(TRUE)
   corr_mat <- function(points, hp, delta) {
     this_corr <- corr$set_hyper_p(hp, delta)
     apply(points, 1, function(a) apply(points, 1, this_corr$get_corr, a, av))
@@ -138,14 +138,21 @@ likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_
       else return(func_to_opt(c(x, delta)))
     })
     best_initial <- grid_search[which.max(grid_liks),]
-    if(is.null(delta))
+    if (sum(av) == length(inputs)) delta <- 0
+    if(is.null(delta)) {
       initial_params <- c(best_initial, 0.01, use.names = F)
+    }
     else
       initial_params <- c(best_initial, if (delta == 0) 1e-10 else delta, use.names = F)
-    best_params <- nmkb(initial_params, func_to_opt, lower = c(purrr::map_dbl(hp_range, ~.[[1]]-1e-6), 0, use.names = F), upper = c(purrr::map_dbl(hp_range, ~.[[2]]+1e-6), 0.5, use.names = F), control = list(maximize = TRUE))$par
+    best_params <- nmkb(initial_params, func_to_opt, lower = c(purrr::map_dbl(hp_range, ~.[[1]]-1e-6), if(is.null(delta)) 0 else max(0, delta - 1e-6), use.names = F), upper = c(purrr::map_dbl(hp_range, ~.[[2]]+1e-6), if(is.null(delta)) 0.25 else delta + 1e-6, use.names = F), control = list(maximize = TRUE))$par
     best_hp <- best_params[-length(best_params)]
     best_delta <- best_params[length(best_params)]
   }
+  # if (all(unlist(best_hp, use.names = FALSE) - purrr::map_dbl(hp_range, ~.[[1]]) < 1e-5)) {
+  #   best_hp <- purrr::map_dbl(hp_range, ~sum(.)/2)
+  #   best_delta <- 0.05
+  # }
+  # if (sum(av) == length(inputs)) best_delta <- 0
   return(c(hp = best_hp, delta = best_delta, func_to_opt(best_params, return_stats = TRUE)))
 }
 
@@ -290,7 +297,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
     model_u_corrs <- purrr::map(u, ~.$corr)
   }
   if (any(is.null(model_beta_mus) || is.null(model_u_sigmas) || is.null(model_u_corrs))) {
-    if (missing(c_lengths)) theta_ranges <- purrr::map(model_basis_funcs, ~list(theta = c(0.2, ifelse(quadratic, 1, 2))))
+    if (missing(c_lengths)) theta_ranges <- purrr::map(model_basis_funcs, ~list(theta = c(0.3, ifelse(quadratic, 1, 2))))
     else theta_ranges <- c_lengths
     specs <- purrr::map(seq_along(model_basis_funcs), ~likelihood_estimate(data[,input_names], data[,output_names[[.]]], model_basis_funcs[[.]], hp_range = theta_ranges[[.]], beta = model_beta_mus[[.]], delta = model_deltas[[.]]))
     if (is.null(model_u_sigmas)) model_u_sigmas <- purrr::map(specs, ~as.numeric(.$sigma))

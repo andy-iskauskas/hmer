@@ -2,6 +2,7 @@
 
 export(Correlator)
 export(Emulator)
+export(IDEMC)
 export(behaviour_plot)
 export(classification_diag)
 export(comparison_diag)
