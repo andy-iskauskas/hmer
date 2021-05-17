@@ -154,6 +154,7 @@ Emulator <- R6::R6Class(
       x <- x[, names(x) %in% names(self$ranges)]
       x <- eval_funcs(scale_input, x, self$ranges)
       if (!p %in% names(self$ranges)) return(0)
+      p_ind <- which(names(ranges) == p)
       if (is.null(self$model_terms)) {
         model_terms <- purrr::map_chr(self$basis_f, function_to_names, names(self$ranges), FALSE)
         g_d <- purrr::map(model_terms, ~D(parse(text = .), p))
@@ -169,7 +170,7 @@ Emulator <- R6::R6Class(
       else beta_part <- g %*% self$beta_mu
       u_part <- apply(x, 1, self$u_mu)
       if (!is.null(self$in_data)) {
-        c_data <- -2*apply(self$in_data, 1, function(y) x[,p] - y[p]) * apply(self$in_data, 1, function(y) apply(x, 1, self$corr$get_corr, y, self$active_vars))/self$corr$hyper_p$theta^2
+        c_data <- apply(self$in_data, 1, function(b) apply(x, 1, function(a) self$corr$get_corr_d(a, b, p_ind, actives = self$active_vars)))
         if (length(self$beta_mu) == 1)
           u_part <- t(u_part + (t(bu) %*% t(private$design_matrix) + self$u_sigma^2 * c_data) %*% private$u_exp_modifier)
         else
@@ -187,6 +188,8 @@ Emulator <- R6::R6Class(
         if (!full || is.null(xp)) return(0)
         return(matrix(0, nrow = nrow(x), ncol = nrow(xp)))
       }
+      p1_ind <- which(names(ranges) == p1)
+      p2_ind <- which(names(ranges) == p2)
       if (is.null(self$model_terms)) {
         model_terms <- purrr::map_chr(self$basis_f, function_to_names, names(self$ranges), FALSE)
         g_d1 <- purrr::map(model_terms, ~D(parse(text = .), p1))
@@ -216,16 +219,15 @@ Emulator <- R6::R6Class(
         bupart_xp <- apply(xp, 1, self$beta_u_cov)
       }
       if (full || nrow(x) != nrow(xp)) {
-        if (p1 == p2)
-          x_xp_c <- (2/self$corr$hyper_p$theta^2 - 4/self$corr$hyper_p$theta^4 * apply(xp, 1, function(y) apply(x, 1, function(x) (x[p1] - y[p1])^2))) * apply(xp, 1, function(y) apply(x, 1, self$corr$get_corr, y, self$active_vars))
-        else
-          x_xp_c <- -4/self$corr$hyper_p$theta^4 * apply(xp, 1, function(y) apply(x, 1, function(x) (x[p1]-y[p1])*(x[p2]-y[p2]))) * apply(xp, 1, function(y) apply(x, 1, self$corr$get_corr, y, self$active_vars))
+          x_xp_c <- apply(xp, 1, function(b) apply(x, 1, function(a) self$corr$get_corr_d(a, b, p1_ind, p2_ind, self$active_vars)))
         if (is.null(nrow(g_x))) beta_part <- g_x %*% self$beta_sigma %*% gp_x
         else beta_part <- t(g_x) %*% self$beta_sigma %*% gp_x
         u_part <- self$u_sigma^2 * x_xp_c
         if (!is.null(self$in_data)) {
-          c_x <- -2*apply(self$in_data, 1, function(y) x[,p1] - y[p1]) * apply(self$in_data, 1, function(y) apply(x, 1, self$corr$get_corr, y, self$active_vars))/self$corr$hyper_p$theta^2
-          c_xp <- if(null_flag) -c_x else 2*apply(self$in_data, 1, function(y) x[,p2] - y[p2]) * apply(self$in_data, 1, function(y) apply(xp, 1, self$corr$get_corr, y, self$active_vars))/self$corr$hyper_p$theta^2
+          c_x <- apply(self$in_data, 1, function(b) apply(x, 1, function(a) self$corr$get_corr_d(a, b, p1_ind, p2_ind, self$active_vars)))
+          c_xp <- if(null_flag) -c_x else -1*apply(self$in_data, 1, function(b) apply(xp, 1, self$corr$get_corr_d(a, b, p1_ind, p2_ind, self$active_vars)))
+          # c_x <- -2*apply(self$in_data, 1, function(y) x[,p1] - y[p1]) * apply(self$in_data, 1, function(y) apply(x, 1, self$corr$get_corr, y, self$active_vars))/self$corr$hyper_p$theta^2
+          # c_xp <- if(null_flag) -c_x else 2*apply(self$in_data, 1, function(y) x[,p2] - y[p2]) * apply(self$in_data, 1, function(y) apply(xp, 1, self$corr$get_corr, y, self$active_vars))/self$corr$hyper_p$theta^2
           if(nrow(x) == 1) {
             c_x <- t(c_x)
             c_xp <- t(c_xp)
@@ -251,8 +253,10 @@ Emulator <- R6::R6Class(
         else
           u_part <- self$u_sigma^2 * purrr::map_dbl(point_seq, ~-4/self$corr$hyper_p$theta^4 * (x[.,p1]-xp[.,p1]) * (x[.,p2]-xp[.,p2]) * self$corr$get_corr(x[.,], xp[.,], self$active_vars))
         if (!is.null(self$in_data)) {
-          c_x <- -2*apply(self$in_data, 1, function(y) x[,p1] - y[p1]) * apply(self$in_data, 1, function(y) apply(x, 1, self$corr$get_corr, y, self$active_vars))/self$corr$hyper_p$theta^2
-          c_xp <- if(null_flag) -c_x else 2*apply(self$in_data, 1, function(y) x[,p2] - y[p2]) * apply(self$in_data, 1, function(y) apply(xp, 1, self$corr$get_corr, y, self$active_vars))/self$corr$hyper_p$theta^2
+          c_x <- apply(self$in_data, 1, function(b) apply(x, 1, function(a) self$corr$get_corr_d(a, b, p1_ind, p2_ind, self$active_vars)))
+          c_xp <- if(null_flag) -c_x else -1*apply(self$in_data, 1, function(b) apply(xp, 1, self$corr$get_corr_d(a, b, p1_ind, p2_ind, self$active_vars)))
+          # c_x <- -2*apply(self$in_data, 1, function(y) x[,p1] - y[p1]) * apply(self$in_data, 1, function(y) apply(x, 1, self$corr$get_corr, y, self$active_vars))/self$corr$hyper_p$theta^2
+          # c_xp <- if(null_flag) -c_x else 2*apply(self$in_data, 1, function(y) x[,p2] - y[p2]) * apply(self$in_data, 1, function(y) apply(xp, 1, self$corr$get_corr, y, self$active_vars))/self$corr$hyper_p$theta^2
           if (nrow(x) == 1) {
             c_x <- t(c_x)
             c_xp <- t(c_xp)

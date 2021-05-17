@@ -317,4 +317,4 @@ library(hmer)
 library(ggplot2)
 unit_test()
 
-IDEMC(rbind(GillespieSIR, GillespieValidation)[,names(ranges)], ems, targets, 200, 400, 0.3)
+
