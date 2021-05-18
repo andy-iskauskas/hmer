@@ -87,8 +87,8 @@ plot1d <- data.frame(
   x = test1d$x,
   f = func(test1d$x),
   E = em1d_exp,
-  max = em1d_exp + 3*sqrt(em1d_var),
-  min = em1d_exp - 3*sqrt(em1d_var)
+  max = em1d_exp + 3*sqrt(abs(em1d_var)),
+  min = em1d_exp - 3*sqrt(abs(em1d_var))
 )
 plot(data = plot1d, f ~ x, ylim = c(min(plot1d[,-1]), max(plot1d[-1])),
      type = 'l', main = "Emulation of a Simple 1d Function", xlab = "x", ylab = "f(x)")
@@ -159,8 +159,8 @@ em1d_2 <- emulator_from_data(new_data1d, c('f'), ranges1d)
 plot1d_2 <- data.frame(
   x = plot1d$x, f = plot1d$f,
   E = em1d_2$f$get_exp(test1d),
-  min = em1d_2$f$get_exp(test1d) - 3*sqrt(em1d_2$f$get_cov(test1d)),
-  max = em1d_2$f$get_exp(test1d) + 3*sqrt(em1d_2$f$get_cov(test1d))
+  min = em1d_2$f$get_exp(test1d) - 3*sqrt(abs(em1d_2$f$get_cov(test1d))),
+  max = em1d_2$f$get_exp(test1d) + 3*sqrt(abs(em1d_2$f$get_cov(test1d)))
 )
 plot(data = plot1d_2, f ~ x, ylim = c(min(plot1d_2[,-1]), max(plot1d_2[,-1])),
      type = 'l', main = "Emulator of a Simple 1-dimensional Function: Wave 2", xlab = "Parameter value", ylab = "Function value")

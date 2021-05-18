@@ -155,6 +155,7 @@ space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1
 #' @param points The set of validation points to plot.
 #' @param targets The set of targets to match to.
 #' @param ranges If provided, this gives the plotting region (see above).
+#' @param nth The level of maximum implausibility to plot.
 #' @param cb Whether or not the colour scheme should be colourblind friendly.
 #'
 #' @return A ggplot object.
@@ -166,7 +167,7 @@ space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1
 #'  wider_ranges <- purrr::map(sample_emulators$ems[[1]]$ranges, ~.*c(-2, 2))
 #'  validation_pairs(sample_emulators$ems$nS, GillespieValidation,
 #'   sample_emulators$targets, ranges = wider_ranges, cb = TRUE)
-validation_pairs <- function(ems, points, targets, ranges, cb = FALSE) {
+validation_pairs <- function(ems, points, targets, ranges, nth = 1, cb = FALSE) {
   if ("Emulator" %in% class(ems)) {
     ems <- setNames(list(ems), ems$output_name)
     if (!is.null(targets$val)) targets <- setNames(list(targets), ems[[1]]$output_name)
@@ -177,7 +178,7 @@ validation_pairs <- function(ems, points, targets, ranges, cb = FALSE) {
   em_var <- data.frame(purrr::map(ems, ~.$get_cov(points)))
   sim_vals <- points[,purrr::map_chr(ems, ~.$output_name)]
   diag_vals <- setNames(cbind(points[,names(ranges)], apply(abs(em_exp - sim_vals)/sqrt(em_var), 1, max)), c(names(ranges), 'd'))
-  diag_vals$imp <- nth_implausible(ems, points, targets)
+  diag_vals$imp <- nth_implausible(ems, points, targets, n = nth)
   colour_breaks <- c(0, 0.3, 0.7, 1, 1.3, 1.7, 2, 2.3, 2.7, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 10, 15, 100)
   colour_names <- c(0, '', '', 1, '', '', 2, '', '', 3, '', '', '', 5, '', '', '', 10, 15, '')
   plotfun <- function(data, mapping) {

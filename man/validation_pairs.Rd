@@ -4,7 +4,7 @@
 \alias{validation_pairs}
 \title{Validation Set Diagnostics and Implausibility}
 \usage{
-validation_pairs(ems, points, targets, ranges, cb = FALSE)
+validation_pairs(ems, points, targets, ranges, nth = 1, cb = FALSE)
 }
 \arguments{
 \item{ems}{The \code{\link{Emulator}} object(s).}
@@ -14,6 +14,8 @@ validation_pairs(ems, points, targets, ranges, cb = FALSE)
 \item{targets}{The set of targets to match to.}
 
 \item{ranges}{If provided, this gives the plotting region (see above).}
+
+\item{nth}{The level of maximum implausibility to plot.}
 
 \item{cb}{Whether or not the colour scheme should be colourblind friendly.}
 }
