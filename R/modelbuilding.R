@@ -111,7 +111,7 @@ likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_
       chol2inv(chol(A)),
       error = function(e) MASS::ginv(A)
     )
-    if (is.null(beta)) {
+    if (is.null(b)) {
       b_ml <- tryCatch(
         chol2inv(chol(t(H) %*% A_inv %*% H)) %*% t(H) %*% A_inv %*% outputs,
         error = function(e) MASS::ginv(t(H) %*% A_inv %*% H) %*% t(H) %*% A_inv %*% outputs
@@ -270,7 +270,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
     }
     model_basis_funcs <- purrr::map(models, ~all_funcs[all_coeffs %in% variable.names(.)])
     if (!beta.var) {
-      model_beta_mus <- purrr::map(models, ~c(.$coefficients, use.names = FALSE))
+      model_beta_mus <- purrr::map(models, ~c(.$coefficients[all_coeffs[all_coeffs %in% names(.$coefficients)]], use.names = FALSE))
       model_beta_sigmas <- purrr::map(model_beta_mus, ~diag(0, nrow = length(.)))
     }
     else {
