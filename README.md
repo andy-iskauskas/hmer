@@ -34,7 +34,7 @@ Associated functions (not an exhaustive list; see ``lsf.str("package:emulatorr")
 - Basic variance emulation using `variance_emulator_from_data`, and derivative emulation built in to trained emulator functionality.
 
 ### Installation ###
-Using RStudio with ``devtools`` enabled, the command ``devtools::install_github("Tandethsquire/emulatorr")`` will install the package. Henceforth, entering ``library(emulatorr)`` will make it available for use. For generic help on the package, use ``help(package = 'emulatorr')`` and for a specific function use the ``?`` syntax: e.g. ``?generate_new_runs``.
+Using RStudio with ``devtools`` enabled, the command ``devtools::install_github("Tandethsquire/hmer")`` will install the package. Henceforth, entering ``library(hmer)`` will make it available for use. For generic help on the package, use ``help(package = 'hmer')`` and for a specific function use the ``?`` syntax: e.g. ``?generate_new_runs``.
 
 ### Comments and Suggestions ###
 Suggestions for improvement, and comments on functionality, are welcome. For preference these should be addressed via pull requests and/or issue logging, but if in doubt email andrew.iskauskas@durham.ac.uk.
