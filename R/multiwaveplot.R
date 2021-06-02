@@ -53,7 +53,7 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5) {
 #'
 #' @importFrom GGally ggpairs ggally_densityDiag
 #'
-#' @param waves The list of data.frame, one for each set of outputs at that wave.
+#' @param waves The list of data.frames, one for each set of outputs at that wave.
 #' @param targets The output targets.
 #' @param output_names The outputs to plot.
 #' @param surround As in \code{\link{wave_points}}.
@@ -106,6 +106,69 @@ wave_values <- function(waves, targets, output_names = names(targets), surround 
           lower = list(continuous = wrap(lfun, targets = targets)),
           diag = list(continuous = wrap(dfun, targets = targets)),
           upper = list(continuous = wrap(lfun, targets = targets, zoom = TRUE)), progress = FALSE)
+}
+
+#' Multiple Wave Inputs vs Outputs
+#'
+#' Given multiple waves of points, produce input-output plots for each pair.
+#'
+#' It can be useful to consider what the dependencies between the input values and output
+#' values are, to investigate the suitability of the chosen input ranges (i.e. if widening
+#' an input range could result in the targets being matchable). This function provides those
+#' plots.
+#'
+#' For each output-input pair, a points plot is produced with the input value on the x-axis
+#' and the output value on the y-axis. The target bounds are superimposed as horizontal lines.
+#' The points themselves are coloured by which wave of history matching they came from.
+#'
+#' These can show dependencies between specific outputs and inputs and, if points are clustering
+#' at the far left or right edge of a plot, can give an indication that the input ranges are
+#' unsuitable for matching the target.
+#'
+#' @param waves The list of data.frame objects, one for each set of outputs at that wave.
+#' @param targets The target values of the outputs.
+#' @param output_names The outputs to plot, if not all are wanted.
+#' @param input_names The inputs to plot, if not all are wanted.
+#' @param p_size Control for the point size on the plots: smaller is better for many plots.
+#' @param l_wid Control for line width of superimposed targets.
+#'
+#' @return A grid of ggplot objects.
+#' @export
+#'
+#' @examples
+#'  wave_dependencies(GillespieMultiWaveData, sample_emulators$targets, l_wid = 0.8, p_size = 0.8)
+#'  wave_dependencies(GillespieMultiWaveData, sample_emulators$targets, c('nS', 'nI'), c('aIR', 'aSI'))
+#'
+wave_dependencies <- function(waves, targets, output_names = names(targets), input_names = names(waves[[1]])[!names(waves[[1]]) %in% names(targets)], p_size = 1.5, l_wid = 1.5) {
+  input_names <- input_names
+  if (!is.null(targets[[1]]$val))
+    targets <- purrr::map(targets, ~c(.$val - 3*.$sigma, .$val + 3*.$sigma))
+  wave <- NULL
+  for (i in 0:(length(waves)-1)) waves[[i+1]]$wave <- i
+  total_data <- do.call('rbind', waves)
+  total_data$wave <- factor(total_data$wave)
+  pal <- viridis::viridis(length(waves), option = "D", direction = -1)
+  plot_list <- list()
+  for (i in 1:length(output_names)) {
+    for (j in 1:length(input_names)) {
+      plot_list[[(i-1)*length(output_names)+j]] <-
+        local({
+          i <- i
+          j <- j
+          g <- ggplot(data = total_data, aes(x = total_data[,input_names[j]], y = total_data[,output_names[i]], colour = wave, group = wave)) +
+            geom_point(cex = p_size) +
+            labs(x = input_names[j], y = output_names[i]) +
+            scale_colour_manual(values = pal) +
+            xlim(range(total_data[,input_names[j]])) +
+            ylim(range(total_data[,output_names[i]])) +
+            geom_hline(yintercept = targets[[output_names[i]]], colour = 'red', lwd = l_wid) +
+            theme_bw() +
+            theme(legend.position = 'none')
+          return(suppressWarnings(g))
+        })
+    }
+  }
+  return(suppressWarnings(cowplot::plot_grid(plotlist = plot_list, ncol = length(input_names))))
 }
 
 #' Plot simulator outputs for multiple waves

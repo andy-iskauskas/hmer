@@ -14,7 +14,7 @@ wave_values(
 )
 }
 \arguments{
-\item{waves}{The list of data.frame, one for each set of outputs at that wave.}
+\item{waves}{The list of data.frames, one for each set of outputs at that wave.}
 
 \item{targets}{The output targets.}
 
