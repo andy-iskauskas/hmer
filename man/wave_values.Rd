@@ -9,6 +9,7 @@ wave_values(
   targets,
   output_names = names(targets),
   surround = FALSE,
+  restrict = FALSE,
   p_size = 1.5,
   l_wid = 1.5
 )
@@ -21,6 +22,8 @@ wave_values(
 \item{output_names}{The outputs to plot.}
 
 \item{surround}{As in \code{\link{wave_points}}.}
+
+\item{restrict}{Should the plotting automatically restrict to failing target windows?}
 
 \item{p_size}{As in \code{\link{wave_points}}.}
 

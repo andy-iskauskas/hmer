@@ -57,6 +57,7 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5) {
 #' @param targets The output targets.
 #' @param output_names The outputs to plot.
 #' @param surround As in \code{\link{wave_points}}.
+#' @param restrict Should the plotting automatically restrict to failing target windows?
 #' @param p_size As in \code{\link{wave_points}}.
 #' @param l_wid The width of the lines that create the target boxes.
 #'
@@ -66,7 +67,7 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5) {
 #' @examples
 #'  wave_values(GillespieMultiWaveData, sample_emulators$targets, surround = TRUE, p_size = 1)
 #'  wave_values(GillespieMultiWaveData, sample_emulators$targets, c('nS', 'nI'), l_wid = 0.8)
-wave_values <- function(waves, targets, output_names = names(targets), surround = FALSE, p_size = 1.5, l_wid = 1.5) {
+wave_values <- function(waves, targets, output_names = names(targets), surround = FALSE, restrict = FALSE, p_size = 1.5, l_wid = 1.5) {
   if (!is.null(targets[[1]]$val))
     targets <- purrr::map(targets, ~c(.$val - 3*.$sigma, .$val + 3*.$sigma))
   wave <- NULL
@@ -76,6 +77,26 @@ wave_values <- function(waves, targets, output_names = names(targets), surround 
   }
   total_data <- do.call('rbind', out_list)
   total_data$wave <- factor(total_data$wave)
+  if (restrict) {
+    targets_grid <- expand.grid(names(targets), names(targets), stringsAsFactors = FALSE)
+    targets_grid <- targets_grid[targets_grid$Var1 != targets_grid$Var2,]
+    targets_list <- c()
+    for (i in 1:nrow(targets_grid)) {
+      tg <- unlist(targets_grid[i,], use.names = F)
+      dat_trunc <- total_data[,tg]
+      any_match <- any(apply(dat_trunc, 1, function(x) {
+        true1 <- x[1] <= targets[[tg[1]]][2] && x[1] >= targets[[tg[1]]][1]
+        true2 <- x[2] <= targets[[tg[2]]][2] && x[2] >- targets[[tg[2]]][1]
+        return(true1 && true2)
+      }))
+      if (!any_match) targets_list <- c(targets_list, unlist(targets_grid[i,], use.names = FALSE))
+    }
+    if(is.null(targets_list)) warning("Expecting to restrict to failed output pairs but none exist. Plotting all outputs.")
+    else {
+      targets <- targets[names(targets) %in% unique(targets_list)]
+      output_names <- names(targets)
+    }
+  }
   pal <- viridis::viridis(length(waves), option = "D", direction = -1)
   lfun <- function(data, mapping, targets, zoom = F) {
     xname <- rlang::quo_get_expr(mapping$x)
@@ -151,7 +172,7 @@ wave_dependencies <- function(waves, targets, output_names = names(targets), inp
   plot_list <- list()
   for (i in 1:length(output_names)) {
     for (j in 1:length(input_names)) {
-      plot_list[[(i-1)*length(output_names)+j]] <-
+      plot_list[[(i-1)*length(input_names)+j]] <-
         local({
           i <- i
           j <- j
@@ -163,7 +184,10 @@ wave_dependencies <- function(waves, targets, output_names = names(targets), inp
             ylim(range(total_data[,output_names[i]])) +
             geom_hline(yintercept = targets[[output_names[i]]], colour = 'red', lwd = l_wid) +
             theme_bw() +
+            theme(axis.ticks = element_blank()) +
             theme(legend.position = 'none')
+          if (j != 1) g <- g + theme(axis.text.y = element_blank(), axis.title.y = element_blank())
+          if (i != length(output_names)) g <- g + theme(axis.text.x = element_blank(), axis.title.x = element_blank())
           return(suppressWarnings(g))
         })
     }
