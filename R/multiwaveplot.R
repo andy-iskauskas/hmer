@@ -192,7 +192,7 @@ wave_dependencies <- function(waves, targets, output_names = names(targets), inp
         })
     }
   }
-  return(suppressWarnings(cowplot::plot_grid(plotlist = plot_list, ncol = length(input_names))))
+  return(suppressWarnings(cowplot::plot_grid(plotlist = plot_list, ncol = length(input_names), align = 'hv')))
 }
 
 #' Plot simulator outputs for multiple waves
