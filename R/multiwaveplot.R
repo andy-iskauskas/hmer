@@ -70,8 +70,10 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5, ...)
 #'  wave_values(GillespieMultiWaveData, sample_emulators$targets, surround = TRUE, p_size = 1)
 #'  wave_values(GillespieMultiWaveData, sample_emulators$targets, c('nS', 'nI'), l_wid = 0.8)
 wave_values <- function(waves, targets, output_names = names(targets), surround = FALSE, restrict = FALSE, p_size = 1.5, l_wid = 1.5, ...) {
-  if (!is.null(targets[[1]]$val))
-    targets <- purrr::map(targets, ~c(.$val - 3*.$sigma, .$val + 3*.$sigma))
+  targets <- tryCatch(
+    purrr::map(targets, ~c(.$val - 3*.$sigma, .$val + 3*.$sigma)),
+    error = function(e) targets
+  )
   wave <- NULL
   out_list <- list()
   for (i in 0:(length(waves)-1)) {
@@ -168,8 +170,10 @@ wave_values <- function(waves, targets, output_names = names(targets), surround 
 #'
 wave_dependencies <- function(waves, targets, output_names = names(targets), input_names = names(waves[[1]])[!names(waves[[1]]) %in% names(targets)], p_size = 1.5, l_wid = 1.5, ...) {
   input_names <- input_names
-  if (!is.null(targets[[1]]$val))
-    targets <- purrr::map(targets, ~c(.$val - 3*.$sigma, .$val + 3*.$sigma))
+  targets <- tryCatch(
+    purrr::map(targets, ~c(.$val - 3*.$sigma, .$val + 3*.$sigma)),
+    error = function(e) targets
+  )
   wave <- NULL
   for (i in 0:(length(waves)-1)) waves[[i+1]]$wave <- i
   total_data <- do.call('rbind', waves)
@@ -230,6 +234,10 @@ wave_dependencies <- function(waves, targets, output_names = names(targets), inp
 #'   zero_in = FALSE, wave_numbers = c(1,3))
 #'
 simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_numbers = seq(ifelse(zero_in, 0, 1), length(wave_points)-ifelse(zero_in, 1, 0)), ...) {
+  z <- tryCatch(
+    purrr::map(z, ~c(.$val - 3*.$sigma, .$val + 3*.$sigma)),
+    error = function(e) z
+  )
   variable <- value <- run <- wave <- val <- sigma <- NULL
   output_names <- names(z)
   sim_runs <- do.call('rbind', purrr::map(wave_numbers, ~data.frame(wave_points[[.+ifelse(zero_in, 1, 0)]][,output_names], wave = .)))
@@ -239,12 +247,12 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_
   if (is.null(palette)) pal <- viridisLite::viridis(10, option = 'plasma', direction = -1)
   else pal <- palette
   pal <- pal[seq_along(pal) %in% (wave_numbers+ifelse(zero_in, 1, 0))]
-  obs <- data.frame(variable = names(z), val = purrr::map_dbl(z, ~.$val), sigma = purrr::map_dbl(z, ~.$sigma))
+  obs <- data.frame(variable = names(z), min = purrr::map_dbl(z, ~.[1]), max = purrr::map_dbl(z, ~.[2]))
   g <- ggplot(data = melted, aes(x = variable, y = value)) +
     geom_line(aes(group = run, colour = wave)) +
     scale_colour_manual(values = pal) +
-    geom_point(data = obs, aes(x = variable, y = val)) +
-    geom_errorbar(data = obs, aes(y = val, ymax = val + 3*sigma, ymin = val - 3*sigma), width = 0.1, size = 1.25) +
+    geom_point(data = obs, aes(x = variable, y = (min+max)/2)) +
+    geom_errorbar(data = obs, aes(y = (min+max)/2, ymax = max, ymin = min), width = 0.1, size = 1.25) +
     labs(title = "Simulator evaluations at wave points") +
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
@@ -283,7 +291,7 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_
 #'  diagnostic_wrap(GillespieMultiWaveData, sample_emulators$targets,
 #'   input_names = c('aSI', 'aIR'), output_names = c('nI', 'nR'),
 #'   p_size = 0.8, l_wid = 0.8, wave_numbers = 1:3, surround = TRUE)
-diagnostic_wrap <- function(waves, targets, output_names = names(targets), input_names = names(waves[[1]])[!names(waves[[1]]) %in% names(targets)], directory = NULL, s.heights = rep(1000, 4), s.widths = rep(1000, 4), ...) {
+diagnostic_wrap <- function(waves, targets, output_names = names(targets), input_names = names(waves[[1]])[!names(waves[[1]]) %in% names(targets)], directory = NULL, s.heights = rep(1000, 4), s.widths = s.heights, ...) {
   if (is.null(directory) || !file.exists(sub("(.*)/[^/]*$", "\\1", directory))) {
     print(simulator_plot(waves, targets, ...))
     print(wave_points(waves, input_names, ...))

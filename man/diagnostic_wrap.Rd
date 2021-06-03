@@ -11,7 +11,7 @@ diagnostic_wrap(
   input_names = names(waves[[1]])[!names(waves[[1]]) \%in\% names(targets)],
   directory = NULL,
   s.heights = rep(1000, 4),
-  s.widths = rep(1000, 4),
+  s.widths = s.heights,
   ...
 )
 }
