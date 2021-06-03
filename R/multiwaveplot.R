@@ -12,6 +12,7 @@
 #' @param input_names The input names to be plotted.
 #' @param surround If true, points are surrounded by black boundaries.
 #' @param p_size The size of the points. Smaller values are better for high-dimensional spaces.
+#' @param ... Optional parameters (not to be used directly)
 #'
 #' @return A ggplot object
 #' @export
@@ -19,7 +20,7 @@
 #' @examples
 #'  wave_points(GillespieMultiWaveData, c('aSI', 'aIR', 'aSR'))
 #'  wave_points(GillespieMultiWaveData, c('aSI', 'aIR', 'aSR'), TRUE, 0.8)
-wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5) {
+wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5, ...) {
   wave <- NULL
   out_list <- list()
   for (i in 0:(length(waves)-1)) {
@@ -60,6 +61,7 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5) {
 #' @param restrict Should the plotting automatically restrict to failing target windows?
 #' @param p_size As in \code{\link{wave_points}}.
 #' @param l_wid The width of the lines that create the target boxes.
+#' @param ... Optional parameters (not to be used directly)
 #'
 #' @return A ggplot object.
 #' @export
@@ -67,7 +69,7 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5) {
 #' @examples
 #'  wave_values(GillespieMultiWaveData, sample_emulators$targets, surround = TRUE, p_size = 1)
 #'  wave_values(GillespieMultiWaveData, sample_emulators$targets, c('nS', 'nI'), l_wid = 0.8)
-wave_values <- function(waves, targets, output_names = names(targets), surround = FALSE, restrict = FALSE, p_size = 1.5, l_wid = 1.5) {
+wave_values <- function(waves, targets, output_names = names(targets), surround = FALSE, restrict = FALSE, p_size = 1.5, l_wid = 1.5, ...) {
   if (!is.null(targets[[1]]$val))
     targets <- purrr::map(targets, ~c(.$val - 3*.$sigma, .$val + 3*.$sigma))
   wave <- NULL
@@ -126,7 +128,8 @@ wave_values <- function(waves, targets, output_names = names(targets), surround 
   ggpairs(total_data, columns = 1:length(output_names), mapping = aes(colour = wave, group = wave),
           lower = list(continuous = wrap(lfun, targets = targets)),
           diag = list(continuous = wrap(dfun, targets = targets)),
-          upper = list(continuous = wrap(lfun, targets = targets, zoom = TRUE)), progress = FALSE)
+          upper = list(continuous = wrap(lfun, targets = targets, zoom = TRUE)), progress = FALSE,
+          title = "Output plots with Targets")
 }
 
 #' Multiple Wave Inputs vs Outputs
@@ -146,12 +149,15 @@ wave_values <- function(waves, targets, output_names = names(targets), surround 
 #' at the far left or right edge of a plot, can give an indication that the input ranges are
 #' unsuitable for matching the target.
 #'
+#' @importFrom GGally ggmatrix
+#'
 #' @param waves The list of data.frame objects, one for each set of outputs at that wave.
 #' @param targets The target values of the outputs.
 #' @param output_names The outputs to plot, if not all are wanted.
 #' @param input_names The inputs to plot, if not all are wanted.
 #' @param p_size Control for the point size on the plots: smaller is better for many plots.
 #' @param l_wid Control for line width of superimposed targets.
+#' @param ... Optional parameters (not to be used directly)
 #'
 #' @return A grid of ggplot objects.
 #' @export
@@ -160,7 +166,7 @@ wave_values <- function(waves, targets, output_names = names(targets), surround 
 #'  wave_dependencies(GillespieMultiWaveData, sample_emulators$targets, l_wid = 0.8, p_size = 0.8)
 #'  wave_dependencies(GillespieMultiWaveData, sample_emulators$targets, c('nS', 'nI'), c('aIR', 'aSI'))
 #'
-wave_dependencies <- function(waves, targets, output_names = names(targets), input_names = names(waves[[1]])[!names(waves[[1]]) %in% names(targets)], p_size = 1.5, l_wid = 1.5) {
+wave_dependencies <- function(waves, targets, output_names = names(targets), input_names = names(waves[[1]])[!names(waves[[1]]) %in% names(targets)], p_size = 1.5, l_wid = 1.5, ...) {
   input_names <- input_names
   if (!is.null(targets[[1]]$val))
     targets <- purrr::map(targets, ~c(.$val - 3*.$sigma, .$val + 3*.$sigma))
@@ -176,23 +182,24 @@ wave_dependencies <- function(waves, targets, output_names = names(targets), inp
         local({
           i <- i
           j <- j
+          out_range <- range(total_data[,output_names[i]])
+          relevant_targets <- targets[[output_names[i]]][targets[[output_names[[i]]]] >= out_range[1] & targets[[output_names[[i]]]] <= out_range[2]]
           g <- ggplot(data = total_data, aes(x = total_data[,input_names[j]], y = total_data[,output_names[i]], colour = wave, group = wave)) +
             geom_point(cex = p_size) +
             labs(x = input_names[j], y = output_names[i]) +
             scale_colour_manual(values = pal) +
             xlim(range(total_data[,input_names[j]])) +
             ylim(range(total_data[,output_names[i]])) +
-            geom_hline(yintercept = targets[[output_names[i]]], colour = 'red', lwd = l_wid) +
+            geom_hline(yintercept = relevant_targets, colour = 'red', lwd = l_wid) +
             theme_bw() +
             theme(axis.ticks = element_blank()) +
             theme(legend.position = 'none')
-          if (j != 1) g <- g + theme(axis.text.y = element_blank(), axis.title.y = element_blank())
-          if (i != length(output_names)) g <- g + theme(axis.text.x = element_blank(), axis.title.x = element_blank())
           return(suppressWarnings(g))
         })
     }
   }
-  return(suppressWarnings(cowplot::plot_grid(plotlist = plot_list, ncol = length(input_names), align = 'hv')))
+  return(suppressWarnings(GGally::ggmatrix(plots = plot_list, ncol = length(input_names), nrow = length(output_names),
+                                           xAxisLabels = input_names, yAxisLabels = output_names, progress = FALSE, title = "Outputs vs Inputs")))
 }
 
 #' Plot simulator outputs for multiple waves
@@ -211,6 +218,7 @@ wave_dependencies <- function(waves, targets, output_names = names(targets), inp
 #' @param zero_in Is wave zero included? Default: TRUE
 #' @param palette If a larger palette is required, it should be supplied here.
 #' @param wave_numbers Which waves to plot. If not supplied, all waves are plotted.
+#' @param ... Optional parameters (not to be used directly)
 #'
 #' @return A ggplot object.
 #'
@@ -221,7 +229,7 @@ wave_dependencies <- function(waves, targets, output_names = names(targets), inp
 #'  simulator_plot(GillespieMultiWaveData[2:4], sample_emulators$targets,
 #'   zero_in = FALSE, wave_numbers = c(1,3))
 #'
-simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_numbers = seq(ifelse(zero_in, 0, 1), length(wave_points)-ifelse(zero_in, 1, 0))) {
+simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_numbers = seq(ifelse(zero_in, 0, 1), length(wave_points)-ifelse(zero_in, 1, 0)), ...) {
   variable <- value <- run <- wave <- val <- sigma <- NULL
   output_names <- names(z)
   sim_runs <- do.call('rbind', purrr::map(wave_numbers, ~data.frame(wave_points[[.+ifelse(zero_in, 1, 0)]][,output_names], wave = .)))
@@ -241,6 +249,63 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
   return(g)
+}
+
+#' Diagnostic plots for wave outputs
+#'
+#' A wrapper function for the set of diagnostic plots for mutliple waves.
+#'
+#' The functions \code{\link{simulator_plot}}, \code{\link{wave_points}}, \code{\link{wave_points}},
+#' and \code{\link{wave_dependencies}} are called, one after the other, to allow diagnosis of waves
+#' of emulation.
+#'
+#' The \code{directory} option should be used as follows. If the desired location is in fact
+#' a folder, it should end in "/"; if instead the structure requires each plot to be saved with a
+#' prefix, then it should be provided. For example, \code{directory = "Plots/"} in the first event
+#' or \code{directory = "Plots/unique-identifier"} in the second event.
+#'
+#' @importFrom grDevices dev.off png
+#'
+#' @param waves The wave points, as a list of data.frames.
+#' @param targets The output targets.
+#' @param output_names The outputs to plot.
+#' @param input_names The inputs to plot.
+#' @param directory The location of files to be saved (if required).
+#' @param s.heights The heights of the saved pngs (if directory is not NULL).
+#' @param s.widths The widths of the saved pngs (if directory is not NULL).
+#' @param ... Optional parameters (eg \code{p_size}, \code{l_wid}, ...)
+#'
+#' @return The set of plots (either into console or saved)..
+#' @export
+#'
+#' @examples
+#'  diagnostic_wrap(GillespieMultiWaveData, sample_emulators$targets)
+#'  diagnostic_wrap(GillespieMultiWaveData, sample_emulators$targets,
+#'   input_names = c('aSI', 'aIR'), output_names = c('nI', 'nR'),
+#'   p_size = 0.8, l_wid = 0.8, wave_numbers = 1:3, surround = TRUE)
+diagnostic_wrap <- function(waves, targets, output_names = names(targets), input_names = names(waves[[1]])[!names(waves[[1]]) %in% names(targets)], directory = NULL, s.heights = rep(1000, 4), s.widths = rep(1000, 4), ...) {
+  if (is.null(directory) || !file.exists(sub("(.*)/[^/]*$", "\\1", directory))) {
+    print(simulator_plot(waves, targets, ...))
+    print(wave_points(waves, input_names, ...))
+    print(wave_values(waves, targets, output_names, ...))
+    print(wave_dependencies(waves, targets, output_names, input_names, ...))
+  }
+  else {
+    while(length(s.widths) < 4) s.widths = c(s.widths, s.widths)
+    while(length(s.heights) < 4) s.heights = c(s.heights, s.heights)
+    png(filename = paste0(directory, "simulatorplot.png"), width = s.widths[1], height = s.heights[1])
+    print(simulator_plot(waves, targets, ...))
+    dev.off()
+    png(filename = paste0(directory, "posteriorplot.png"), width = s.widths[2], height = s.heights[2])
+    print(wave_points(waves, input_names, ...))
+    dev.off()
+    png(filename = paste0(directory, "outputsplot.png"), width = s.widths[3], height = s.heights[3])
+    print(wave_values(waves, targets, output_names, ...))
+    dev.off()
+    png(filename = paste0(directory, "dependencyplot.png"), width = s.widths[4], height = s.heights[4])
+    print(wave_dependencies(waves, targets, output_names, input_names, ...))
+    dev.off()
+  }
 }
 
 #' Emulator Variance across waves

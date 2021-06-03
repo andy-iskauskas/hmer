@@ -11,7 +11,8 @@ wave_values(
   surround = FALSE,
   restrict = FALSE,
   p_size = 1.5,
-  l_wid = 1.5
+  l_wid = 1.5,
+  ...
 )
 }
 \arguments{
@@ -28,6 +29,8 @@ wave_values(
 \item{p_size}{As in \code{\link{wave_points}}.}
 
 \item{l_wid}{The width of the lines that create the target boxes.}
+
+\item{...}{Optional parameters (not to be used directly)}
 }
 \value{
 A ggplot object.

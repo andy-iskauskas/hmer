@@ -10,7 +10,8 @@ wave_dependencies(
   output_names = names(targets),
   input_names = names(waves[[1]])[!names(waves[[1]]) \%in\% names(targets)],
   p_size = 1.5,
-  l_wid = 1.5
+  l_wid = 1.5,
+  ...
 )
 }
 \arguments{
@@ -25,6 +26,8 @@ wave_dependencies(
 \item{p_size}{Control for the point size on the plots: smaller is better for many plots.}
 
 \item{l_wid}{Control for line width of superimposed targets.}
+
+\item{...}{Optional parameters (not to be used directly)}
 }
 \value{
 A grid of ggplot objects.

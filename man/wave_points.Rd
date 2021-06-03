@@ -4,7 +4,7 @@
 \alias{wave_points}
 \title{Multiple Wave Point Plotting}
 \usage{
-wave_points(waves, input_names, surround = FALSE, p_size = 1.5)
+wave_points(waves, input_names, surround = FALSE, p_size = 1.5, ...)
 }
 \arguments{
 \item{waves}{The list of data.frames, one for each set of points at that wave.}
@@ -14,6 +14,8 @@ wave_points(waves, input_names, surround = FALSE, p_size = 1.5)
 \item{surround}{If true, points are surrounded by black boundaries.}
 
 \item{p_size}{The size of the points. Smaller values are better for high-dimensional spaces.}
+
+\item{...}{Optional parameters (not to be used directly)}
 }
 \value{
 A ggplot object
