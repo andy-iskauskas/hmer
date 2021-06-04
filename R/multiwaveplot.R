@@ -244,7 +244,8 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_
   sim_runs$run <- 1:length(sim_runs[,1])
   melted <- reshape2::melt(sim_runs, id.vars = c('run', 'wave'))
   melted$wave = as.factor(melted$wave)
-  if (is.null(palette)) pal <- viridisLite::viridis(10, option = 'plasma', direction = -1)
+  if (is.null(palette))
+    pal <- viridisLite::viridis(length(wave_points), option = 'plasma', direction = -1)
   else pal <- palette
   pal <- pal[seq_along(pal) %in% (wave_numbers+ifelse(zero_in, 1, 0))]
   obs <- data.frame(variable = names(z), min = purrr::map_dbl(z, ~.[1]), max = purrr::map_dbl(z, ~.[2]))
