@@ -186,15 +186,15 @@ wave_dependencies <- function(waves, targets, output_names = names(targets), inp
         local({
           i <- i
           j <- j
-          out_range <- range(total_data[,output_names[i]])
-          relevant_targets <- targets[[output_names[i]]][targets[[output_names[[i]]]] >= out_range[1] & targets[[output_names[[i]]]] <= out_range[2]]
+          line_limits <- targets[[output_names[i]]]
+          y_limit <- c(min(line_limits[1], min(total_data[,output_names[i]])), max(line_limits[2], max(total_data[,output_names[i]])))
           g <- ggplot(data = total_data, aes(x = total_data[,input_names[j]], y = total_data[,output_names[i]], colour = wave, group = wave)) +
             geom_point(cex = p_size) +
             labs(x = input_names[j], y = output_names[i]) +
             scale_colour_manual(values = pal) +
             xlim(range(total_data[,input_names[j]])) +
-            ylim(range(total_data[,output_names[i]])) +
-            geom_hline(yintercept = relevant_targets, colour = 'red', lwd = l_wid) +
+            ylim(y_limit) +
+            geom_hline(yintercept = line_limits, colour = 'red', lwd = l_wid) +
             theme_bw() +
             theme(axis.ticks = element_blank()) +
             theme(legend.position = 'none')
