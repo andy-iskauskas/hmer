@@ -11,6 +11,7 @@ wave_dependencies(
   input_names = names(waves[[1]])[!names(waves[[1]]) \%in\% names(targets)],
   p_size = 1.5,
   l_wid = 1.5,
+  normalize = FALSE,
   ...
 )
 }
@@ -26,6 +27,8 @@ wave_dependencies(
 \item{p_size}{Control for the point size on the plots: smaller is better for many plots.}
 
 \item{l_wid}{Control for line width of superimposed targets.}
+
+\item{normalize}{If true, plotting is done with target bounds equal size.}
 
 \item{...}{Optional parameters (not to be used directly)}
 }

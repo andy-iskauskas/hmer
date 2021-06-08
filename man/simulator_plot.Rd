@@ -11,6 +11,7 @@ simulator_plot(
   palette = NULL,
   wave_numbers = seq(ifelse(zero_in, 0, 1), length(wave_points) - ifelse(zero_in, 1,
     0)),
+  normalize = FALSE,
   ...
 )
 }
@@ -24,6 +25,8 @@ simulator_plot(
 \item{palette}{If a larger palette is required, it should be supplied here.}
 
 \item{wave_numbers}{Which waves to plot. If not supplied, all waves are plotted.}
+
+\item{normalize}{If true, plotting is done with rescaled target bounds.}
 
 \item{...}{Optional parameters (not to be used directly)}
 }

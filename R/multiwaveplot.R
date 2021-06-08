@@ -159,6 +159,7 @@ wave_values <- function(waves, targets, output_names = names(targets), surround 
 #' @param input_names The inputs to plot, if not all are wanted.
 #' @param p_size Control for the point size on the plots: smaller is better for many plots.
 #' @param l_wid Control for line width of superimposed targets.
+#' @param normalize If true, plotting is done with target bounds equal size.
 #' @param ... Optional parameters (not to be used directly)
 #'
 #' @return A grid of ggplot objects.
@@ -168,7 +169,7 @@ wave_values <- function(waves, targets, output_names = names(targets), surround 
 #'  wave_dependencies(GillespieMultiWaveData, sample_emulators$targets, l_wid = 0.8, p_size = 0.8)
 #'  wave_dependencies(GillespieMultiWaveData, sample_emulators$targets, c('nS', 'nI'), c('aIR', 'aSI'))
 #'
-wave_dependencies <- function(waves, targets, output_names = names(targets), input_names = names(waves[[1]])[!names(waves[[1]]) %in% names(targets)], p_size = 1.5, l_wid = 1.5, ...) {
+wave_dependencies <- function(waves, targets, output_names = names(targets), input_names = names(waves[[1]])[!names(waves[[1]]) %in% names(targets)], p_size = 1.5, l_wid = 1.5, normalize = FALSE, ...) {
   input_names <- input_names
   targets <- tryCatch(
     purrr::map(targets, ~c(.$val - 3*.$sigma, .$val + 3*.$sigma)),
@@ -198,6 +199,10 @@ wave_dependencies <- function(waves, targets, output_names = names(targets), inp
             theme_bw() +
             theme(axis.ticks = element_blank()) +
             theme(legend.position = 'none')
+          if (normalize) {
+            yrange <- diff(targets[[output_names[i]]])/2
+            g <- g + coord_cartesian(ylim = c(targets[[output_names[i]]][1] - yrange, targets[[output_names[i]]][2] + yrange))
+          }
           return(suppressWarnings(g))
         })
     }
@@ -222,6 +227,7 @@ wave_dependencies <- function(waves, targets, output_names = names(targets), inp
 #' @param zero_in Is wave zero included? Default: TRUE
 #' @param palette If a larger palette is required, it should be supplied here.
 #' @param wave_numbers Which waves to plot. If not supplied, all waves are plotted.
+#' @param normalize If true, plotting is done with rescaled target bounds.
 #' @param ... Optional parameters (not to be used directly)
 #'
 #' @return A ggplot object.
@@ -233,7 +239,7 @@ wave_dependencies <- function(waves, targets, output_names = names(targets), inp
 #'  simulator_plot(GillespieMultiWaveData[2:4], sample_emulators$targets,
 #'   zero_in = FALSE, wave_numbers = c(1,3))
 #'
-simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_numbers = seq(ifelse(zero_in, 0, 1), length(wave_points)-ifelse(zero_in, 1, 0)), ...) {
+simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_numbers = seq(ifelse(zero_in, 0, 1), length(wave_points)-ifelse(zero_in, 1, 0)), normalize = FALSE, ...) {
   z <- tryCatch(
     purrr::map(z, ~c(.$val - 3*.$sigma, .$val + 3*.$sigma)),
     error = function(e) z
@@ -242,6 +248,12 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_
   output_names <- names(z)
   sim_runs <- do.call('rbind', purrr::map(wave_numbers, ~data.frame(wave_points[[.+ifelse(zero_in, 1, 0)]][,output_names], wave = .)))
   sim_runs$run <- 1:length(sim_runs[,1])
+  if (normalize) {
+    for (i in names(z)) {
+      sim_runs[[i]] <- (2*sim_runs[[i]] - z[[i]][1]-z[[i]][2])/(diff(z[[i]]))
+      z[[i]] <- c(-1,1)
+    }
+  }
   melted <- reshape2::melt(sim_runs, id.vars = c('run', 'wave'))
   melted$wave = as.factor(melted$wave)
   if (is.null(palette))
@@ -257,7 +269,8 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_
     labs(title = "Simulator evaluations at wave points") +
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-  return(g)
+  if (normalize) g <- g + coord_cartesian(ylim = c(-3, 3))
+  return(suppressWarnings(print(g)))
 }
 
 #' Diagnostic plots for wave outputs
@@ -282,6 +295,7 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_
 #' @param directory The location of files to be saved (if required).
 #' @param s.heights The heights of the saved pngs (if directory is not NULL).
 #' @param s.widths The widths of the saved pngs (if directory is not NULL).
+#' @param include.norm Should normalized versions of simulator_plot and wave_dependencies be made?
 #' @param ... Optional parameters (eg \code{p_size}, \code{l_wid}, ...)
 #'
 #' @return The set of plots (either into console or saved)..
@@ -292,12 +306,14 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_
 #'  diagnostic_wrap(GillespieMultiWaveData, sample_emulators$targets,
 #'   input_names = c('aSI', 'aIR'), output_names = c('nI', 'nR'),
 #'   p_size = 0.8, l_wid = 0.8, wave_numbers = 1:3, surround = TRUE)
-diagnostic_wrap <- function(waves, targets, output_names = names(targets), input_names = names(waves[[1]])[!names(waves[[1]]) %in% names(targets)], directory = NULL, s.heights = rep(1000, 4), s.widths = s.heights, ...) {
+diagnostic_wrap <- function(waves, targets, output_names = names(targets), input_names = names(waves[[1]])[!names(waves[[1]]) %in% names(targets)], directory = NULL, s.heights = rep(1000, 4), s.widths = s.heights, include.norm = TRUE, ...) {
   if (is.null(directory) || !file.exists(sub("(.*)/[^/]*$", "\\1", directory))) {
     print(simulator_plot(waves, targets, ...))
+    if (include.norm) print(simulator_plot(waves, targets, normalize = TRUE, ...))
     print(wave_points(waves, input_names, ...))
     print(wave_values(waves, targets, output_names, ...))
     print(wave_dependencies(waves, targets, output_names, input_names, ...))
+    if (include.norm) print(wave_dependencies(waves, targets, output_names, input_names, normalize = TRUE, ...))
   }
   else {
     while(length(s.widths) < 4) s.widths = c(s.widths, s.widths)
@@ -305,6 +321,11 @@ diagnostic_wrap <- function(waves, targets, output_names = names(targets), input
     png(filename = paste0(directory, "simulatorplot.png"), width = s.widths[1], height = s.heights[1])
     print(simulator_plot(waves, targets, ...))
     dev.off()
+    if (include.norm) {
+      png(filename = paste0(directory, "simulatorplotnorm.png"), width = s.widths[1], height = s.heights[1])
+      print(simulator_plot(waves, targets, normalize = TRUE, ...))
+      dev.off()
+    }
     png(filename = paste0(directory, "posteriorplot.png"), width = s.widths[2], height = s.heights[2])
     print(wave_points(waves, input_names, ...))
     dev.off()
@@ -314,6 +335,11 @@ diagnostic_wrap <- function(waves, targets, output_names = names(targets), input
     png(filename = paste0(directory, "dependencyplot.png"), width = s.widths[4], height = s.heights[4])
     print(wave_dependencies(waves, targets, output_names, input_names, ...))
     dev.off()
+    if (include.norm) {
+      png(filename = paste0(directory, "dependencyplotnorm.png"), width = s.widths[4], height = s.heights[4])
+      print(wave_dependencies(waves, targets, output_names, input_names, normalize = TRUE, ...))
+      dev.off()
+    }
   }
 }
 

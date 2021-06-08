@@ -297,7 +297,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
     model_u_corrs <- purrr::map(u, ~.$corr)
   }
   if (any(is.null(model_beta_mus) || is.null(model_u_sigmas) || is.null(model_u_corrs))) {
-    if (missing(c_lengths)) theta_ranges <- purrr::map(model_basis_funcs, ~list(theta = c(0.3, ifelse(quadratic, 1, 2))))
+    if (missing(c_lengths)) theta_ranges <- purrr::map(model_basis_funcs, ~list(theta = c(1/3, ifelse(quadratic, 1, 2))))
     else theta_ranges <- c_lengths
     specs <- purrr::map(seq_along(model_basis_funcs), ~likelihood_estimate(data[,input_names], data[,output_names[[.]]], model_basis_funcs[[.]], hp_range = theta_ranges[[.]], beta = model_beta_mus[[.]], delta = model_deltas[[.]]))
     if (is.null(model_u_sigmas)) model_u_sigmas <- purrr::map(specs, ~as.numeric(.$sigma))

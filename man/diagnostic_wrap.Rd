@@ -12,6 +12,7 @@ diagnostic_wrap(
   directory = NULL,
   s.heights = rep(1000, 4),
   s.widths = s.heights,
+  include.norm = TRUE,
   ...
 )
 }
@@ -29,6 +30,8 @@ diagnostic_wrap(
 \item{s.heights}{The heights of the saved pngs (if directory is not NULL).}
 
 \item{s.widths}{The widths of the saved pngs (if directory is not NULL).}
+
+\item{include.norm}{Should normalized versions of simulator_plot and wave_dependencies be made?}
 
 \item{...}{Optional parameters (eg \code{p_size}, \code{l_wid}, ...)}
 }
