@@ -12,6 +12,7 @@ simulator_plot(
   wave_numbers = seq(ifelse(zero_in, 0, 1), length(wave_points) - ifelse(zero_in, 1,
     0)),
   normalize = FALSE,
+  logscale = FALSE,
   ...
 )
 }
@@ -27,6 +28,8 @@ simulator_plot(
 \item{wave_numbers}{Which waves to plot. If not supplied, all waves are plotted.}
 
 \item{normalize}{If true, plotting is done with rescaled target bounds.}
+
+\item{logscale}{If true, targets are log-scaled before plotting.}
 
 \item{...}{Optional parameters (not to be used directly)}
 }
