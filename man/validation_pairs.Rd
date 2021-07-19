@@ -46,6 +46,6 @@ space upon which the emulators have been trained.
 \examples{
  validation_pairs(sample_emulators$ems, GillespieValidation, sample_emulators$targets)
  wider_ranges <- purrr::map(sample_emulators$ems[[1]]$ranges, ~.*c(-2, 2))
- validation_pairs(sample_emulators$ems$nS, GillespieValidation,
+ validation_pairs(sample_emulators$ems, GillespieValidation,
   sample_emulators$targets, ranges = wider_ranges, cb = TRUE)
 }

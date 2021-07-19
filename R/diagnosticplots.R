@@ -165,7 +165,7 @@ space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1
 #' @examples
 #'  validation_pairs(sample_emulators$ems, GillespieValidation, sample_emulators$targets)
 #'  wider_ranges <- purrr::map(sample_emulators$ems[[1]]$ranges, ~.*c(-2, 2))
-#'  validation_pairs(sample_emulators$ems$nS, GillespieValidation,
+#'  validation_pairs(sample_emulators$ems, GillespieValidation,
 #'   sample_emulators$targets, ranges = wider_ranges, cb = TRUE)
 validation_pairs <- function(ems, points, targets, ranges, nth = 1, cb = FALSE) {
   if ("Emulator" %in% class(ems)) {
