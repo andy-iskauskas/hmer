@@ -47,7 +47,7 @@ nth_implausible <- function(ems, x, z, n = 1, max_imp = 20, cutoff = NULL) {
   outputs <- if (is.numeric(z)) purrr::map(z, ~list(val = ., sigma = 0.01)) else z
   if (length(cutoff) == 1) cutoff <- rep(cutoff, length(ems))
   implausibles <- do.call('cbind', purrr::map(seq_along(ems), ~ems[[.]]$implausibility(x, outputs[[ems[[.]]$output_name]], cutoff[[.]])))
-  d_implausibles <- setNames(data.frame(implausibles), names(z))
+  d_implausibles <- setNames(data.frame(implausibles), purrr::map_chr(ems, ~.$output_name))
   if (!is.null(cutoff))
     implausibles <- t(apply(d_implausibles, 1, function(x) purrr::map_dbl(unique(names(x)), ~all(x[names(x) == .]))))
   else implausibles <- t(apply(d_implausibles, 1, function(x) purrr::map_dbl(unique(names(x)), ~max(x[names(x) == .]))))
