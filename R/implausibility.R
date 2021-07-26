@@ -52,7 +52,7 @@ nth_implausible <- function(ems, x, z, n = 1, max_imp = 20, cutoff = NULL) {
     implausibles <- t(apply(d_implausibles, 1, function(x) purrr::map_dbl(unique(names(x)), ~all(x[names(x) == .]))))
   else implausibles <- t(apply(d_implausibles, 1, function(x) purrr::map_dbl(unique(names(x)), ~max(x[names(x) == .]))))
   if (!is.null(cutoff))
-    return(apply(implausibles, 1, function(x) sum(x) > length(ems)-n))
+    return(apply(implausibles, 1, function(x) sum(x) > length(unique(purrr::map_chr(ems, ~.$output_name)))-n))
   if (n == 1)
     imps <- apply(implausibles, 1, max)
   else
