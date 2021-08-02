@@ -13,6 +13,7 @@ generate_new_runs(
   nth = 1,
   plausible_set,
   verbose = FALSE,
+  cluster = FALSE,
   ...
 )
 }
@@ -32,6 +33,8 @@ generate_new_runs(
 \item{plausible_set}{An optional set of known non-implausible points (for eg line sampling).}
 
 \item{verbose}{Should progress statements be printed to the console?}
+
+\item{cluster}{Should emulator clustering be considered in the LHS generation?}
 
 \item{...}{Any parameters to pass to individual sampling functions, eg \code{distro} for importance sampling.}
 }

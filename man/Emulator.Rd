@@ -45,7 +45,7 @@ Creates a univariate emulator object.
   \code{a_vars} A logical vector indicating which variables are active for
   this emulator.
 
-  \code{out_var} The name of the output variable.
+  \code{out_name} The name of the output variable.
 
   Internal:
 

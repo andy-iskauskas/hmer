@@ -5,29 +5,15 @@
 \title{Variance Emulator Creation}
 \usage{
 variance_emulator_from_data(
-  input_data_var,
-  input_data_exp,
-  npoints,
+  input_data,
   output_names,
   ranges,
   input_names = names(ranges),
-  kurt = 3,
-  beta,
-  u,
-  c_lengths,
-  funcs,
-  deltas,
-  ev,
-  quadratic = TRUE,
-  beta.var = FALSE
+  ...
 )
 }
 \arguments{
-\item{input_data_var}{The variance data.}
-
-\item{input_data_exp}{The function data.}
-
-\item{npoints}{The number of replicates per observation.}
+\item{input_data}{All model runs at all points.}
 
 \item{output_names}{The observation names.}
 
@@ -35,23 +21,7 @@ variance_emulator_from_data(
 
 \item{input_names}{The names of the parameters (if \code{ranges} is not provided).}
 
-\item{kurt}{The expected kurtosis of the data.}
-
-\item{beta}{A list of regression coefficients for each output.}
-
-\item{u}{A list of \code{\link{Correlator}} objects for each output.}
-
-\item{c_lengths}{A list of correlation lengths for each output.}
-
-\item{funcs}{A list of regression functions for each output.}
-
-\item{deltas}{Nugget terms for each correlation structure.}
-
-\item{ev}{Estimates of ensemble variability for each output.}
-
-\item{quadratic}{Should a quadratic or linear fit be found?}
-
-\item{beta.var}{Should regression coefficient uncertainty be included?}
+\item{...}{Optional parameters that can be passed to \code{link{emulator_from_data}}.}
 }
 \value{
 A list of lists: one for the variance emulators and one for the function emulators.
@@ -63,20 +33,10 @@ areas of the parameter space (for example, in an epidemic model). This function 
 the requisite two-stage Bayes Linear update.
 }
 \details{
-Two sets of data are required: the observed variance of the stochastic runs at each point,
-and their corresponding mean output values. The data.frames should have the same named
-inputs and outputs. A parameter \code{npoints} is also required: this is a single numeric
-or vector of numerics representing the number of replicates done at each input point.
+All observations are required (including replicates at points) - this function collects
+them into the required chunks and calculates the summary statistics as required.
 
 All other parameters passed to this function are equivalent to those in
 \code{\link{emulator_from_data}} - one notable absence is that by default, the returned
 emulators are the Bayes Linear adjusted forms.
-}
-\examples{
- # Use the BirthDeath dataset
- ranges <- list(lambda = c(0, 0.08), mu = c(0.04, 0.13))
- v_ems <- variance_emulator_from_data(BirthDeath$var, BirthDeath$mean, BirthDeath$reps,
-  paste0('t', c(1, 7, 15)), ranges)
- v_ems$varance
- v_ems$expectation
 }

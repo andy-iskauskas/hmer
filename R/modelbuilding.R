@@ -324,7 +324,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
   return(out_ems)
 }
 
-#' Variance Emulator Creation
+#' Variance Emulator Creation (Deprecated)
 #'
 #' For stochastic systems, it can be helpful to emulate the variance as well as the function.
 #' This is particularly true if one expects the variance to be very different in different
@@ -362,11 +362,11 @@ emulator_from_data <- function(input_data, output_names, ranges,
 #' @examples
 #'  # Use the BirthDeath dataset
 #'  ranges <- list(lambda = c(0, 0.08), mu = c(0.04, 0.13))
-#'  v_ems <- variance_emulator_from_data(BirthDeath$var, BirthDeath$mean, BirthDeath$reps,
+#'  v_ems <- variance_emulator_from_data_old(BirthDeath$var, BirthDeath$mean, BirthDeath$reps,
 #'   paste0('t', c(1, 7, 15)), ranges)
-#'  v_ems$varance
+#'  v_ems$variance
 #'  v_ems$expectation
-variance_emulator_from_data <- function(input_data_var, input_data_exp, npoints,
+variance_emulator_from_data_old <- function(input_data_var, input_data_exp, npoints,
                                         output_names, ranges, input_names = names(ranges),
                                         kurt = 3, beta, u,
                                         c_lengths, funcs, deltas, ev,
@@ -380,4 +380,91 @@ variance_emulator_from_data <- function(input_data_var, input_data_exp, npoints,
   for (i in 1:length(p_e_e)) p_e_e[[i]]$s_diag <- c(exp_mods[[i]])
   t_e_e <- setNames(purrr::map(seq_along(p_e_e), ~p_e_e[[.]]$adjust(input_data_exp, output_names[[.]])), output_names)
   return(list(variance = t_v_e, expectation = t_e_e))
+}
+
+#' Variance Emulator Creation
+#'
+#' For stochastic systems, it can be helpful to emulate the variance as well as the function.
+#' This is particularly true if one expects the variance to be very different in different
+#' areas of the parameter space (for example, in an epidemic model). This function performs
+#' the requisite two-stage Bayes Linear update.
+#'
+#' All observations are required (including replicates at points) - this function collects
+#' them into the required chunks and calculates the summary statistics as required.
+#'
+#' All other parameters passed to this function are equivalent to those in
+#' \code{\link{emulator_from_data}} - one notable absence is that by default, the returned
+#' emulators are the Bayes Linear adjusted forms.
+#'
+#' @importFrom stats var
+#'
+#' @param input_data All model runs at all points.
+#' @param output_names The observation names.
+#' @param ranges A named list of parameter ranges
+#' @param input_names The names of the parameters (if \code{ranges} is not provided).
+#' @param ... Optional parameters that can be passed to \code{link{emulator_from_data}}.
+#'
+#' @return A list of lists: one for the variance emulators and one for the function emulators.
+#' @export
+variance_emulator_from_data <- function(input_data, output_names, ranges, input_names = names(ranges), ...) {
+  data_by_point <- split(input_data, input_data[,input_names])
+  data_by_point <- data_by_point[purrr::map_lgl(data_by_point, ~nrow(.)>0)]
+  collected_stats <- do.call('rbind', lapply(data_by_point, function(x) {
+    n_points <- nrow(x)
+    if (length(output_names) == 1) {
+      means <- mean(x[,output_names])
+      vars <- var(x[,output_names])
+      kurts <- moments::kurtosis(x[,output_names])
+    }
+    else {
+      means <- apply(x[,output_names], 2, mean)
+      vars <- apply(x[,output_names], 2, var)
+      kurts <- apply(x[,output_names], 2, moments::kurtosis)
+    }
+    vofv <- vars^2 * (kurts - 1 + 2/(n_points-1))/n_points
+    kurt_relevant <- purrr::map_dbl(seq_along(kurts), function(x) {
+        if((vofv/vars)[x] <= 1) kurts[x] else NA
+      })
+    return(c(x[1, input_names], means, vars, kurt_relevant, n_points, use.names = FALSE))
+  }))
+  collected_df <- setNames(data.frame(collected_stats), c(input_names, paste0(output_names, "mean"), paste0(output_names, "var"), paste0(output_names, "kurt"), "n"))
+  collected_df <- data.frame(apply(collected_df, 2, unlist))
+  variance_emulators <- list()
+  for (i in output_names) {
+    is_high_rep <- !is.na(collected_df[,paste0(i,"kurt")])
+    all_var <- setNames(collected_df[,c(input_names, paste0(i, 'var'))], c(input_names, i))
+    all_n <- collected_df$n
+    if (all(is_high_rep)) kurt_ave <- mean(collected_df[,paste0(i,'kurt')])
+    else if (!any(is_high_rep)) kurt_ave <- 3
+    else kurt_ave <- mean(collected_df[is_high_rep, paste0(i, 'kurt')])
+    if (all(is_high_rep) || !any(is_high_rep)) {
+      var_df <- setNames(collected_df[is_high_rep, c(input_names, paste0(i, "var"))], c(input_names, i))
+      npoints <- collected_df[is_high_rep, 'n']
+      if (sum(is_high_rep) == 1) {
+        point <- all_var[is_high_rep,]
+        temp_corr <- Correlator$new(hp = list(theta = 0.5))
+        variance_em <- Emulator$new(basis_f = c(function(x) 1), beta = list(mu = c(point$var), sigma = c(0)), u = list(sigma = point$var^2, corr = temp_corr), ranges = ranges, out_var = i)
+      }
+      else {
+        variance_em <- emulator_from_data(var_df, i, ranges, quadratic = FALSE, adjusted = FALSE, ...)[[1]]
+      }
+    }
+    else {
+      variance_em <- emulator_from_data(all_var, i, ranges, quadratic = FALSE, adjusted = FALSE, ...)[[1]]
+    }
+    var_mod <- (variance_em$get_exp(all_var)^2 + variance_em$get_cov(all_var))/all_n * (kurt_ave - 1 + 2/(all_n-1))
+    variance_em$s_diag <- c(var_mod, use.names = FALSE)
+    if (all(is_high_rep) || !any(is_high_rep))
+      v_em <- variance_em$adjust(all_var, i)
+    else
+      v_em <- variance_em$adjust(setNames(collected_df[!is_high_rep, c(input_names, paste0(i, 'var'))], c(input_names, i)), i)
+    variance_emulators <- c(variance_emulators, v_em)
+  }
+  variance_emulators <- setNames(variance_emulators, output_names)
+  exp_mods <- purrr::map(variance_emulators, ~.$get_exp(collected_df[,input_names])/collected_df$n)
+  exp_data <- setNames(collected_df[,c(input_names, paste0(output_names, 'mean'))], c(input_names, output_names))
+  exp_em <- emulator_from_data(exp_data, output_names, ranges, input_names, adjusted = FALSE, ...)
+  for (i in 1:length(exp_em)) exp_em[[i]]$s_diag <- c(exp_mods[[i]])
+  expectation_emulators <- setNames(purrr::map(seq_along(exp_em), ~exp_em[[.]]$adjust(exp_data, output_names[[.]])), output_names)
+  return(list(variance = variance_emulators, expectation = expectation_emulators))
 }

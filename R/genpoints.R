@@ -68,6 +68,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #' @param nth A parameter to be passed to the \code{n} argument of \code{\link{nth_implausible}}.
 #' @param plausible_set An optional set of known non-implausible points (for eg line sampling).
 #' @param verbose Should progress statements be printed to the console?
+#' @param cluster Should emulator clustering be considered in the LHS generation?
 #' @param ... Any parameters to pass to individual sampling functions, eg \code{distro} for importance sampling.
 #'
 #' @return A data.frame containing the set of new points to run the model at.
@@ -86,7 +87,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #'  pts_no_importance <- generate_new_runs(sample_emulators$ems, 100, sample_emulators$targets,
 #'   method = c('line'))
 #' }
-generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'importance'), cutoff = 3, nth = 1, plausible_set, verbose = FALSE, ...) {
+generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'importance'), cutoff = 3, nth = 1, plausible_set, verbose = FALSE, cluster = FALSE, ...) {
   ranges <- if ("Emulator" %in% class(ems)) ems$ranges else ems[[1]]$ranges
   possible_methods <- c('lhs', 'line', 'importance', 'slice', 'optical')
   which_methods <- possible_methods[possible_methods %in% method]
@@ -94,7 +95,8 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
   if (any(!method %in% possible_methods)) warning(paste("Unrecognised method name(s)", method[!method %in% possible_methods], "ignored."))
   if (missing(plausible_set) || 'lhs' %in% which_methods) {
     if (verbose) print("Performing LH sampling...")
-    points <- lhs_gen(ems, n_points, z, cutoff, nth, verbose = verbose, ...)
+    if (cluster) points <- lhs_gen_cluster(ems, n_points, z, cutoff, nth, verbose = verbose, ...)
+    else points <- lhs_gen(ems, n_points, z, cutoff, nth, verbose = verbose, ...)
     if (verbose) print(paste("LH sampling generated", nrow(points), "points."))
   }
   else points <- plausible_set[nth_implausible(ems, plausible_set, z, n = nth, cutoff = cutoff),]
@@ -186,6 +188,53 @@ lhs_gen <- function(ems, n_points, z, cutoff = 3, nth = 1, measure.method = 'V_o
   return(setNames(data.frame(out_points), names(ranges)))
 }
 
+lhs_gen_cluster <- function(ems, n_points, z, cutoff = 3, nth = 1, previous_ems = NULL, verbose = FALSE, ...) {
+  if ("Emulator" %in% class(ems)) return(lhs_gen(ems, n_points, z, cutoff, nth))
+  ranges <- ems[[1]]$ranges
+  which_active <- setNames(data.frame(do.call('rbind', purrr::map(ems, ~.$active_vars))), names(ranges))
+  cluster_id <- cluster::fanny(cluster::daisy(which_active, warnType = FALSE), k = 2)$clustering
+  c1 <- ems[cluster_id == 1]
+  c2 <- ems[cluster_id == 2]
+  p1 <- unique(do.call(c, purrr::map(c1, ~names(ranges)[.$active_vars])))
+  p2 <- unique(do.call(c, purrr::map(c2, ~names(ranges)[.$active_vars])))
+  pn <- intersect(p1, p2)
+  if (verbose) print(paste("Clusters determined. Cluster 1 is length", length(c1), "with", length(p1), "active variables; cluster 2 is length", length(c2), "with", length(p2), "parameters -", length(pn), "shared."))
+  if (length(union(p1, p2)) == length(intersect(p1, p2)) && all(union(p1,p2) == intersect(p1,p2))) return(lhs_gen(ems, n_points, z, cutoff, nth))
+  ## Proposing from c1
+  lhs1 <- setNames(data.frame(2 * (lhs::randomLHS(n_points * 10, length(p1))-0.5)), p1)
+  spare1 <- ranges[!names(ranges) %in% p1]
+  for (i in 1:length(spare1)) {
+    lhs1[[names(spare1)[i]]] <- runif(nrow(lhs1), -1, 1)
+  }
+  lhs1 <- lhs1[,names(ranges)]
+  lhs1 <- eval_funcs(scale_input, lhs1, ranges, FALSE)
+  valid1 <- lhs1[nth_implausible(c1, lhs1, z, cutoff = cutoff, n = nth),]
+  if (nrow(valid1) == 0) return(valid1)
+  if(verbose) print(paste("Proposing from cluster 1:", nrow(valid1), "points deemed acceptable."))
+  ## Proposing from c2, with valid1 as a 'prior'
+  n_lhs <- ceiling(n_points * 10/nrow(valid1))
+  lhs2 <- setNames(data.frame(2 * (lhs::randomLHS(n_lhs, length(p2))-0.5)), p2)
+  lhs2 <- eval_funcs(scale_input, lhs2, ranges[p2], FALSE)
+  lhs2 <- lhs2[rep(seq_len(nrow(lhs2)), each = nrow(valid1)),]
+  lhs2[,setdiff(p1, pn)] <- valid1[rep(seq_len(nrow(valid1)), n_lhs), setdiff(p1, pn)]
+  for (i in pn)
+    lhs2[,i] <- valid1[rep(seq_len(nrow(valid1)), n_lhs), i] + runif(nrow(lhs2)) * (lhs2[,i] - valid1[rep(seq_len(nrow(valid1)), n_lhs), i])
+  for (i in setdiff(names(ranges), union(p1, p2)))
+    lhs2[,i] <- runif(nrow(lhs2), ranges[[i]][1], ranges[[i]][2])
+  lhs2 <- lhs2[,names(ranges)]
+  valid2 <- lhs2[nth_implausible(c2, lhs2, z, cutoff = cutoff, n = nth),]
+  if (nrow(valid2) == 0) return(valid2)
+  ## Put these back into c1, and then into previous waves (if any)
+  valid2 <- valid2[nth_implausible(c1, valid2, z, cutoff = cutoff, n = nth),]
+  if(verbose) print(paste("Proposing from cluster 2:", nrow(valid2), "points deemed acceptable."))
+  if (!is.null(previous_ems) && nrow(valid2) != 0)
+    final_out <- valid2[nth_implausible(previous_ems, valid2, z, cutoff = cutoff, n = nth),]
+  else
+    final_out <- valid2
+  if (nrow(final_out) > n_points) final_out <- final_out[sample(1:nrow(final_out), n_points),]
+  return(final_out)
+}
+
 # Line Sampling function
 line_sample <- function(ems, z, s_points, nlines = 20, ppl = 26, cutoff = 3, nth = 1, ...) {
   ranges <- if("Emulator" %in% class(ems)) ems$ranges else ems[[1]]$ranges
@@ -247,7 +296,7 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, nth = 1, d
       sd <- purrr::map_dbl(ranges, diff)/3
   }
   accept_rate <- NULL
-  while (is.null(accept_rate) || accept_rate > 0.25 || accept_rate < 0.2) {
+  while (is.null(accept_rate) || accept_rate > 0.125 || accept_rate < 0.075) {
     if (!is.null(accept_rate)) {
       if (accept_rate > 0.25) sd <- sd * 1.1
       else sd <- sd * 0.9
