@@ -198,3 +198,103 @@ validation_pairs <- function(ems, points, targets, ranges, nth = 1, cb = FALSE) 
     theme_minimal()
   return(g)
 }
+
+#' Find Effect Strength of Active Variables
+#'
+#' Collates the linear and quadratic contributions of the active variables to the global
+#' emulators' behaviour
+#'
+#' For a set of emulators, it can be useful to see the relative contributions of various
+#' parameters to the global part of the emulator (i.e. the regression surface). This
+#' function extracts the relevant information from a list of emulator objects.
+#'
+#' The parameter \code{quadratic} controls whether quadratic effect strength is
+#' calculated and plotted (an unecessary plot if, say, linear emulators have been trained).
+#' The remaining options control visual aspects of the plots: \code{line_plot} determines
+#' whether a line or bar (default) plot should be produced, and \code{labels} determines
+#' if a legend should be provided with the plot (for large numbers of emulators, it is
+#' advisable to set this to \code{FALSE}).
+#'
+#' @importFrom ggplot2 geom_col
+#'
+#' @param ems The Emulator object(s) to be analyzed.
+#' @param line_plot Should a line plot be produced?
+#' @param labels Whether or not the legend should be included.
+#' @param quadratic Whether or not quadratic effect strength should be calculated.
+#'
+#' @return A list of data.frames: the first is the linear strength, and the second quadratic.
+#'
+#' @export
+#'
+#' @examples
+#'  effect <- effect_strength(sample_emulators$ems)
+#'  effect_line <- effect_strength(sample_emulators$ems, line_plot = TRUE)
+effect_strength <- function(ems, line_plot = FALSE, labels = TRUE, quadratic = TRUE) {
+  get_effect_strength <- function(em, quad = FALSE) {
+    es <- c()
+    for (i in 1:length(em$ranges)) {
+      plus_vec <- c(rep(0, i-1), 1, rep(0, length(em$ranges)-i))
+      minus_vec <- c(rep(0, i-1), -1, rep(0, length(em$ranges)-i))
+      zero_vec <- rep(0, length(em$ranges))
+      p_f <- purrr::map_dbl(em$basis_f, purrr::exec, plus_vec) %*% em$beta_mu
+      m_f <- purrr::map_dbl(em$basis_f, purrr::exec, minus_vec) %*% em$beta_mu
+      z_f <- purrr::map_dbl(em$basis_f, purrr::exec, zero_vec) %*% em$beta_mu
+      if (quad) es <- c(es, round((p_f+m_f-2*z_f)/2, 6))
+      else es <- c(es, round((p_f - m_f)/2, 6))
+    }
+    return(es)
+  }
+  if ("Emulator" %in% class(ems)) ems <- setNames(list(ems), ems$output_name)
+  ranges <- ems[[1]]$ranges
+  linear_effect_strength <- setNames(data.frame(do.call('rbind', purrr::map(ems, get_effect_strength))), names(ranges))
+  if (quadratic)
+  {
+    quadratic_effect_strength <- setNames(data.frame(do.call('rbind', purrr::map(ems, get_effect_strength, TRUE))), names(ranges))
+    complete_set <- list(linear = linear_effect_strength, quadratic = quadratic_effect_strength)
+    quad.mat <- reshape2::melt(as.matrix(quadratic_effect_strength))
+  }
+  else complete_set <- linear_effect_strength
+  lin.mat <- reshape2::melt(as.matrix(linear_effect_strength))
+  Var1 <- Var2 <- value <- NULL
+  if (line_plot) {
+    g <- ggplot(data = lin.mat, aes(x = Var2, y = value, group = Var1, colour = Var1)) +
+        geom_line(lwd = 1.2) +
+        viridis::scale_color_viridis(discrete = TRUE, name = "Output") +
+        theme_bw() +
+        labs(title = "Linear Effect Strength", x = "Parameter", y = "Strength") +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+    if (!labels) g <- g + theme(legend.position = 'none')
+    print(g)
+    if(quadratic) {
+      g <- ggplot(data = quad.mat, aes(x = Var2, y = value, group = Var1, colour = Var1)) +
+        geom_line(lwd = 1.2) +
+        viridis::scale_color_viridis(discrete = TRUE, name = "Output") +
+        theme_bw() +
+        labs(title = "Quadratic Effect Strength", x = "Parameter", y = "Strength") +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+      if (!labels) g <- g + theme(legend.position = 'none')
+      print(g)
+    }
+  }
+  else {
+    g <- ggplot(data = lin.mat, aes(x = Var2, y = value, group = Var1, fill = Var1)) +
+      geom_col(position = 'dodge', colour = 'black') +
+      viridis::scale_fill_viridis(discrete = TRUE, name = "Output") +
+      theme_bw() +
+      labs(title = "Linear Effect Strength", x = "Parameter", y = "Strength") +
+      theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+    if (!labels) g <- g + theme(legend.position = 'none')
+    print(g)
+    if (quadratic) {
+      g <-ggplot(data = quad.mat, aes(x = Var2, y = value, group = Var1, fill = Var1)) +
+        geom_col(position = 'dodge', colour = 'black') +
+        viridis::scale_fill_viridis(discrete = TRUE, name = "Output") +
+        theme_bw() +
+        labs(title = "Quadratic Effect Strength", x = "Parameter", y = "Strength") +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+      if (!labels) g <- g + theme(legend.position = 'none')
+      print(g)
+    }
+  }
+  return(complete_set)
+}

@@ -24,7 +24,7 @@ Emulator <- R6::R6Class(
     o_em = NULL,
     output_name = NULL,
     s_diag = 0,
-    initialize = function(basis_f, beta, u, ranges, data = NULL, model = NULL, original_em = NULL, out_name = NULL, a_vars = NULL) {
+    initialize = function(basis_f, beta, u, ranges, data = NULL, model = NULL, original_em = NULL, out_name = NULL, a_vars = NULL, s_diag = 0) {
       self$model <- model
       self$model_terms <- tryCatch(
         c("1", labels(terms(self$model))),
@@ -37,6 +37,7 @@ Emulator <- R6::R6Class(
       self$u_mu <- function(x) 0
       self$u_sigma <- u$sigma
       self$corr <- u$corr
+      self$s_diag <- s_diag
       if (!is.null(out_name)) self$output_name <- out_name
       if (is.null(a_vars)) {
         self$active_vars <- purrr::map_lgl(seq_along(ranges), function(x) {
@@ -313,7 +314,7 @@ Emulator <- R6::R6Class(
                              u = list(sigma = self$u_sigma, corr = self$corr),
                              ranges = self$ranges, data = data[, c(names(self$ranges), out_name)],
                              original_em = self, out_name = out_name, model = self$model,
-                             a_vars = self$active_vars)
+                             a_vars = self$active_vars, s_diag = self$s_diag)
       return(new_em)
     },
     set_sigma = function(sigma) {
