@@ -1,4 +1,6 @@
 Changelog (Release Branch)
+05/08/2021 - v0.8.9. Fixes to variance emulator construction; effect_strength function addes to investigate active parameter impact; function-call vignette included.
+
 02/08/2021 - v0.8.8. New variance emulator constructor (old version exists but is deprecated); cluster point proposal algorithm for higher-dimensional spaces; minor fixes and improvements.
 
 02/07/2021 - v0.8.7. Added more diagnostic plots, as well as additional options to existing plots (for example, log-scaling and normalisation)

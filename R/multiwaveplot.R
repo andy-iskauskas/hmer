@@ -279,7 +279,7 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
   if (normalize) g <- g + coord_cartesian(ylim = c(-3, 3))
-  return(suppressWarnings(print(g)))
+  return(suppressWarnings(g))
 }
 
 #' Diagnostic plots for wave outputs
