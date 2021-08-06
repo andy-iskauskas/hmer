@@ -200,6 +200,13 @@ lhs_gen_cluster <- function(ems, n_points, z, cutoff = 3, nth = 1, previous_ems 
   pn <- intersect(p1, p2)
   if (verbose) print(paste("Clusters determined. Cluster 1 is length", length(c1), "with", length(p1), "active variables; cluster 2 is length", length(c2), "with", length(p2), "parameters -", length(pn), "shared."))
   if (length(union(p1, p2)) == length(intersect(p1, p2)) && all(union(p1,p2) == intersect(p1,p2))) return(lhs_gen(ems, n_points, z, cutoff, nth))
+  if (length(p1) == length(ranges) && length(p2) == length(ranges)) return(lhs_gen(ems, n_points, z, cutoff, nth))
+  if (length(p1) > length(p2)) {
+    c1 <- ems[cluster_id == 2]
+    c2 <- ems[cluster_id == 1]
+    p1 <- unique(do.call(c, purrr::map(c1, ~names(ranges)[.$active_vars])))
+    p2 <- unique(do.call(c, purrr::map(c2, ~names(ranges)[.$active_vars])))
+  }
   ## Proposing from c1
   lhs1 <- setNames(data.frame(2 * (lhs::randomLHS(n_points * 10, length(p1))-0.5)), p1)
   spare1 <- ranges[!names(ranges) %in% p1]
@@ -217,10 +224,14 @@ lhs_gen_cluster <- function(ems, n_points, z, cutoff = 3, nth = 1, previous_ems 
   lhs2 <- eval_funcs(scale_input, lhs2, ranges[p2], FALSE)
   lhs2 <- lhs2[rep(seq_len(nrow(lhs2)), each = nrow(valid1)),]
   lhs2[,setdiff(p1, pn)] <- valid1[rep(seq_len(nrow(valid1)), n_lhs), setdiff(p1, pn)]
-  for (i in pn)
-    lhs2[,i] <- valid1[rep(seq_len(nrow(valid1)), n_lhs), i] + runif(nrow(lhs2)) * (lhs2[,i] - valid1[rep(seq_len(nrow(valid1)), n_lhs), i])
-  for (i in setdiff(names(ranges), union(p1, p2)))
-    lhs2[,i] <- runif(nrow(lhs2), ranges[[i]][1], ranges[[i]][2])
+  if (length(pn) > 0) {
+    for (i in pn)
+      lhs2[,i] <- valid1[rep(seq_len(nrow(valid1)), n_lhs), i] + runif(nrow(lhs2)) * (lhs2[,i] - valid1[rep(seq_len(nrow(valid1)), n_lhs), i])
+  }
+  if (length(setdiff(names(ranges), union(p1, p2))) > 0) {
+    for (i in setdiff(names(ranges), union(p1, p2)))
+      lhs2[,i] <- runif(nrow(lhs2), ranges[[i]][1], ranges[[i]][2])
+  }
   lhs2 <- lhs2[,names(ranges)]
   valid2 <- lhs2[nth_implausible(c2, lhs2, z, cutoff = cutoff, n = nth),]
   if (nrow(valid2) == 0) return(valid2)

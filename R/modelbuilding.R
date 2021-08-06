@@ -137,7 +137,11 @@ likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_
       if (is.null(delta)) return(func_to_opt(c(x, 0)))
       else return(func_to_opt(c(x, delta)))
     })
-    best_initial <- grid_search[which.max(grid_liks),]
+    maximin_distance <- max(apply(diag(Inf, nrow(inputs)) + as.matrix(dist(inputs, diag = TRUE, upper = TRUE)), 1, min))
+    if (maximin_distance > hp_range[[1]][2])
+      best_initial <- grid_search[which.max(grid_liks),]
+    else
+      best_initial <- max(maximin_distance, grid_search[which.max(grid_liks),])
     if (sum(av) == length(inputs)) delta <- 0
     if(is.null(delta)) {
       initial_params <- c(best_initial, 0.01, use.names = F)
