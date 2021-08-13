@@ -307,9 +307,11 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, nth = 1, d
       sd <- purrr::map_dbl(ranges, diff)/3
   }
   accept_rate <- NULL
-  while (is.null(accept_rate) || accept_rate > 0.125 || accept_rate < 0.075) {
+  upper_accept <- 0.125
+  lower_accept <- 0.075
+  while (is.null(accept_rate) || accept_rate > upper_accept || accept_rate < lower_accept) {
     if (!is.null(accept_rate)) {
-      if (accept_rate > 0.25) sd <- sd * 1.1
+      if (accept_rate > upper_accept) sd <- sd * 1.1
       else sd <- sd * 0.9
     }
     how_many <- max(n_points, 500)
