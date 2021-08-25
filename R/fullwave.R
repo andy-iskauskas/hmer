@@ -25,8 +25,9 @@
 #' @noRd
 preflight <- function(data, targets, coff = 0.95, logging = NULL) {
   d_abridge <- data[,names(targets)]
-  if (!is.null(targets[[1]]$val))
-    targets <- purrr::map(targets, ~c(.$val - 3*.$sigma, .$val + 3*.$sigma))
+  for (i in 1:length(targets)) {
+    if (!is.atomic(targets[[i]])) targets[[i]] <- c(targets[[i]]$val - 3*targets[[i]]$sigma, targets[[i]]$val + 3*targets[[i]]$sigma)
+  }
   getHits <- function(data, targets) {
     hmm <- data.frame(do.call('cbind', purrr::map(seq_along(names(data)), ~data[,names(data)[.]] >= targets[[names(data)[[.]]]][1] & data[,names(data)[.]] <= targets[[names(data)[.]]][2])))
     hmm <- setNames(data.frame(t(apply(hmm, 1, as.numeric))), names(data))
@@ -129,7 +130,7 @@ preflight <- function(data, targets, coff = 0.95, logging = NULL) {
 #'
 #' @param data The data to train with.
 #' @param ranges The ranges of the input parameters
-#' @param targets The output targets to match to, as a list of (Val, sigma) pairs.
+#' @param targets The output targets to match to.
 #' @param old_emulators Any emulators from previous waves.
 #' @param prop_train What proportion of the data is used for training.
 #' @param cutoff The implausibility cutoff for point generation and diagnostics.
@@ -174,7 +175,8 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL, prop_train = 
   }
   if (length(invalid_ems) > 0)
     ems <- ems[-invalid_ems]
-  emulator_uncerts <- purrr::map_dbl(ems, ~sqrt(.$u_sigma^2 + targets[[.$output_name]]$sigma^2)/targets[[.$output_name]]$sigma)
+  if (!any(purrr::map_lgl(targets, is.atomic)))
+    emulator_uncerts <- purrr::map_dbl(ems, ~sqrt(.$u_sigma^2 + targets[[.$output_name]]$sigma^2)/targets[[.$output_name]]$sigma)
   if (length(ems) == 0) stop("No emulator passed diagnostic checks.")
   for (i in 1:length(ems)) {
     misclass <- nrow(classification_diag(ems[[i]], valid, targets, cutoff = cutoff, plt = FALSE))
@@ -203,6 +205,7 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL, prop_train = 
     if (nrow(new_points) == 0) inflations <- inflations + 1
   }
   if (nrow(new_points) == 0) stop("Could not generate points in non-implausible space.")
-  if (all(emulator_uncerts < 1.1) && length(emulator_uncerts) == length(targets)) print("All emulator uncertainties are comparable to target uncertainties. More waves may be unnecessary.")
+  if (!any(purrr::map_lgl(targets, is.atomic)))
+    if (all(emulator_uncerts < 1.1) && length(emulator_uncerts) == length(targets)) print("All emulator uncertainties are comparable to target uncertainties. More waves may be unnecessary.")
   return(list(points = new_points, emulators = ems))
 }

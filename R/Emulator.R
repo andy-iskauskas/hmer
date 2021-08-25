@@ -23,8 +23,9 @@ Emulator <- R6::R6Class(
     active_vars = NULL,
     o_em = NULL,
     output_name = NULL,
+    disc = list(internal = 0, external = 0),
     s_diag = 0,
-    initialize = function(basis_f, beta, u, ranges, data = NULL, model = NULL, original_em = NULL, out_name = NULL, a_vars = NULL, s_diag = 0) {
+    initialize = function(basis_f, beta, u, ranges, data = NULL, model = NULL, original_em = NULL, out_name = NULL, a_vars = NULL, discs = NULL, s_diag = 0) {
       self$model <- model
       self$model_terms <- tryCatch(
         c("1", labels(terms(self$model))),
@@ -48,6 +49,10 @@ Emulator <- R6::R6Class(
       }
       else self$active_vars <- a_vars
       if (all(self$active_vars == FALSE)) self$active_vars <- c(TRUE)
+      if (!is.null(discs)) {
+        self$disc$internal <- ifelse(!is.null(discs$internal), discs$internal, 0)
+        self$disc$external <- ifelse(!is.null(discs$external), discs$external, 0)
+      }
       self$beta_u_cov <- function(x) rep(0, length(self$beta_mu))
       if (is.null(ranges)) stop("Ranges for the parameters must be specified.")
       self$ranges <- ranges
@@ -274,9 +279,26 @@ Emulator <- R6::R6Class(
       return(round(beta_part + u_part + bupart, 10)/(rm1*rm2))
     },
     implausibility = function(x, z, cutoff = NULL) {
-      output <- if (is.numeric(z)) list(val = z, sigma = 0) else z
-      imp_var <- self$get_cov(x) + output$sigma^2
-      imp <- sqrt((output$val - self$get_exp(x))^2/imp_var)
+      disc_quad <- sum(purrr::map_dbl(self$disc, ~.^2))
+      if (!is.numeric(z) && !is.null(z$val)) {
+        imp_var <- self$get_cov(x) + z$sigma^2 + disc_quad
+        imp <- sqrt((z$val - self$get_exp(x))^2/imp_var)
+      }
+      else {
+        pred <- self$get_exp(x)
+        bound_check <- purrr::map_dbl(pred, function(y) {
+          if (y <= z[2] && y >= z[1]) return(0)
+          if (y < z[1]) return(-1)
+          if (y > z[2]) return(1)
+        })
+        which_compare <- purrr::map_dbl(bound_check, function(y) {
+          if (y < 1) return(z[1])
+          return(z[2])
+        })
+        uncerts <- self$get_cov(x) + disc_quad
+        uncerts[uncerts <= 0] <- 0.0001
+        imp <- bound_check * (pred - which_compare)/sqrt(uncerts)
+      }
       if (is.null(cutoff)) return(imp)
       return(imp <= cutoff)
     },
@@ -314,7 +336,7 @@ Emulator <- R6::R6Class(
                              u = list(sigma = self$u_sigma, corr = self$corr),
                              ranges = self$ranges, data = data[, c(names(self$ranges), out_name)],
                              original_em = self, out_name = out_name, model = self$model,
-                             a_vars = self$active_vars, s_diag = self$s_diag)
+                             a_vars = self$active_vars, s_diag = self$s_diag, discs = self$disc)
       return(new_em)
     },
     set_sigma = function(sigma) {

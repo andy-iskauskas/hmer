@@ -50,11 +50,10 @@ For details of each of the tests, see the help files for \code{\link{standard_er
 }
 \examples{
 validation_diagnostics(sample_emulators$ems, GillespieValidation, sample_emulators$targets)
-# Empty data.frame and a 3x3 set of plots
+# data.frame of failed points and a 3x3 set of plots
 validation_diagnostics(sample_emulators$ems, GillespieValidation, sample_emulators$targets,
  c('ce','cd'))
-# Empty data.frame and a 3x2 set of plots
+# data.frame and a 3x2 set of plots
 validation_diagnostics(sample_emulators$ems, GillespieValidation, sample_emulators$targets,
  cutoff = 2, sd = 2)
-# Data.frame with one point in it.
 }

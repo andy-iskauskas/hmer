@@ -47,6 +47,9 @@ Creates a univariate emulator object.
 
   \code{out_name} The name of the output variable.
 
+  \code{disc} Model discrepancies: does not include observational error. Ideally
+  split into \code{list(internal = ..., external = ...)}.
+
   Internal:
 
   \code{model} If a linear model, or otherwise, has been fitted to the data,

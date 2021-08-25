@@ -11,7 +11,7 @@ nth_implausible(ems, x, z, n = 1, max_imp = 20, cutoff = NULL)
 
 \item{x}{An input point, or \code{data.frame} of points.}
 
-\item{z}{The target values (one for each output)}
+\item{z}{The target values.}
 
 \item{n}{The implausibility level to return.}
 

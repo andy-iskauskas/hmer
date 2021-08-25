@@ -191,8 +191,7 @@ IDEMC_step <- function(ems, points, imp_func, imp_levels, s, pm = 0.9, M = 10) {
 #' \dontrun{
 #' ranges <- list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05))
 #' out_vars <- c('nS', 'nI', 'nR')
-#' o_ems <- emulator_from_data(GillespieSIR, out_vars, ranges)
-#' t_ems <- purrr::map(seq_along(o_ems), ~o_ems[[.]]$adjust(GillespieSIR, out_vars[[.]]))
+#' ems <- emulator_from_data(GillespieSIR, out_vars, ranges)
 #' z <- list(
 #'  nS = list(val = 281, sigma = 10.43),
 #'  nI = list(val = 30, sigma = 11.16),
@@ -203,12 +202,13 @@ IDEMC_step <- function(ems, points, imp_func, imp_levels, s, pm = 0.9, M = 10) {
 #'   aIR = runif(500, ranges$aIR[1], ranges$aIR[2]),
 #'   aSR = runif(500, ranges$aSR[1], ranges$aSR[2])
 #' )
-#' result <- IDEMC(start_pts, t_ems, z, 50, 100, 0.3, imp = 2)
+#' result <- IDEMC(start_pts, ems, z, 50, 100, 0.3, imp = 2)
 #' }
 #'
 #' @export
 #'
 IDEMC <- function(xsamp, ems, targets, s, sn, p, imp = 3, verbose = F, ...) {
+  xsamp <- xsamp[,names(ems[[1]]$ranges)]
   sample_imps <- nth_implausible(ems, xsamp, targets, max_imp = Inf)
   test_i <- max(sample_imps)
   range_func <- function(x, ranges) {
@@ -216,7 +216,7 @@ IDEMC <- function(xsamp, ems, targets, s, sn, p, imp = 3, verbose = F, ...) {
   }
   check_imp <- function(x, imp) {
     if (!range_func(x, ems[[1]]$ranges)) return(FALSE)
-    for (i in 1:length(ems)) if (!ems[[i]]$implausibility(x, targets[[i]], imp)) return(FALSE)
+    for (i in 1:length(ems)) if (!ems[[i]]$implausibility(x, targets[[ems[[i]]$output_name]], imp)) return(FALSE)
     return(TRUE)
   }
   imps <- c(test_i)

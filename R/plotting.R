@@ -67,7 +67,7 @@ imp_plot <- function(em, z, plotgrid = NULL, ppd = 30, cb = FALSE, nth = NULL) {
   imp_breaks <- c(0, 0.3, 0.7, 1, 1.3, 1.7, 2, 2.3, 2.7, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 10, 15, 100)
   imp_names <- c(0, '', '', 1, '', '', 2, '', '', 3, '', '', '', 5, '', '', '', 10, 15, '')
   if (!is.null(nth)) {
-    if (!"Emulator" %in% class(em) && length(em) == length(z)) {
+    if (!"Emulator" %in% class(em)) {
       em_imp <- nth_implausible(em, plotgrid[names(em[[1]]$ranges)], z, n = nth, max_imp = 99)
     }
     else stop("Not all required parameters (emulator list, target list, nth) passed for nth maximum implausibility.")
@@ -221,12 +221,16 @@ output_plot <- function(ems, targets, points = NULL, npoints = 1000) {
   em_exp <- setNames(data.frame(purrr::map(ems, ~.$get_exp(points))), names(targets))
   em_exp$run <- 1:nrow(points)
   em_exp <- reshape2::melt(em_exp, id.vars = 'run')
-  target_data <- data.frame(label = names(targets), mu = purrr::map_dbl(targets, ~.$val), sigma = purrr::map_dbl(targets, ~.$sigma))
-  variable <- value <- run <- mu <- sigma <- label <- NULL
+  for (i in 1:length(targets))
+  {
+    if (!is.atomic(targets[[i]])) targets[[i]] <- c(targets[[i]]$val - 3 * targets[[i]]$sigma, targets[[i]]$val + 3*targets[[i]]$sigma)
+  }
+  target_data <- data.frame(label = names(targets), mn = purrr::map_dbl(targets, ~.[1]), md = purrr::map_dbl(targets, mean), mx = purrr::map_dbl(targets, ~.[2]))
+  variable <- value <- run <- mn <- md <- mx <- label <- NULL
   ggplot(data = em_exp, aes(x = variable, y = value)) +
     geom_line(colour = 'purple', aes(group = run), lwd = 1) +
-    geom_point(data = target_data, aes(x = label, y = mu), size = 2) +
-    geom_errorbar(data = target_data, aes(x = label, y = mu, ymin = mu-3*sigma, ymax = mu+3*sigma), width = .1, size = 1.25) +
+    geom_point(data = target_data, aes(x = label, y = md), size = 2) +
+    geom_errorbar(data = target_data, aes(x = label, y = md, ymin = mn, ymax = mx), width = .1, size = 1.25) +
     labs(title = "Emulator Runs versus Observations")
 }
 

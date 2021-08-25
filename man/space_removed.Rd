@@ -10,7 +10,7 @@ space_removed(
   ppd = 10,
   u_mod = seq(0.8, 1.2, by = 0.1),
   intervals = seq(0, 10, length.out = 200),
-  modified = "disc"
+  modified = "obs"
 )
 }
 \arguments{
@@ -39,8 +39,9 @@ The reduction in space is found by evaluating a p^d regular grid, where p is cho
 accurate reflection of the space removed, at a corresponding computational cost. For the
 purpose of quick-and-dirty diagnostics, \code{ppd = 5} is sufficient: the default is 10.
 
-The parameter \code{modified} can be one of three strings: \code{'disc'} corresponding
-to model uncertainty (i.e. structural discrepancy); \code{'var'} corresponding to global
+The parameter \code{modified} can be one of three strings: \code{'obs'} corresponding
+to observation uncertainty; \code{'disc'} corresponding to internal and external
+discrepancy (as given in \code{Emulator$disc}); \code{'var'} corresponding to global
 emulator variance (as given by \code{Emulator$u_sigma}), and \code{'hp'} corresponding to
 the hyperparameters of the emulator correlation structure. In the first case, the
 implausibilities are recalculated for each inflation value; in the other two cases the
@@ -54,6 +55,4 @@ points deemed non-implausible is checked at a set of implausibility cutoffs defi
 }
 \examples{
 space_removed(sample_emulators$ems, sample_emulators$targets, ppd = 5)
-space_removed(sample_emulators$ems$nS, sample_emulators$targets$nS,
- ppd = 5, u_mod = seq(0.75, 1.25, by = 0.25), intervals = seq(2, 6, by = 0.1))
 }

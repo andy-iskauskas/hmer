@@ -70,10 +70,9 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5, ...)
 #'  wave_values(GillespieMultiWaveData, sample_emulators$targets, surround = TRUE, p_size = 1)
 #'  wave_values(GillespieMultiWaveData, sample_emulators$targets, c('nS', 'nI'), l_wid = 0.8)
 wave_values <- function(waves, targets, output_names = names(targets), surround = FALSE, restrict = FALSE, p_size = 1.5, l_wid = 1.5, ...) {
-  targets <- tryCatch(
-    purrr::map(targets, ~c(.$val - 3*.$sigma, .$val + 3*.$sigma)),
-    error = function(e) targets
-  )
+  for (i in 1:length(targets)) {
+    if (!is.atomic(targets[[i]])) targets[[i]] <- c(targets[[i]]$val - 3*targets[[i]]$sigma, targets[[i]]$val + 3*targets[[i]]$sigma)
+  }
   wave <- NULL
   out_list <- list()
   for (i in 0:(length(waves)-1)) {
@@ -171,10 +170,9 @@ wave_values <- function(waves, targets, output_names = names(targets), surround 
 #'
 wave_dependencies <- function(waves, targets, output_names = names(targets), input_names = names(waves[[1]])[!names(waves[[1]]) %in% names(targets)], p_size = 1.5, l_wid = 1.5, normalize = FALSE, ...) {
   input_names <- input_names
-  targets <- tryCatch(
-    purrr::map(targets, ~c(.$val - 3*.$sigma, .$val + 3*.$sigma)),
-    error = function(e) targets
-  )
+  for (i in 1:length(targets)) {
+    if (!is.atomic(targets[[i]])) targets[[i]] <- c(targets[[i]]$val - 3*targets[[i]]$sigma, targets[[i]]$val + 3*targets[[i]]$sigma)
+  }
   wave <- NULL
   for (i in 0:(length(waves)-1)) waves[[i+1]]$wave <- i
   total_data <- do.call('rbind', waves)
@@ -241,10 +239,9 @@ wave_dependencies <- function(waves, targets, output_names = names(targets), inp
 #'   zero_in = FALSE, wave_numbers = c(1,3))
 #'
 simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_numbers = seq(ifelse(zero_in, 0, 1), length(wave_points)-ifelse(zero_in, 1, 0)), normalize = FALSE, logscale = FALSE, ...) {
-  z <- tryCatch(
-    purrr::map(z, ~c(.$val - 3*.$sigma, .$val + 3*.$sigma)),
-    error = function(e) z
-  )
+  for (i in 1:length(z)) {
+    if (!is.atomic(z[[i]])) z[[i]] <- c(z[[i]]$val - 3*z[[i]]$sigma, z[[i]]$val + 3*z[[i]]$sigma)
+  }
   variable <- value <- run <- wave <- val <- sigma <- NULL
   output_names <- names(z)
   sim_runs <- do.call('rbind', purrr::map(wave_numbers, ~data.frame(wave_points[[.+ifelse(zero_in, 1, 0)]][,output_names], wave = .)))

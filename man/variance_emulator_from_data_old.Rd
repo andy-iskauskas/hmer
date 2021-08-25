@@ -19,7 +19,8 @@ variance_emulator_from_data_old(
   deltas,
   ev,
   quadratic = TRUE,
-  beta.var = FALSE
+  beta.var = FALSE,
+  discrepancies = NULL
 )
 }
 \arguments{
@@ -52,6 +53,8 @@ variance_emulator_from_data_old(
 \item{quadratic}{Should a quadratic or linear fit be found?}
 
 \item{beta.var}{Should regression coefficient uncertainty be included?}
+
+\item{discrepancies}{Any internal/external discrepancies in data.}
 }
 \value{
 A list of lists: one for the variance emulators and one for the function emulators.
@@ -71,12 +74,4 @@ or vector of numerics representing the number of replicates done at each input p
 All other parameters passed to this function are equivalent to those in
 \code{\link{emulator_from_data}} - one notable absence is that by default, the returned
 emulators are the Bayes Linear adjusted forms.
-}
-\examples{
- # Use the BirthDeath dataset
- ranges <- list(lambda = c(0, 0.08), mu = c(0.04, 0.13))
- v_ems <- variance_emulator_from_data_old(BirthDeath$var, BirthDeath$mean, BirthDeath$reps,
-  paste0('t', c(1, 7, 15)), ranges)
- v_ems$variance
- v_ems$expectation
 }

@@ -62,7 +62,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #'
 #' @param ems A list of \code{\link{Emulator}} objects, trained on previous design points.
 #' @param n_points The desired number of points to propose for the next wave.
-#' @param z The targets, as a named list.
+#' @param z The targets to match to.
 #' @param method The method(s) to use.
 #' @param cutoff The implausibility cutoff(s) to compare outputs to.
 #' @param nth A parameter to be passed to the \code{n} argument of \code{\link{nth_implausible}}.

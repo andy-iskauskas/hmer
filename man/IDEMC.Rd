@@ -56,8 +56,7 @@ ladder (where it is assumed that the burn-in generated fewer points than require
 \dontrun{
 ranges <- list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05))
 out_vars <- c('nS', 'nI', 'nR')
-o_ems <- emulator_from_data(GillespieSIR, out_vars, ranges)
-t_ems <- purrr::map(seq_along(o_ems), ~o_ems[[.]]$adjust(GillespieSIR, out_vars[[.]]))
+ems <- emulator_from_data(GillespieSIR, out_vars, ranges)
 z <- list(
  nS = list(val = 281, sigma = 10.43),
  nI = list(val = 30, sigma = 11.16),
@@ -68,7 +67,7 @@ start_pts <- data.frame(
   aIR = runif(500, ranges$aIR[1], ranges$aIR[2]),
   aSR = runif(500, ranges$aSR[1], ranges$aSR[2])
 )
-result <- IDEMC(start_pts, t_ems, z, 50, 100, 0.3, imp = 2)
+result <- IDEMC(start_pts, ems, z, 50, 100, 0.3, imp = 2)
 }
 
 }

@@ -20,7 +20,7 @@ full_wave(
 
 \item{ranges}{The ranges of the input parameters}
 
-\item{targets}{The output targets to match to, as a list of (Val, sigma) pairs.}
+\item{targets}{The output targets to match to.}
 
 \item{old_emulators}{Any emulators from previous waves.}
 

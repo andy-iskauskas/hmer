@@ -4,7 +4,13 @@
 \alias{effect_strength}
 \title{Find Effect Strength of Active Variables}
 \usage{
-effect_strength(ems, line_plot = FALSE, labels = TRUE, quadratic = TRUE)
+effect_strength(
+  ems,
+  line_plot = FALSE,
+  labels = TRUE,
+  quadratic = TRUE,
+  xvar = TRUE
+)
 }
 \arguments{
 \item{ems}{The Emulator object(s) to be analyzed.}
@@ -14,6 +20,8 @@ effect_strength(ems, line_plot = FALSE, labels = TRUE, quadratic = TRUE)
 \item{labels}{Whether or not the legend should be included.}
 
 \item{quadratic}{Whether or not quadratic effect strength should be calculated.}
+
+\item{xvar}{Should the inputs be used on the x-axis?}
 }
 \value{
 A list of data.frames: the first is the linear strength, and the second quadratic.

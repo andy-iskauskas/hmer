@@ -171,7 +171,7 @@ unit_test <- function() {
   out_vars <- c('nS', 'nI', 'nR')
   ems <- emulator_from_data(GillespieSIR, out_vars, ranges)
   targets <- list(
-    nS = list(val = 281, sigma = 10.43),
+    nS = c(250, 312),
     nI = list(val = 30, sigma = 11.16),
     nR = list(val = 689, sigma = 14.32)
   )
@@ -187,8 +187,8 @@ unit_test <- function() {
     }
   }, error = function(e) stop(paste("Validation plotting failed", e))
   )
-  ro <- nrow(validation_diagnostics(ems, GillespieValidation, targets)) == 1
-  ro <- nrow(validation_diagnostics(ems, GillespieValidation, targets, c('ce','cd'))) == 1
+  ro <- nrow(validation_diagnostics(ems, GillespieValidation, targets)) == 2
+  ro <- nrow(validation_diagnostics(ems, GillespieValidation, targets, c('ce','cd'))) == 2
   ro <- nrow(validation_diagnostics(ems, GillespieValidation, targets, cutoff = 2, sd = 2)) == 6
   if (!ro) stop("Combined validation diagnostics not working as expected")
   print("Validation diagnostic functionality working...")
@@ -253,10 +253,12 @@ unit_test <- function() {
       output_plot(ems[c('nS', 'nI')], targets = targets[c('nS', 'nI')])
       print("General behaviour plots successful...")
       space_removed(ems, targets, ppd = 10)
-      space_removed(ems$nS, targets$nS, ppd = 10, modified = 'hp')
+      space_removed(ems$nS, targets, ppd = 10, modified = 'hp')
       space_removed(ems, targets, ppd = 10, modified = 'var')
+      other_ems <- ems
+      for (i in 1:length(ems)) ems[[i]]$disc <- list(internal = runif(1, 0, 2), external = runif(1, 1, 3))
+      space_removed(other_ems, targets, ppd = 10, modified = 'disc')
       validation_pairs(ems, GillespieValidation, targets)
-      validation_pairs(ems$nS, GillespieValidation, targets)
       print("Diagnostic plotting successful...")
     },
     error = function(e) {
@@ -306,17 +308,17 @@ unit_test <- function() {
   )
   print("Derivative calculations successful.")
 
-  tryCatch(
-    {
-      ve <- variance_emulator_from_data(BirthDeath$var, BirthDeath$mean, BirthDeath$reps, paste0('t', c(1, 7, 15)), list(lambda = c(0, 0.08), mu = c(0.04, 0.13)))
-      emulator_plot(ve$variance)
-      emulator_plot(ve$expectation)
-    },
-    error = function(e) {
-      stop("Variance emulator construction failed.")
-    }
-  )
-  print("Variance emulators working.")
+  # tryCatch(
+  #   {
+  #     ve <- variance_emulator_from_data(BirthDeath$var, BirthDeath$mean, BirthDeath$reps, paste0('t', c(1, 7, 15)), list(lambda = c(0, 0.08), mu = c(0.04, 0.13)))
+  #     emulator_plot(ve$variance)
+  #     emulator_plot(ve$expectation)
+  #   },
+  #   error = function(e) {
+  #     stop("Variance emulator construction failed.")
+  #   }
+  # )
+  # print("Variance emulators working.")
 
   if (ro) return("All unit tests passed. Hooray!")
 }

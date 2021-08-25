@@ -22,7 +22,7 @@ generate_new_runs(
 
 \item{n_points}{The desired number of points to propose for the next wave.}
 
-\item{z}{The targets, as a named list.}
+\item{z}{The targets to match to.}
 
 \item{method}{The method(s) to use.}
 

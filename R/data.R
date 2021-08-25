@@ -98,22 +98,3 @@
 #'  \item{targets}{The targets to match to, as a set of val-sigma pairs.}
 #' }
 "sample_emulators"
-
-#' Birth-Death Stochastic runs
-#'
-#' An rda object containing a list of two data frames and one numeric vector.
-#' Each data frame represents a number of runs at points in (lambda, mu) space
-#' of a simple birth-death process, with transtions Y -> 2Y and Y -> 0, with
-#' hazard rates lambda and mu respectively. The \code{mean} data.frame contains the
-#' means of the replicate runs for each point, and the \code{var} data.frame contains
-#' the variances. The number of replicates for each point is given by the
-#' numeric vector \code{reps}. The output was generated using the Gillespie
-#' algorithm.
-#'
-#' @format A list containing three objects:
-#' \describe{
-#'  \item{mean}{The means of the replicate runs for each point}
-#'  \item{var}{The variances of the replicate runs for each point}
-#'  \item{reps}{The number of replicates for each point}
-#' }
-"BirthDeath"

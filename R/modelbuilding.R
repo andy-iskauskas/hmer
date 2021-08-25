@@ -200,6 +200,7 @@ likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_
 #' @param quadratic Should a quadratic or linear fit be found?
 #' @param beta.var Should regression coefficient uncertainty be included?
 #' @param adjusted Are the raw emulators wanted, or Bayes Linear updated ones?
+#' @param discrepancies Any internal or external discrepancies in the model.
 #'
 #' @return A list of \code{\link{Emulator}} objects.
 #' @export
@@ -247,7 +248,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
                                input_names = names(ranges), beta, u,
                                c_lengths, funcs, deltas, ev,
                                quadratic = TRUE, beta.var = FALSE,
-                               adjusted = TRUE) {
+                               adjusted = TRUE, discrepancies = NULL) {
   model_beta_mus <- model_u_sigmas <- model_u_corrs <- NULL
   if (missing(ranges)) {
     if (is.null(input_names)) stop("Input ranges or names of inputs must be provided.")
@@ -310,13 +311,16 @@ emulator_from_data <- function(input_data, output_names, ranges,
   }
   model_us <- purrr::map(seq_along(model_u_corrs), ~list(sigma = model_u_sigmas[[.]], corr = model_u_corrs[[.]]))
   model_betas <- purrr::map(seq_along(model_beta_mus), ~list(mu = model_beta_mus[[.]], sigma = model_beta_sigmas[[.]]))
+  if (!is.null(discrepancies)) {
+    if (class(discrepancies) == "numeric") discrepancies <- purrr::map(discrepancies, ~list(internal = ., external = 0))
+  }
   out_ems <- setNames(purrr::map(seq_along(model_us),
-                                 ~Emulator$new(basis_f = model_basis_funcs[[.]], beta = model_betas[[.]], u = model_us[[.]], ranges = ranges, model = tryCatch(models[[.]], error = function(e) NULL))),
+                                 ~Emulator$new(basis_f = model_basis_funcs[[.]], beta = model_betas[[.]], u = model_us[[.]], ranges = ranges, model = tryCatch(models[[.]], error = function(e) NULL), discs = discrepancies[[.]])),
   output_names)
   if (!missing(ev)) {
     ev_deltas <- ev/purrr::map_dbl(out_ems, ~.$u_sigma)
     ev_deltas <- purrr::map_dbl(ev_deltas, ~min(1/3, .))
-    return(emulator_from_data(input_data, output_names, ranges, input_names, beta, u, purrr::map_dbl(out_ems, ~.$corr$hyper_p$theta), funcs, ev_deltas, quadratic = quadratic, beta.var = beta.var))
+    return(emulator_from_data(input_data, output_names, ranges, input_names, beta, u, purrr::map_dbl(out_ems, ~.$corr$hyper_p$theta), funcs, ev_deltas, quadratic = quadratic, beta.var = beta.var, discrepancies = discrepancies))
   }
   if (!is.null(model_deltas)) {
     for (i in 1:length(model_deltas)) out_ems[[i]]$corr$nugget <- model_deltas[[i]]
@@ -359,28 +363,22 @@ emulator_from_data <- function(input_data, output_names, ranges,
 #' @param ev Estimates of ensemble variability for each output.
 #' @param quadratic Should a quadratic or linear fit be found?
 #' @param beta.var Should regression coefficient uncertainty be included?
+#' @param discrepancies Any internal/external discrepancies in data.
 #'
 #' @return A list of lists: one for the variance emulators and one for the function emulators.
 #' @export
 #'
-#' @examples
-#'  # Use the BirthDeath dataset
-#'  ranges <- list(lambda = c(0, 0.08), mu = c(0.04, 0.13))
-#'  v_ems <- variance_emulator_from_data_old(BirthDeath$var, BirthDeath$mean, BirthDeath$reps,
-#'   paste0('t', c(1, 7, 15)), ranges)
-#'  v_ems$variance
-#'  v_ems$expectation
 variance_emulator_from_data_old <- function(input_data_var, input_data_exp, npoints,
                                         output_names, ranges, input_names = names(ranges),
                                         kurt = 3, beta, u,
                                         c_lengths, funcs, deltas, ev,
-                                        quadratic = TRUE, beta.var = FALSE) {
+                                        quadratic = TRUE, beta.var = FALSE, discrepancies = NULL) {
   p_v_e <- emulator_from_data(input_data_var, output_names, ranges, input_names, beta, u, c_lengths, funcs, deltas, ev, quadratic, beta.var, adjusted = FALSE)
   var_mods <- purrr::map(p_v_e, ~(.$get_exp(input_data_var)^2 + .$get_cov(input_data_var))/c(npoints) * (kurt - 1 + 2/(c(npoints)-1)))
   for (i in 1:length(p_v_e)) p_v_e[[i]]$s_diag <- c(var_mods[[i]])
   t_v_e <- setNames(purrr::map(seq_along(p_v_e), ~p_v_e[[.]]$adjust(input_data_var, output_names[[.]])), output_names)
   exp_mods <- purrr::map(t_v_e, ~.$get_exp(input_data_exp)/c(npoints))
-  p_e_e <- emulator_from_data(input_data_exp, output_names, ranges, input_names, beta, u, c_lengths, funcs, deltas, ev, quadratic, beta.var, adjusted = FALSE)
+  p_e_e <- emulator_from_data(input_data_exp, output_names, ranges, input_names, beta, u, c_lengths, funcs, deltas, ev, quadratic, beta.var, adjusted = FALSE, discrepancies = discrepancies)
   for (i in 1:length(p_e_e)) p_e_e[[i]]$s_diag <- c(exp_mods[[i]])
   t_e_e <- setNames(purrr::map(seq_along(p_e_e), ~p_e_e[[.]]$adjust(input_data_exp, output_names[[.]])), output_names)
   return(list(variance = t_v_e, expectation = t_e_e))

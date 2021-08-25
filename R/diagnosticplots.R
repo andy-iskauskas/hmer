@@ -44,8 +44,9 @@ behaviour_plot <- function(ems, points) {
 #' accurate reflection of the space removed, at a corresponding computational cost. For the
 #' purpose of quick-and-dirty diagnostics, \code{ppd = 5} is sufficient: the default is 10.
 #'
-#' The parameter \code{modified} can be one of three strings: \code{'disc'} corresponding
-#' to model uncertainty (i.e. structural discrepancy); \code{'var'} corresponding to global
+#' The parameter \code{modified} can be one of three strings: \code{'obs'} corresponding
+#' to observation uncertainty; \code{'disc'} corresponding to internal and external
+#' discrepancy (as given in \code{Emulator$disc}); \code{'var'} corresponding to global
 #' emulator variance (as given by \code{Emulator$u_sigma}), and \code{'hp'} corresponding to
 #' the hyperparameters of the emulator correlation structure. In the first case, the
 #' implausibilities are recalculated for each inflation value; in the other two cases the
@@ -73,30 +74,31 @@ behaviour_plot <- function(ems, points) {
 #'
 #' @examples
 #' space_removed(sample_emulators$ems, sample_emulators$targets, ppd = 5)
-#' space_removed(sample_emulators$ems$nS, sample_emulators$targets$nS,
-#'  ppd = 5, u_mod = seq(0.75, 1.25, by = 0.25), intervals = seq(2, 6, by = 0.1))
-space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1), intervals = seq(0, 10, length.out = 200), modified = 'disc') {
+# space_removed(sample_emulators$ems$nS, sample_emulators$targets,
+#  ppd = 5, u_mod = seq(0.75, 1.25, by = 0.25), intervals = seq(2, 6, by = 0.1))
+space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1), intervals = seq(0, 10, length.out = 200), modified = 'obs') {
   value <- variable <- NULL
-  if ("Emulator" %in% class(ems)) {
+  if ("Emulator" %in% class(ems))
     ems <- setNames(list(ems), ems$output_name)
-    if (!is.null(targets$val)) targets <- setNames(list(targets), ems[[1]]$output_name)
-    else targets <- setNames(list(targets[[ems[[1]]$output_name]]), ems[[1]]$output_name)
-  }
   ranges <- ems[[1]]$ranges
-  z_vals <- purrr::map_dbl(targets, ~.$val)
-  z_sigs <- purrr::map_dbl(targets, ~.$sigma)
   ptgrid <- setNames(expand.grid(purrr::map(ranges, ~seq(.[[1]], .[[2]], length.out = ppd))), names(ranges))
   imp_array <- array(0, dim = c(length(intervals), length(u_mod)))
-  if (!modified %in% c('disc', 'var', 'hp')) {
-    warning("Unrecognised vary parameter. Setting to structural discrepancy (disc).")
-    modified = 'disc'
+  if (!modified %in% c('obs', 'disc', 'var', 'hp')) {
+    warning("Unrecognised vary parameter. Setting to observation error (obs).")
+    modified = 'obs'
   }
-  if (modified == 'disc') {
-    exps <- do.call('cbind', purrr::map(ems, ~.$get_exp(ptgrid)))
-    vars <- do.call('cbind', purrr::map(ems, ~.$get_cov(ptgrid)))
+  if (modified == 'obs') {
     for (i in u_mod) {
-      imps <- abs(sweep(exps, 2, z_vals, "-"))/sqrt(sweep(vars, 2, (i*z_sigs)^2, "+"))
-      m_imps <- apply(imps, 1, max)
+      targets_2 <- targets
+      for (j in 1:length(targets)) {
+        if (is.atomic(targets[[j]])) {
+          targets_2[[j]] <- c(targets[[j]][1] - i * diff(targets[[j]])/2, targets[[j]][2] + i * diff(targets[[j]])/2)
+        }
+        else {
+          targets_2[[j]] <- list(val = targets[[j]]$val, sigma = i * targets[[j]]$sigma)
+        }
+      }
+      m_imps <- nth_implausible(ems, ptgrid, targets_2)
       cutoff <- purrr::map_dbl(intervals, ~1-length(m_imps[m_imps <= .])/length(m_imps))
       imp_array[, match(i, u_mod)] <- cutoff
     }
@@ -104,18 +106,22 @@ space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1
   else {
     for (i in u_mod) {
       if (modified == 'var')
-        ems <- purrr::map(ems, ~.$set_sigma(i*.$u_sigma))
-      else
-        ems <- purrr::map(ems, ~.$set_hyperparams(purrr::map(.$corr$hyper_p, ~i*.)))
-      imps <- nth_implausible(ems, ptgrid, targets)
+        ems_2 <- purrr::map(ems, ~.$set_sigma(i*.$u_sigma))
+      else if (modified == 'hp')
+        ems_2 <- purrr::map(ems, ~.$set_hyperparams(purrr::map(.$corr$hyper_p, ~i*.)))
+      else {
+        ems_2 <- ems
+        for (j in 1:length(ems_2)) ems_2[[j]]$disc <- lapply(ems[[j]]$disc, function(a) a * i)
+      }
+      imps <- nth_implausible(ems_2, ptgrid, targets)
       imp_array[, match(i, u_mod)] <- purrr::map_dbl(intervals, ~1-length(imps[imps <= .])/length(imps))
     }
   }
   df <- setNames(data.frame(imp_array), u_mod)
   df$cutoff <- intervals
   df_melt <- reshape2::melt(df, id.vars = 'cutoff')
-  title <- switch(modified, 'disc' = 'structural discrepancy', 'var' = 'variance inflation', 'hp' = 'hyperparameter inflation')
-  subtitle <- switch(modified, 'disc' = '% Structural\nDiscrepancy', 'var' = '% Variance\nInflation', 'hp' = '% Hyperparameter\nInflation')
+  title <- switch(modified, 'obs' = "observational error", 'disc' = 'structural discrepancy', 'var' = 'variance inflation', 'hp' = 'hyperparameter inflation')
+  subtitle <- switch(modified, 'obs' = "% Observational\nError", 'disc' = '% Structural\nDiscrepancy', 'var' = '% Variance\nInflation', 'hp' = '% Hyperparameter\nInflation')
   g <- ggplot(data = df_melt, aes(x = cutoff, y = value, group = variable, colour = variable)) +
     geom_line(lwd = 1.5) +
     viridis::scale_color_viridis(discrete = TRUE, option = 'cividis', labels = function(b) {paste0(round(as.numeric(b)*100, 0), "%")}) +
@@ -168,14 +174,11 @@ space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1
 #'  validation_pairs(sample_emulators$ems, GillespieValidation,
 #'   sample_emulators$targets, ranges = wider_ranges, cb = TRUE)
 validation_pairs <- function(ems, points, targets, ranges, nth = 1, cb = FALSE) {
-  if ("Emulator" %in% class(ems)) {
+  if ("Emulator" %in% class(ems))
     ems <- setNames(list(ems), ems$output_name)
-    if (!is.null(targets$val)) targets <- setNames(list(targets), ems[[1]]$output_name)
-    else targets <- setNames(list(targets[[ems[[1]]$output_name]]), ems[[1]]$output_name)
-  }
   if (missing(ranges)) ranges <- ems[[1]]$ranges
   em_exp <- data.frame(purrr::map(ems, ~.$get_exp(points)))
-  em_var <- data.frame(purrr::map(ems, ~.$get_cov(points)))
+  em_var <- data.frame(purrr::map(ems, ~.$get_cov(points) + .$disc$internal^2 + .$disc$external^2))
   sim_vals <- points[,purrr::map_chr(ems, ~.$output_name)]
   diag_vals <- setNames(cbind(points[,names(ranges)], apply(abs(em_exp - sim_vals)/sqrt(em_var), 1, max)), c(names(ranges), 'd'))
   diag_vals$imp <- nth_implausible(ems, points, targets, n = nth)
@@ -221,6 +224,7 @@ validation_pairs <- function(ems, points, targets, ranges, nth = 1, cb = FALSE) 
 #' @param line_plot Should a line plot be produced?
 #' @param labels Whether or not the legend should be included.
 #' @param quadratic Whether or not quadratic effect strength should be calculated.
+#' @param xvar Should the inputs be used on the x-axis?
 #'
 #' @return A list of data.frames: the first is the linear strength, and the second quadratic.
 #'
@@ -229,7 +233,7 @@ validation_pairs <- function(ems, points, targets, ranges, nth = 1, cb = FALSE) 
 #' @examples
 #'  effect <- effect_strength(sample_emulators$ems)
 #'  effect_line <- effect_strength(sample_emulators$ems, line_plot = TRUE)
-effect_strength <- function(ems, line_plot = FALSE, labels = TRUE, quadratic = TRUE) {
+effect_strength <- function(ems, line_plot = FALSE, labels = TRUE, quadratic = TRUE, xvar = TRUE) {
   get_effect_strength <- function(em, quad = FALSE) {
     es <- c()
     for (i in 1:length(em$ranges)) {
@@ -256,44 +260,88 @@ effect_strength <- function(ems, line_plot = FALSE, labels = TRUE, quadratic = T
   else complete_set <- linear_effect_strength
   lin.mat <- reshape2::melt(as.matrix(linear_effect_strength))
   Var1 <- Var2 <- value <- NULL
-  if (line_plot) {
-    g <- ggplot(data = lin.mat, aes(x = Var2, y = value, group = Var1, colour = Var1)) +
-        geom_line(lwd = 1.2) +
-        viridis::scale_color_viridis(discrete = TRUE, name = "Output") +
-        theme_bw() +
-        labs(title = "Linear Effect Strength", x = "Parameter", y = "Strength") +
-        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-    if (!labels) g <- g + theme(legend.position = 'none')
-    print(g)
-    if(quadratic) {
-      g <- ggplot(data = quad.mat, aes(x = Var2, y = value, group = Var1, colour = Var1)) +
-        geom_line(lwd = 1.2) +
-        viridis::scale_color_viridis(discrete = TRUE, name = "Output") +
-        theme_bw() +
-        labs(title = "Quadratic Effect Strength", x = "Parameter", y = "Strength") +
-        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  if (xvar) {
+    if (line_plot) {
+      g <- ggplot(data = lin.mat, aes(x = Var2, y = value, group = Var1, colour = Var1)) +
+          geom_line(lwd = 1.2) +
+          viridis::scale_color_viridis(discrete = TRUE, name = "Output") +
+          theme_bw() +
+          labs(title = "Linear Effect Strength", x = "Parameter", y = "Strength") +
+          theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
       if (!labels) g <- g + theme(legend.position = 'none')
       print(g)
+      if(quadratic) {
+        g <- ggplot(data = quad.mat, aes(x = Var2, y = value, group = Var1, colour = Var1)) +
+          geom_line(lwd = 1.2) +
+          viridis::scale_color_viridis(discrete = TRUE, name = "Output") +
+          theme_bw() +
+          labs(title = "Quadratic Effect Strength", x = "Parameter", y = "Strength") +
+          theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+        if (!labels) g <- g + theme(legend.position = 'none')
+        print(g)
+      }
     }
-  }
-  else {
-    g <- ggplot(data = lin.mat, aes(x = Var2, y = value, group = Var1, fill = Var1)) +
-      geom_col(position = 'dodge', colour = 'black') +
-      viridis::scale_fill_viridis(discrete = TRUE, name = "Output") +
-      theme_bw() +
-      labs(title = "Linear Effect Strength", x = "Parameter", y = "Strength") +
-      theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-    if (!labels) g <- g + theme(legend.position = 'none')
-    print(g)
-    if (quadratic) {
-      g <-ggplot(data = quad.mat, aes(x = Var2, y = value, group = Var1, fill = Var1)) +
+    else {
+      g <- ggplot(data = lin.mat, aes(x = Var2, y = value, group = Var1, fill = Var1)) +
         geom_col(position = 'dodge', colour = 'black') +
         viridis::scale_fill_viridis(discrete = TRUE, name = "Output") +
         theme_bw() +
-        labs(title = "Quadratic Effect Strength", x = "Parameter", y = "Strength") +
+        labs(title = "Linear Effect Strength", x = "Parameter", y = "Strength") +
         theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
       if (!labels) g <- g + theme(legend.position = 'none')
       print(g)
+      if (quadratic) {
+        g <-ggplot(data = quad.mat, aes(x = Var2, y = value, group = Var1, fill = Var1)) +
+          geom_col(position = 'dodge', colour = 'black') +
+          viridis::scale_fill_viridis(discrete = TRUE, name = "Output") +
+          theme_bw() +
+          labs(title = "Quadratic Effect Strength", x = "Parameter", y = "Strength") +
+          theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+        if (!labels) g <- g + theme(legend.position = 'none')
+        print(g)
+      }
+    }
+  }
+  else {
+    if (line_plot) {
+      g <- ggplot(data = lin.mat, aes(x = Var1, y = value, group = Var2, colour = Var2)) +
+        geom_line(lwd = 1.2) +
+        viridis::scale_color_viridis(discrete = TRUE, name = "Parameter") +
+        theme_bw() +
+        labs(title = "Linear Effect Strength", x = "Output", y = "Strength") +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+      if (!labels) g <- g + theme(legend.position = 'none')
+      print(g)
+      if(quadratic) {
+        g <- ggplot(data = quad.mat, aes(x = Var1, y = value, group = Var2, colour = Var2)) +
+          geom_line(lwd = 1.2) +
+          viridis::scale_color_viridis(discrete = TRUE, name = "Parameter") +
+          theme_bw() +
+          labs(title = "Quadratic Effect Strength", x = "Output", y = "Strength") +
+          theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+        if (!labels) g <- g + theme(legend.position = 'none')
+        print(g)
+      }
+    }
+    else {
+      g <- ggplot(data = lin.mat, aes(x = Var1, y = value, group = Var2, fill = Var2)) +
+        geom_col(position = 'dodge', colour = 'black') +
+        viridis::scale_fill_viridis(discrete = TRUE, name = "Parameter") +
+        theme_bw() +
+        labs(title = "Linear Effect Strength", x = "Output", y = "Strength") +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+      if (!labels) g <- g + theme(legend.position = 'none')
+      print(g)
+      if (quadratic) {
+        g <-ggplot(data = quad.mat, aes(x = Var1, y = value, group = Var2, fill = Var2)) +
+          geom_col(position = 'dodge', colour = 'black') +
+          viridis::scale_fill_viridis(discrete = TRUE, name = "Parameter") +
+          theme_bw() +
+          labs(title = "Quadratic Effect Strength", x = "Output", y = "Strength") +
+          theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+        if (!labels) g <- g + theme(legend.position = 'none')
+        print(g)
+      }
     }
   }
   return(complete_set)

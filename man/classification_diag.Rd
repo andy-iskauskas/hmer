@@ -11,7 +11,7 @@ classification_diag(emulator, validation, targets, cutoff = 3, plt = T, ...)
 
 \item{validation}{The validation data.frame containing all inputs and outputs.}
 
-\item{targets}{The targets, as (val, sigma) pairs.}
+\item{targets}{The targets to compare suitability against.}
 
 \item{cutoff}{The cutoff for the implausibility measures.}
 

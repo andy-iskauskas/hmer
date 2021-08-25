@@ -30,14 +30,15 @@
 standard_errors <- function(emulator, validation, targets = NULL, plt = TRUE, ...) {
   input_points <- validation[,names(emulator$ranges)]
   output_points <- validation[,emulator$output_name]
-  errors <- (emulator$get_exp(input_points) - output_points)/sqrt(emulator$get_cov(input_points))
+  errors <- (emulator$get_exp(input_points) - output_points)/sqrt(emulator$get_cov(input_points) + emulator$disc$internal^2 + emulator$disc$external^2)
   if (plt) {
     hist(errors, xlab = "Standardised Error", main = emulator$output_name)
   }
   emulator_invalid <- abs(errors) > 3
   if (!is.null(targets)) {
     this_target <- targets[[emulator$output_name]]
-    point_invalid <- ((output_points < this_target$val - 6*this_target$sigma) | (output_points > this_target$val + 6*this_target$sigma))
+    if (is.atomic(this_target)) point_invalid <- ((output_points < this_target[1]-diff(this_target)/2) | (output_points > this_target[2]+diff(this_target)/2))
+    else point_invalid <- ((output_points < this_target$val - 6*this_target$sigma) | (output_points > this_target$val + 6*this_target$sigma))
     emulator_invalid <- (!point_invalid & emulator_invalid)
   }
   return(input_points[emulator_invalid,])
@@ -79,12 +80,13 @@ comparison_diag <- function(emulator, validation, targets = NULL, sd = 3, plt = 
   input_points <- validation[,names(emulator$ranges)]
   output_points <- validation[,emulator$output_name]
   emulator_exp <- emulator$get_exp(input_points)
-  emulator_unc <- sd * sqrt(emulator$get_cov(input_points))
+  emulator_unc <- sd * sqrt(emulator$get_cov(input_points) + emulator$disc$internal^2 + emulator$disc$external^2)
   em_ranges <- range(c(emulator_exp + emulator_unc, emulator_exp - emulator_unc))
   emulator_invalid <- (output_points > emulator_exp + emulator_unc) | (output_points < emulator_exp - emulator_unc)
   if (!is.null(targets)) {
     this_target <- targets[[emulator$output_name]]
-    point_invalid <- ((output_points < this_target$val - 6*this_target$sigma) | (output_points > this_target$val + 6*this_target$sigma))
+    if (is.atomic(this_target)) point_invalid <- ((output_points < this_target[1]-diff(this_target)/2) | (output_points > this_target[2]+diff(this_target)/2))
+    else point_invalid <- ((output_points < this_target$val - 6*this_target$sigma) | (output_points > this_target$val + 6*this_target$sigma))
     emulator_invalid <- (!point_invalid & emulator_invalid)
   }
   if (plt) {
@@ -120,7 +122,7 @@ comparison_diag <- function(emulator, validation, targets = NULL, sd = 3, plt = 
 #'
 #' @param emulator An \code{\link{Emulator}} object.
 #' @param validation The validation data.frame containing all inputs and outputs.
-#' @param targets The targets, as (val, sigma) pairs.
+#' @param targets The targets to compare suitability against.
 #' @param cutoff The cutoff for the implausibility measures.
 #' @param plt Should the plot be produced?
 #' @param ... Dummy parameters for compatibility with the diagnostic wrapper.
@@ -138,10 +140,21 @@ classification_diag <- function(emulator, validation, targets, cutoff = 3, plt =
   input_points <- validation[,names(emulator$ranges)]
   output_points <- validation[,emulator$output_name]
   this_target <- targets[[emulator$output_name]]
-  if (is.numeric(this_target)) z <- list(val = this_target, sigma = 0.001)
-  else z <- this_target
-  em_imp <- emulator$implausibility(input_points, z)
-  sim_imp <- purrr::map_dbl(output_points, ~sqrt((z$val-.)^2/z$sigma^2))
+  if (is.atomic(this_target)) {
+    pred <- output_points
+    bound_check <- purrr::map_dbl(pred, function(y) {
+      if (y <= this_target[2] && y >= this_target[1]) return(0)
+      if (y < this_target[1]) return(-1)
+      if (y > this_target[2]) return(1)
+    })
+    which_compare <- purrr::map_dbl(bound_check, function(y) {
+      if (y < 1) return(this_target[1])
+      return(this_target[2])
+    })
+    sim_imp <- bound_check * 6 * (pred - which_compare)/diff(this_target)
+  }
+  else sim_imp <- purrr::map_dbl(output_points, ~sqrt((this_target$val-.)^2/this_target$sigma^2))
+  em_imp <- emulator$implausibility(input_points, this_target)
   misclass <- (em_imp > cutoff) & (sim_imp <= cutoff)
   if (plt) {
     plot(em_imp, sim_imp, pch = 16,
@@ -188,20 +201,15 @@ classification_diag <- function(emulator, validation, targets, cutoff = 3, plt =
 #'
 #' @examples
 #' validation_diagnostics(sample_emulators$ems, GillespieValidation, sample_emulators$targets)
-#' # Empty data.frame and a 3x3 set of plots
+#' # data.frame of failed points and a 3x3 set of plots
 #' validation_diagnostics(sample_emulators$ems, GillespieValidation, sample_emulators$targets,
 #'  c('ce','cd'))
-#' # Empty data.frame and a 3x2 set of plots
+#' # data.frame and a 3x2 set of plots
 #' validation_diagnostics(sample_emulators$ems, GillespieValidation, sample_emulators$targets,
 #'  cutoff = 2, sd = 2)
-#' # Data.frame with one point in it.
 validation_diagnostics <- function(emulators, validation, targets = NULL, which_diag = 'all', ...) {
-  if ("Emulator" %in% class(emulators)) {
+  if ("Emulator" %in% class(emulators))
     emulators <- setNames(list(emulators), emulators$output_name)
-    if (!is.null(targets)) {
-      if (!is.null(targets$val)) targets <- setNames(list(targets), emulators[[1]]$output_name)
-    }
-  }
   fail_point_list <- list()
   if (length(which_diag) == 1 && which_diag == 'all') actual_diag <- c('se', 'cd', 'ce')
   else {

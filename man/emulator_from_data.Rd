@@ -17,7 +17,8 @@ emulator_from_data(
   ev,
   quadratic = TRUE,
   beta.var = FALSE,
-  adjusted = TRUE
+  adjusted = TRUE,
+  discrepancies = NULL
 )
 }
 \arguments{
@@ -46,6 +47,8 @@ emulator_from_data(
 \item{beta.var}{Should regression coefficient uncertainty be included?}
 
 \item{adjusted}{Are the raw emulators wanted, or Bayes Linear updated ones?}
+
+\item{discrepancies}{Any internal or external discrepancies in the model.}
 }
 \value{
 A list of \code{\link{Emulator}} objects.
