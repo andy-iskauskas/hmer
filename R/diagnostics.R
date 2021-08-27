@@ -141,25 +141,19 @@ classification_diag <- function(emulator, validation, targets, cutoff = 3, plt =
   output_points <- validation[,emulator$output_name]
   this_target <- targets[[emulator$output_name]]
   if (is.atomic(this_target)) {
-    pred <- output_points
-    bound_check <- purrr::map_dbl(pred, function(y) {
-      if (y <= this_target[2] && y >= this_target[1]) return(0)
-      if (y < this_target[1]) return(-1)
-      if (y > this_target[2]) return(1)
-    })
-    which_compare <- purrr::map_dbl(bound_check, function(y) {
-      if (y < 1) return(this_target[1])
-      return(this_target[2])
-    })
-    sim_imp <- bound_check * 6 * (pred - which_compare)/diff(this_target)
+    t_cutoff <- 1 * cutoff/3
+    sim_imp <- abs(output_points - rep(mean(this_target), length(output_points)))/rep(diff(this_target)/2, length(output_points))
   }
-  else sim_imp <- purrr::map_dbl(output_points, ~sqrt((this_target$val-.)^2/this_target$sigma^2))
+  else {
+    t_cutoff <- cutoff
+    sim_imp <- purrr::map_dbl(output_points, ~sqrt((this_target$val-.)^2/this_target$sigma^2))
+  }
   em_imp <- emulator$implausibility(input_points, this_target)
-  misclass <- (em_imp > cutoff) & (sim_imp <= cutoff)
+  misclass <- (em_imp > cutoff) & (sim_imp <= t_cutoff)
   if (plt) {
     plot(em_imp, sim_imp, pch = 16,
          col = ifelse(misclass, 'red', 'black'), xlab = "Emulator Implausibility", ylab = "Simulator Implausibility",
-         main = emulator$output_name, panel.first = c(abline(h = cutoff), abline(v = cutoff)))
+         main = emulator$output_name, panel.first = c(abline(h = t_cutoff), abline(v = cutoff)))
   }
   which_invalid <- input_points[misclass,]
   return(which_invalid)
