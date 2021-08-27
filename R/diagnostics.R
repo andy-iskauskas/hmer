@@ -225,3 +225,150 @@ validation_diagnostics <- function(emulators, validation, targets = NULL, which_
   failed_points <- unique(do.call('rbind', fail_point_list))
   return(failed_points)
 }
+
+#' Predictive Error Plots
+#'
+#' Plots the predictive error with respect to a variety of quantities.
+#'
+#' The choice of errors to plot is controlled by \code{errtype}, and can be one
+#' of four things: normal, corresponding to the regular standardised errors; eigen,
+#' corresponding to the errors after reordering given by the eigendecomposition
+#' of the emulator covariance matrix; chol, similarly deriving errors after Cholesky
+#' decomposition; and cholpivot, deriving the errors after pivoted Cholesky decomposition.
+#'
+#' What the errors are plotted with respect to is controlled by \code{xtype}. The options
+#' are index, which plots them in their order in the validation set; em, which plots errors
+#' with respect to the emulator prediction at that point; and any named parameter of the
+#' model, which plots with respect to the values of that parameter.
+#'
+#' Finally, the plot type is controlled by \code{plottype}: this can be one of normal,
+#' which plots the errors; or qq, which produces a Q-Q plot of the errors.
+#'
+#' The default output is to plot the standardised errors (with no decomposition)
+#' against the ordering in the validation set; i.e. \code{errtype = "normal"},
+#' \code{xtype = "index"}, \code{plottype = "normal"}.
+#'
+#' Some combinations are not permitted, as the output would not be meaningful. Errors
+#' arising from an eigendecomposition cannot be plotted against either emulator prediction
+#' or a particular parameter (due to the transformation induced by the eigendecomposition);
+#' Q-Q plots cannoot be plotted for a non-decomposed set of errors, as the correlation
+#' between errors makes it much harder to interpret.
+#'
+#' @importFrom stats qqnorm qqline
+#'
+#' @param em The emulator to perform diagnostics on
+#' @param validation The validation set of points with output(s)
+#' @param errtype The type of individual error to be plotted.
+#' @param xtype The value to plot against
+#' @param plottype Whether to plot a standard or Q-Q plot.
+#'
+#' @return The relevant plot.
+#'
+#' @references L. Bastos & A. O'Hagan: Diagnostics for Gaussian Process Emulators.
+#'
+#' @export
+#'
+#' @examples
+#' individual_errors(sample_emulators$ems$nS, GillespieValidation)
+#' individual_errors(sample_emulators$ems$nS, GillespieValidation, "chol", "em")
+#' individual_errors(sample_emulators$ems$nS, GillespieValidation, "eigen", plottype = "qq")
+#' individual_errors(sample_emulators$ems$nS, GillespieValidation, "cholpivot", xtype = "aSI")
+#'
+individual_errors <- function(em, validation, errtype = "normal", xtype = "index", plottype = "normal") {
+  if (!errtype %in% c("normal", "eigen", "chol", "cholpivot"))
+    stop("Error type not recognised (options are normal, eigen, chol, or cholpivot).")
+  if (!xtype %in% c("index", "em", names(em$ranges)))
+    stop("x-axis measure not recognised (options are index, em, or a parameter name.")
+  if (!plottype %in% c("normal", "qq"))
+    stop("Plot type not recognised (options are normal or qq).")
+  if (plottype == "qq" && errtype == "normal") {
+    warning("Not meaningful to create Q-Q plot with untransformed errors. Changing to pivoted Cholesky.")
+    errtype <- "cholpivot"
+  }
+  if (xtype %in% c(names(em$ranges), 'em') && errtype == "eigen") {
+    warning("Not meaningful to plot parameter or emulator prediction against eigendecomposed errors. Changing to pivoted Cholesky.")
+    errtype <- "cholpivot"
+  }
+  points <- validation[,names(em$ranges)]
+  outputs <- validation[,em$output_name]
+  em_pred <- em$get_exp(points)
+  em_cov <- em$get_cov(points, full = TRUE)
+  if (errtype == "normal")
+    indiv_errors <- (outputs - em_pred)/sqrt(diag(em_cov))
+  else {
+      if (errtype == "eigen")
+        G <- eigen(em_cov)$vectors %*% diag(sqrt(eigen(em_cov)$values))
+      else if (errtype == "chol")
+        G <- t(chol(em_cov))
+      else {
+        Q <- chol(em_cov, pivot = TRUE)
+        P <- diag(1, nrow = nrow(Q))[attr(Q, 'pivot'),]
+        G <- P %*% t(Q)
+      }
+      G_inv <- tryCatch(
+        chol2inv(chol(G)),
+        error = function(e) {MASS::ginv(G)}
+      )
+      indiv_errors <- G_inv %*% (outputs - em_pred)
+  }
+  if (xtype == "index") x_vals <- 1:length(outputs)
+  else if (xtype == "em") x_vals <- em_pred
+  else x_vals <- validation[,xtype]
+  if (plottype == "normal") {
+    x_lab <- switch(xtype, "index" = "Index", "em" = "Emulator Prediction", xtype)
+    appended <- switch(errtype, "normal" = "", "eigen" = " (eigendecomposition)", "chol" = " (Choleksy decomposition)", "cholpivot" = " (pivoted Cholesky decomposition)")
+    plot(x_vals, indiv_errors, pch = 16, xlab = x_lab, ylab = "Error", main = paste0("Errors against ", x_lab, appended), panel.first = abline(h = c(-2,2), lty = 2))
+  }
+  if (plottype == "qq") {
+    appended <- switch(errtype, "eigen" = " (eigendecomposition)", "chol" = " (Choleksy decomposition)", "cholpivot" = " (pivoted Cholesky decomposition)")
+    qqnorm(indiv_errors, pch = 16, main = paste0("Q-Q plot for Errors", appended), panel.first = qqline(indiv_errors, col = "steelblue"))
+  }
+  return(NULL)
+}
+
+#' Summary Statistics for Emulators
+#'
+#' Generates measures for emulator quality
+#'
+#' A couple of summary statistics can be generated for emulators, based on their
+#' prediction errors on a validation set. This function produces the test statistic
+#' for a comparison to a relevant chi-squared distribution, and the similar test
+#' statistic for an F-distribution. In both cases, the expectation and standard
+#' deviation of the underlying distribution are also provided.
+#'
+#' The output of this function is a logical vector stating whether the derived
+#' value lies within 3-sigma of the expected value. In systems where errors are
+#' expected to be correlated, higher weight should be given to the Mahalanobis
+#' measure than the chi-squared measure. Any anomalous results can be investigated
+#' in more depth using the \code{\link{individual_errors}} function.
+#'
+#' @param em The emulator to test
+#' @param validation The validation set, consisting of points and output(s)
+#'
+#' @return Whether the observed value lies within 3-sigma of the expected value..
+#'
+#' @export
+#'
+#' @examples
+#'  summary_diagnostic(sample_emulators$ems$nR, GillespieValidation)
+summary_diagnostic <- function(em, validation) {
+  points <- validation[,names(em$ranges)]
+  outputs <- validation[,em$output_name]
+  m <- nrow(validation)
+  n <- nrow(em$in_data)
+  q <- length(em$basis_f)
+  indiv_errs <- outputs - em$get_exp(points)
+  chi_sq_measure <- sum(indiv_errs^2/em$get_cov(points))
+  print(paste("Chi-squared:", round(chi_sq_measure,4), "against mean", m, "with standard deviation", round(sqrt(2*m),4)))
+  cov_mat <- em$get_cov(points, full = TRUE)
+  cov_inv <- tryCatch(
+    chol2inv(chol(cov_mat)),
+    error = function(e) {MASS::ginv(cov_mat)}
+  )
+  mahal_measure <- t(indiv_errs) %*% cov_inv %*% indiv_errs
+  print(paste("Mahalanobis:", round(mahal_measure,4), "against mean", m, "with standard deviation", round(sqrt(2*m*(m+n-q-2)/(n-q-4)),4)))
+  #return(list(chi = chi_sq_measure, mahalanobis = as.numeric(mahal_measure)))
+  chi_valid <- (abs(chi_sq_measure - m)/sqrt(2*m) <= 3)
+  mahal_valid <- (abs(mahal_measure - m)/sqrt(2*m*(m+n-q-2)/(n-q-4)) <= 3)
+  return(c(chi_valid, mahal_valid))
+}
