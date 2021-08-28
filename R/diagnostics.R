@@ -302,7 +302,7 @@ individual_errors <- function(em, validation, errtype = "normal", xtype = "index
         G <- t(chol(em_cov))
       else {
         Q <- chol(em_cov, pivot = TRUE)
-        P <- diag(1, nrow = nrow(Q))[attr(Q, 'pivot'),]
+        P <- diag(1, nrow = nrow(Q))[,attr(Q, 'pivot')]
         G <- P %*% t(Q)
       }
       G_inv <- tryCatch(
