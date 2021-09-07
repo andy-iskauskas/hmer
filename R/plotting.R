@@ -9,12 +9,14 @@ exp_plot <- function(em, plotgrid = NULL, ppd = 30) {
   }
   em_exp <- em$get_exp(plotgrid[,names(ranges)])
   grid_data <- setNames(cbind(plotgrid[,1:2], em_exp), c(names(plotgrid)[1:2],"E"))
-  g <- ggplot(data = grid_data, aes(x = grid_data[,1], y = grid_data[,2]))
-  if (length(unique(em_exp)) == 1)
-    g <- g + geom_raster(aes(fill = grid_data[,"E"])) + viridis::scale_fill_viridis(option = "magma", name = "exp")
-  else
-    g <- g + geom_contour_filled(aes(z = grid_data[,"E"]), colour = "black", bins = 25) + viridis::scale_fill_viridis(discrete = TRUE, option = "plasma", name = "exp")
-  g <- g + labs(title = paste(em$output_name, "Emulator Expectation"), x = names(grid_data)[1], y = names(grid_data)[2]) +
+  exp_breaks <- seq(min(em_exp) - diff(range(em_exp))/(2*23), max(em_exp) - diff(range(em_exp))/(2*23), length.out = 25)
+  exp_breaks <- unique(signif(exp_breaks, 10))
+  if (length(exp_breaks) == 1) exp_breaks <- c(min(em_exp)-1e-6, max(em_exp)+1e-6)
+  intervals <- findInterval(em_exp, exp_breaks)
+  fake_breaks <- 1:length(exp_breaks)
+  g <- ggplot(data = grid_data, aes(x = grid_data[,1], y = grid_data[,2])) +
+    geom_contour_filled(aes(z = intervals), colour = "black", breaks = fake_breaks) + viridis::scale_fill_viridis(discrete = TRUE, option = "plasma", name = "exp", labels = function(b) {signif(exp_breaks[as.numeric(stringr::str_extract(b, "\\d+"))], 6)}) +
+    labs(title = paste(em$output_name, "Emulator Expectation"), x = names(grid_data)[1], y = names(grid_data)[2]) +
     scale_x_continuous(expand = c(0,0)) +
     scale_y_continuous(expand = c(0,0)) +
     theme_minimal()
@@ -35,12 +37,14 @@ var_plot <- function(em, plotgrid = NULL, ppd = 30, sd = FALSE) {
   else
     em_cov <- em$get_cov(plotgrid[,names(ranges)])
   grid_data <- setNames(cbind(plotgrid[,1:2], em_cov), c(names(plotgrid)[1:2], "V"))
-  g <- ggplot(data = grid_data, aes(x = grid_data[,1], y = grid_data[,2]))
-  if (length(unique(em_cov)) == 1)
-    g <- g + geom_raster(aes(fill = grid_data[,"V"])) + viridis::scale_fill_viridis(option = "plasma", name = if(sd) "sd" else "var")
-  else
-    g <- g + geom_contour_filled(aes(z = grid_data[,"V"]), colour = "black", bins = 25) + viridis::scale_fill_viridis(discrete = TRUE, option = "plasma", name = if(sd) "sd" else "var")
-  g <- g + labs(title = paste(em$output_name, "Emulator", (if(sd) "Standard Deviation" else "Variance")), x = names(grid_data)[1], y = names(grid_data)[2]) +
+  cov_breaks <- seq(min(em_cov) - diff(range(em_cov))/(2 * 23), max(em_cov) + diff(range(em_cov))/(2*23), length.out = 25)
+  cov_breaks <- unique(signif(cov_breaks, 10))
+  if (length(cov_breaks) == 1) cov_breaks <- c(min(em_cov)-1e-6, max(em_cov)+1e-6)
+  intervals <- findInterval(em_cov, cov_breaks)
+  fake_breaks <- 1:length(cov_breaks)
+  g <- ggplot(data = grid_data, aes(x = grid_data[,1], y = grid_data[,2])) +
+    geom_contour_filled(aes(z = intervals), breaks = fake_breaks, colour = "black") + viridis::scale_fill_viridis(discrete = TRUE, option = "plasma", name = if (sd) "sd" else "var", labels = function(b) {signif(cov_breaks[as.numeric(stringr::str_extract(b, "\\d+"))], 6)}) +
+    labs(title = paste(em$output_name, "Emulator", (if(sd) "Standard Deviation" else "Variance")), x = names(grid_data)[1], y = names(grid_data)[2]) +
     scale_x_continuous(expand = c(0,0)) +
     scale_y_continuous(expand = c(0,0)) +
     theme_minimal()
