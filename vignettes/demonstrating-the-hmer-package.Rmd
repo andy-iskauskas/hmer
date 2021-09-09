@@ -67,7 +67,7 @@ targets <- list(
 ```
 
 ```{r fig.width = 7, fig.height = 7}
-invalid_points <- validation_diagnostics(wave1_emulators, GillespieValidation, targets)
+invalid_points <- validation_diagnostics(wave1_emulators, targets, GillespieValidation)
 ```
 
 ## Visualising Emulator Behaviour

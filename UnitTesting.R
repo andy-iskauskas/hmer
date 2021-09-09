@@ -177,19 +177,19 @@ unit_test <- function() {
   )
   tryCatch({
     for (i in names(targets)) {
-      standard_errors(ems[[i]], GillespieValidation)
+      standard_errors(ems[[i]], validation = GillespieValidation)
     }
     for (i in names(targets)) {
-      comparison_diag(ems[[i]], GillespieValidation, targets, sd = 0.5)
+      comparison_diag(ems[[i]], targets, GillespieValidation, sd = 0.5)
     }
     for (i in names(targets)) {
-      classification_diag(ems[[i]], GillespieValidation, targets, cutoff = 1.8)
+      classification_diag(ems[[i]], targets, GillespieValidation, cutoff = 1.8)
     }
   }, error = function(e) stop(paste("Validation plotting failed", e))
   )
-  ro <- nrow(validation_diagnostics(ems, GillespieValidation, targets)) == 2
-  ro <- nrow(validation_diagnostics(ems, GillespieValidation, targets, c('ce','cd'))) == 2
-  ro <- nrow(validation_diagnostics(ems, GillespieValidation, targets, cutoff = 2, sd = 2)) == 6
+  ro <- nrow(validation_diagnostics(ems, targets, GillespieValidation)) == 2
+  ro <- nrow(validation_diagnostics(ems, targets, GillespieValidation, c('ce','cd'))) == 2
+  ro <- nrow(validation_diagnostics(ems, targets, GillespieValidation, cutoff = 2, sd = 2)) == 6
   if (!ro) stop("Combined validation diagnostics not working as expected")
   print("Validation diagnostic functionality working...")
 

@@ -242,14 +242,14 @@ We want to check that the emulators are suitable for proposing new points robust
 These three tests are contained within `validation_diagnostics`, which prints out the corresponding plots for each emulator and returns any points which fail one or more of these checks.
 
 ```{r fig.width = 7, fig.height = 7}
-invalid_points <- validation_diagnostics(ems2d, validation_data, targets2d)
+invalid_points <- validation_diagnostics(ems2d, targets2d, validation_data)
 ```
 
 Looking at these plots shows that the emulators are doing fine. Any failing points are flagged as red in the first two columns of the plots, and appear in the data.frame `invalid_points`: should we have such points it is useful to consider why they might be problematic (for example, a point at an edge or a corner of the parameter space can have strange behaviours). At this stage, we can make a variety of changes to the prior specifications in order to combat these issues, by utilising the `set_sigma` and `set_hyperparams` functions of the `Emulator` object. For instance, to inflate the emulator variance for the $f_2$ emulator:
 
 ```{r fig.width = 7, fig.height = 7}
 inflated_em <- ems2d$f2$set_sigma(ems2d$f2$u_sigma*2)
-new_invaliid <- validation_diagnostics(list(f1 = ems2d$f1, f2 = inflated_em), validation_data, targets2d)
+new_invaliid <- validation_diagnostics(list(f1 = ems2d$f1, f2 = inflated_em), targets2d, validation_data)
 ```
 
 The `set_sigma` and `set_hyperparams` functions create a new Emulator object, so in general we would replace the old emulator with the new one rather than combining lists (e.g. `ems2d$f2 <- emd2d$f2$set_sigma(...)`). In this case, such tinkering is not required and hence we did not replace the $f_2$ emulator in situ.
@@ -312,7 +312,7 @@ ems2d_2
 One thing we can see from this is that the emulators' global variances have reduced, as one would expect. We check again on the emulator diagnostics and modify as necessary:
 
 ```{r fig.width = 7, fig.height = 7}
-invalid_points2 <- validation_diagnostics(ems2d_2, valid2d, targets2d)
+invalid_points2 <- validation_diagnostics(ems2d_2, targets2d, valid2d)
 ```
 
 We briefly look at the implausibilities for these new emulators:

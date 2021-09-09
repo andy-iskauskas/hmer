@@ -160,7 +160,7 @@ Emulator <- R6::R6Class(
       x <- x[, names(x) %in% names(self$ranges)]
       x <- eval_funcs(scale_input, x, self$ranges)
       if (!p %in% names(self$ranges)) return(0)
-      p_ind <- which(names(ranges) == p)
+      p_ind <- which(names(self$ranges) == p)
       if (is.null(self$model_terms)) {
         model_terms <- purrr::map_chr(self$basis_f, function_to_names, names(self$ranges), FALSE)
         g_d <- purrr::map(model_terms, ~D(parse(text = .), p))
@@ -194,8 +194,8 @@ Emulator <- R6::R6Class(
         if (!full || is.null(xp)) return(0)
         return(matrix(0, nrow = nrow(x), ncol = nrow(xp)))
       }
-      p1_ind <- which(names(ranges) == p1)
-      p2_ind <- which(names(ranges) == p2)
+      p1_ind <- which(names(self$ranges) == p1)
+      p2_ind <- which(names(self$ranges) == p2)
       if (is.null(self$model_terms)) {
         model_terms <- purrr::map_chr(self$basis_f, function_to_names, names(self$ranges), FALSE)
         g_d1 <- purrr::map(model_terms, ~D(parse(text = .), p1))

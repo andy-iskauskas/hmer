@@ -6,18 +6,18 @@
 \usage{
 validation_diagnostics(
   emulators,
-  validation,
   targets = NULL,
-  which_diag = "all",
+  validation = NULL,
+  which_diag = c("se", "cd", "ce"),
   ...
 )
 }
 \arguments{
 \item{emulators}{A list of \code{\link{Emulator}} objects.}
 
-\item{validation}{The validation set, containing all inputs and outputs.}
-
 \item{targets}{The list of observations for the outputs}
+
+\item{validation}{The validation set, containing all inputs and outputs.}
 
 \item{which_diag}{Which diagnostics should be performed (see description)}
 
@@ -30,8 +30,8 @@ A data.frame containing points that failed one or more diagnostic tests.
 Performs the standard set of validation diagnostics on emulators.
 }
 \details{
-All the diagnostics here assume the existence of a validation (or 'hold-out') dataset
-from the simulator. The presence of a set of targets is optional for some checks but
+All the diagnostics here can be performed with or without a validation (or 'holdout')
+set of data. The presence of a set of targets is optional for some checks but
 mandatory for others: the appropriate warnings will be given in the event that some
 checks cannot be applied.
 
@@ -43,17 +43,22 @@ The current options for diagnostics (with the codes for \code{which_diag}) are:
 
   Classification Errors (ce)
 
+  Regression Residuals (re)
+
   All of the above (all)
 
 For details of each of the tests, see the help files for \code{\link{standard_errors}},
-\code{\link{comparison_diag}} and \code{\link{classification_diag}} respectively.
+\code{\link{comparison_diag}}, \code{\link{classification_diag}} and
+\code{\link{residual_diag}} respectively.
 }
 \examples{
-validation_diagnostics(sample_emulators$ems, GillespieValidation, sample_emulators$targets)
+validation_diagnostics(sample_emulators$ems, sample_emulators$targets, GillespieValidation)
 # data.frame of failed points and a 3x3 set of plots
-validation_diagnostics(sample_emulators$ems, GillespieValidation, sample_emulators$targets,
+validation_diagnostics(sample_emulators$ems, sample_emulators$targets, GillespieValidation,
  c('ce','cd'))
 # data.frame and a 3x2 set of plots
-validation_diagnostics(sample_emulators$ems, GillespieValidation, sample_emulators$targets,
+validation_diagnostics(sample_emulators$ems, sample_emulators$targets, GillespieValidation,
  cutoff = 2, sd = 2)
+# k-fold (with k = 3)
+validation_diagnostics(sample_emulators$ems, sample_emulators$targets, k = 3)
 }

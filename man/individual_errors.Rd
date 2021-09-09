@@ -51,7 +51,7 @@ against the ordering in the validation set; i.e. \code{errtype = "normal"},
 Some combinations are not permitted, as the output would not be meaningful. Errors
 arising from an eigendecomposition cannot be plotted against either emulator prediction
 or a particular parameter (due to the transformation induced by the eigendecomposition);
-Q-Q plots cannoot be plotted for a non-decomposed set of errors, as the correlation
+Q-Q plots are not plotted for a non-decomposed set of errors, as the correlation
 between errors makes it much harder to interpret.
 }
 \examples{

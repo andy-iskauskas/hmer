@@ -23,6 +23,13 @@ exp_sq_d <- function(x, xp, hp, xi, xpi = NULL) {
   return((2/hp$theta^2 * (if (xi == xpi) 1 else 0) - 4/hp$theta^4 * (x[xi] - xp[xi]) * (x[xpi] - xp[xpi]) * exp_sq(x, xp, hp)))
 }
 
+matern <- function(x, xp, hp) {
+  if (floor(hp$nu*2) != hp$nu*2 || floor(hp$nu) == hp$nu) stop("Matern hyperparameter nu must be half-integer.")
+  p <- hp$nu-0.5
+  d <- sqrt(sum((x-xp)^2))
+  exp(-sqrt(2*p+1)*d/hp$rho) * factorial(p)/factorial(2*p) * sum(purrr::map_dbl(0:p, ~factorial(p+.)/(factorial(.)*factorial(p-.)) * (2*sqrt(2*p+1)*d/hp$rho)^(p-.)))
+}
+
 Correlator <- R6::R6Class(
   "Correlator",
   public = list(

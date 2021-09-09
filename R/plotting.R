@@ -9,13 +9,39 @@ exp_plot <- function(em, plotgrid = NULL, ppd = 30) {
   }
   em_exp <- em$get_exp(plotgrid[,names(ranges)])
   grid_data <- setNames(cbind(plotgrid[,1:2], em_exp), c(names(plotgrid)[1:2],"E"))
-  exp_breaks <- seq(min(em_exp) - diff(range(em_exp))/(2*23), max(em_exp) - diff(range(em_exp))/(2*23), length.out = 25)
-  exp_breaks <- unique(signif(exp_breaks, 10))
-  if (length(exp_breaks) == 1) exp_breaks <- c(min(em_exp)-1e-6, max(em_exp)+1e-6)
-  intervals <- findInterval(em_exp, exp_breaks)
-  fake_breaks <- 1:length(exp_breaks)
-  g <- ggplot(data = grid_data, aes(x = grid_data[,1], y = grid_data[,2])) +
-    geom_contour_filled(aes(z = intervals), colour = "black", breaks = fake_breaks) + viridis::scale_fill_viridis(discrete = TRUE, option = "plasma", name = "exp", labels = function(b) {signif(exp_breaks[as.numeric(stringr::str_extract(b, "\\d+"))], 6)}) +
+  g <- tryCatch(
+    {
+      ## To account for rounding problems in ggplot's pretty_isoband_levels
+      rng <- range(grid_data$E)
+      if (diff(rng) == 0) warning("All output values are identical.")
+      ac <- signif(diff(rng), 1)/10
+      rng[1] <- floor(rng[1]/ac)*ac
+      rng[2] <- ceiling(rng[2]/ac)*ac
+      bks <- seq(rng[1], rng[2], length.out = 26)
+      x_pos <- as.integer(factor(grid_data[,1], levels = sort(unique(grid_data[,1]))))
+      y_pos <- as.integer(factor(grid_data[,2], levels = sort(unique(grid_data[,2]))))
+      raster <- matrix(NA_real_, nrow = max(y_pos), ncol = max(x_pos))
+      raster[cbind(y_pos, x_pos)] <- grid_data$E
+      ibs <- isoband::isobands(x = sort(unique(grid_data[,1])), y = sort(unique(grid_data[,2])), z = raster, levels_low = bks[-length(bks)], levels_high = bks[-1])
+      int_lo <- gsub(":.*$", "", names(ibs))
+      int_hi <- gsub("^[^:]*:", "", names(ibs))
+      lab_lo <- format(as.numeric(int_lo), digits = 3, trim = TRUE)
+      lab_hi <- format(as.numeric(int_hi), digits = 3, trim = TRUE)
+      lab_check <- sprintf("(%s, %s]", lab_lo, lab_hi)
+      if (length(unique(lab_check)) == 1) warning("Can't produce contours natively due to internal accuracy issues.")
+      bns <- min(length(unique(lab_check)), 25)
+      ggplot(data = grid_data, aes(x = grid_data[,1], y = grid_data[,2])) + geom_contour_filled(aes(z = grid_data[,'E']), bins = bns, colour = 'black') + viridis::scale_fill_viridis(discrete = TRUE, option = "magma", name = "exp")
+    },
+    warning = function(w) {
+      exp_breaks <- seq(min(em_exp) - diff(range(em_exp))/(2 * 23), max(em_exp) + diff(range(em_exp))/(2*23), length.out = 25)
+      exp_breaks <- unique(signif(exp_breaks, 10))
+      if (length(exp_breaks) == 1) exp_breaks <- c(min(em_exp)-1e-6, max(em_exp)+1e-6)
+      intervals <- findInterval(em_exp, exp_breaks)
+      fake_breaks <- 1:length(exp_breaks)
+      ggplot(data = grid_data, aes(x = grid_data[,1], y = grid_data[,2])) + geom_contour_filled(aes(z = intervals), breaks = fake_breaks, colour = 'black') + viridis::scale_fill_viridis(discrete = TRUE, option = "magma", name = "exp", labels = function(b) {signif(exp_breaks[as.numeric(stringr::str_extract(b, "\\d+"))], 6)})
+    }
+  )
+  g <- g +
     labs(title = paste(em$output_name, "Emulator Expectation"), x = names(grid_data)[1], y = names(grid_data)[2]) +
     scale_x_continuous(expand = c(0,0)) +
     scale_y_continuous(expand = c(0,0)) +
@@ -37,13 +63,39 @@ var_plot <- function(em, plotgrid = NULL, ppd = 30, sd = FALSE) {
   else
     em_cov <- em$get_cov(plotgrid[,names(ranges)])
   grid_data <- setNames(cbind(plotgrid[,1:2], em_cov), c(names(plotgrid)[1:2], "V"))
-  cov_breaks <- seq(min(em_cov) - diff(range(em_cov))/(2 * 23), max(em_cov) + diff(range(em_cov))/(2*23), length.out = 25)
-  cov_breaks <- unique(signif(cov_breaks, 10))
-  if (length(cov_breaks) == 1) cov_breaks <- c(min(em_cov)-1e-6, max(em_cov)+1e-6)
-  intervals <- findInterval(em_cov, cov_breaks)
-  fake_breaks <- 1:length(cov_breaks)
-  g <- ggplot(data = grid_data, aes(x = grid_data[,1], y = grid_data[,2])) +
-    geom_contour_filled(aes(z = intervals), breaks = fake_breaks, colour = "black") + viridis::scale_fill_viridis(discrete = TRUE, option = "plasma", name = if (sd) "sd" else "var", labels = function(b) {signif(cov_breaks[as.numeric(stringr::str_extract(b, "\\d+"))], 6)}) +
+  g <- tryCatch(
+    {
+      ## To account for rounding problems in ggplot's pretty_isoband_levels
+      rng <- range(grid_data$V)
+      if (diff(rng) == 0) warning("All output values are identical.")
+      ac <- signif(diff(rng), 1)/10
+      rng[1] <- floor(rng[1]/ac)*ac
+      rng[2] <- ceiling(rng[2]/ac)*ac
+      bks <- seq(rng[1], rng[2], length.out = 26)
+      x_pos <- as.integer(factor(grid_data[,1], levels = sort(unique(grid_data[,1]))))
+      y_pos <- as.integer(factor(grid_data[,2], levels = sort(unique(grid_data[,2]))))
+      raster <- matrix(NA_real_, nrow = max(y_pos), ncol = max(x_pos))
+      raster[cbind(y_pos, x_pos)] <- grid_data$V
+      ibs <- isoband::isobands(x = sort(unique(grid_data[,1])), y = sort(unique(grid_data[,2])), z = raster, levels_low = bks[-length(bks)], levels_high = bks[-1])
+      int_lo <- gsub(":.*$", "", names(ibs))
+      int_hi <- gsub("^[^:]*:", "", names(ibs))
+      lab_lo <- format(as.numeric(int_lo), digits = 3, trim = TRUE)
+      lab_hi <- format(as.numeric(int_hi), digits = 3, trim = TRUE)
+      lab_check <- sprintf("(%s, %s]", lab_lo, lab_hi)
+      if (length(unique(lab_check)) == 1) warning("Can't produce contours natively due to internal accuracy issues.")
+      bns <- min(length(unique(lab_check)), 25)
+      ggplot(data = grid_data, aes(x = grid_data[,1], y = grid_data[,2])) + geom_contour_filled(aes(z = grid_data[,'V']), bins = bns, colour = 'black') + viridis::scale_fill_viridis(discrete = TRUE, option = "plasma", name = if(sd) "sd" else "var")
+    },
+    warning = function(w) {
+      cov_breaks <- seq(min(em_cov) - diff(range(em_cov))/(2 * 23), max(em_cov) + diff(range(em_cov))/(2*23), length.out = 25)
+      cov_breaks <- unique(signif(cov_breaks, 10))
+      if (length(cov_breaks) == 1) cov_breaks <- c(min(em_cov)-1e-6, max(em_cov)+1e-6)
+      intervals <- findInterval(em_cov, cov_breaks)
+      fake_breaks <- 1:length(cov_breaks)
+      ggplot(data = grid_data, aes(x = grid_data[,1], y = grid_data[,2])) + geom_contour_filled(aes(z = intervals), breaks = fake_breaks, colour = 'black') + viridis::scale_fill_viridis(discrete = TRUE, option = "plasma", name = if (sd) "sd" else "var", labels = function(b) {signif(cov_breaks[as.numeric(stringr::str_extract(b, "\\d+"))], 6)})
+    }
+  )
+  g <- g +
     labs(title = paste(em$output_name, "Emulator", (if(sd) "Standard Deviation" else "Variance")), x = names(grid_data)[1], y = names(grid_data)[2]) +
     scale_x_continuous(expand = c(0,0)) +
     scale_y_continuous(expand = c(0,0)) +

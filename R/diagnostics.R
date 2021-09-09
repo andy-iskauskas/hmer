@@ -1,3 +1,112 @@
+k_fold_measure <- function(em, target = NULL, k = 1, ...) {
+  train_data <- setNames(data.frame(cbind(eval_funcs(scale_input, data.frame(em$in_data), em$ranges, FALSE), em$out_data)), c(names(em$ranges), em$output_name))
+  ordering <- 1:nrow(train_data)
+  if (k > 1) {
+    if (nrow(train_data) %% k != 0) k <- 1
+    else {
+      ordering <- sample(1:nrow(train_data), nrow(train_data))
+      loo_data <- purrr::map(1:(nrow(train_data)/k), function(x) {
+        relev_em <- em$o_em$clone()
+        relev_pts <- ordering[((x-1)*k+1):(k*x)]
+        adjust_data <- train_data[-relev_pts,]
+        adj_em <- relev_em$adjust(adjust_data, em$output_name)
+        outp <- cbind(cbind(train_data[relev_pts,], adj_em$get_exp(train_data[relev_pts, names(em$ranges)])), adj_em$get_cov(train_data[relev_pts, names(em$ranges)]))
+        if (!is.null(target)) outp <- c(outp, adj_em$implausibility(train_data[relev_pts, names(em$ranges)], target))
+        return(outp)
+      })
+    }
+  }
+  if (k == 1) {
+    loo_data <- purrr::map(1:nrow(train_data), function(x) {
+      relev_em <- em$o_em$clone()
+      adjust_data <- train_data[-x,]
+      adj_em <- relev_em$adjust(adjust_data, em$output_name)
+      outp <- c(train_data[x,], adj_em$get_exp(train_data[x,names(em$ranges)]), adj_em$get_cov(train_data[x,names(em$ranges)]))
+      if (!is.null(target)) outp <- c(outp, adj_em$implausibility(train_data[x, names(em$ranges)], target))
+      return(outp)
+    })
+  }
+  if (!is.null(target)) nms <- c(names(em$ranges), em$output_name, "E", "V", "I")
+  else nms <- nms <- c(names(em$ranges), em$output_name, "E", "V")
+  out_df <- setNames(data.frame(apply(data.frame(do.call('rbind', loo_data)), 2, unlist)), nms)
+  return(out_df[order(as.numeric(row.names(out_df))),])
+}
+
+#' Summary Statistics for Emulators
+#'
+#' Generates measures for emulator quality
+#'
+#' A couple of summary statistics can be generated for emulators, based on their
+#' prediction errors on a validation set. This function produces the test statistic
+#' for a comparison to a relevant chi-squared distribution, and the similar test
+#' statistic for an F-distribution. In both cases, the expectation and standard
+#' deviation of the underlying distribution are also provided.
+#'
+#' The output of this function is a logical vector stating whether the derived
+#' value lies within 3-sigma of the expected value. In systems where errors are
+#' expected to be correlated, higher weight should be given to the Mahalanobis
+#' measure than the chi-squared measure. Any anomalous results can be investigated
+#' in more depth using the \code{\link{individual_errors}} function.
+#'
+#' @param emulator The emulator to test
+#' @param validation The validation set, consisting of points and output(s)
+#' @param verbose Should statistics be printed out?
+#'
+#' @return Whether the observed value lies within 3-sigma of the expected value.
+#'
+#' @export
+#'
+#' @examples
+#'  summary_diag(sample_emulators$ems$nR, GillespieValidation)
+summary_diag <- function(emulator, validation, verbose = FALSE) {
+  points <- validation[,names(emulator$ranges)]
+  outputs <- validation[,emulator$output_name]
+  m <- nrow(validation)
+  n <- nrow(emulator$in_data)
+  q <- length(emulator$basis_f)
+  indiv_errs <- outputs - emulator$get_exp(points)
+  chi_sq_measure <- sum(indiv_errs^2/emulator$get_cov(points))
+  print(paste("Chi-squared:", round(chi_sq_measure,4), "against mean", m, "with standard deviation", round(sqrt(2*m),4)))
+  cov_mat <- emulator$get_cov(points, full = TRUE)
+  cov_inv <- tryCatch(
+    chol2inv(chol(cov_mat)),
+    error = function(e) {MASS::ginv(cov_mat)}
+  )
+  mahal_measure <- t(indiv_errs) %*% cov_inv %*% indiv_errs
+  if (verbose) print(paste("Mahalanobis:", round(mahal_measure,4), "against mean", m, "with standard deviation", round(sqrt(2*m*(m+n-q-2)/(n-q-4)),4)))
+  chi_valid <- (abs(chi_sq_measure - m)/sqrt(2*m) <= 3)
+  mahal_valid <- (abs(mahal_measure - m)/sqrt(2*m*(m+n-q-2)/(n-q-4)) <= 3)
+  return(c(chi_valid, mahal_valid))
+}
+
+#' Emulator Regression Residuals
+#'
+#' Plots the emulator residuals.
+#'
+#' An emulator is composed of two parts: a global regression surface, and a local
+#' correlation structure. It can sometimes be informative to examine the residuals
+#' of the regression surface on the training set, to determine the extent to which
+#' the regression surface is being 'corrected for' by the correlation structure.
+#'
+#' @param emulator The emulator to consider.
+#' @param histogram Should a histogram or a scatter plot be shown? Default: FALSE
+#' @param ... Any additional arguments (used internally)
+#'
+#' @return A set of residuals, standardised by the regression surface residual standard error.
+#' @export
+#'
+#' @examples
+#' residual_diag(sample_emulators$ems$nS)
+#' residual_diag(sample_emulators$ems$nI, TRUE)
+#'
+residual_diag <- function(emulator, histogram = FALSE, ...) {
+  in_points <- eval_funcs(scale_input, data.frame(emulator$in_data), emulator$ranges, FALSE)
+  standardised_residuals <- emulator$model$residuals/emulator$u_sigma
+  if (histogram) hist(standardised_residuals, xlab = "Standadized Residual", ylab = "Frequency", main = paste(emulator$output_name, "Residual Histogram"))
+  else plot(standardised_residuals, xlab = "Point", ylab = "Standardized Residual", pch = 16, main = emulator$output_name, panel.first = abline(h = c(-3, 0, 3), lty = c(2, 1, 2)))
+  return(in_points[abs(standardised_residuals) > 3,])
+}
+
 #' Emulator Standardised Errors
 #'
 #' Finds and plots emulator standardised errors.
@@ -12,11 +121,16 @@
 #' target is provided as a (val, sigma) pair, then the 'failing' points are checked for
 #' relevance: if they are a long way from the target region, then they are discounted.
 #'
+#' If a validation dataset is not provided, then cross-validation is performed using the
+#' training set. By default, leave-one-out cross-validation is used; the parameter \code{k}
+#' can be provided as an optional argument to this function to perform k-fold cross validation
+#' (where k must be a multiple of the dataset size).
+#'
 #' @importFrom graphics hist
 #'
 #' @param emulator An \code{\link{Emulator}} object.
-#' @param validation The validation data.frame, with all inputs and outputs.
 #' @param targets The output targets (to check the relevance of failed points).
+#' @param validation The validation data.frame, with all inputs and outputs.
 #' @param plt Should the histogram be produced?
 #' @param ... Dummy parameters for compatibility with the diagnostic wrapper
 #'
@@ -24,13 +138,23 @@
 #' @export
 #'
 #' @examples
-#' standard_errors(sample_emulators$ems$nS, GillespieValidation, sample_emulators$targets)
+#' standard_errors(sample_emulators$ems$nS, sample_emulators$targets, GillespieValidation)
 #' ## An empty data.frame.
+#' standard_errors(sample_emulators$ems$nS, sample_emulators$targets)
+#' # leave-one-out cross-validation
 #'
-standard_errors <- function(emulator, validation, targets = NULL, plt = TRUE, ...) {
-  input_points <- validation[,names(emulator$ranges)]
-  output_points <- validation[,emulator$output_name]
-  errors <- (emulator$get_exp(input_points) - output_points)/sqrt(emulator$get_cov(input_points) + emulator$disc$internal^2 + emulator$disc$external^2)
+standard_errors <- function(emulator, targets = NULL, validation = NULL, plt = TRUE, ...) {
+  if (is.null(validation)) {
+    dat <- k_fold_measure(emulator, ...)
+    input_points <- dat[,names(emulator$ranges)]
+    output_points <- dat[,emulator$output_name]
+    errors <- (dat[,"E"] - output_points)/sqrt(dat[,"V"] + emulator$disc$internal^2 + emulator$disc$external^2)
+  }
+  else {
+    input_points <- validation[,names(emulator$ranges)]
+    output_points <- validation[,emulator$output_name]
+    errors <- (emulator$get_exp(input_points) - output_points)/sqrt(emulator$get_cov(input_points) + emulator$disc$internal^2 + emulator$disc$external^2)
+  }
   if (plt) {
     hist(errors, xlab = "Standardised Error", main = emulator$output_name)
   }
@@ -58,11 +182,16 @@ standard_errors <- function(emulator, validation, targets = NULL, plt = TRUE, ..
 #' whose emulator bound does not encompass the simulator result but lie far from the
 #' desired output are discounted.
 #'
+#' If a validation dataset is not provided, then cross-validation is performed using the
+#' training set. By default, leave-one-out cross-validation is used; the parameter \code{k}
+#' can be provided as an optional argument to this function to perform k-fold cross validation
+#' (where k must be a multiple of the dataset size).
+#'
 #' @importFrom graphics abline arrows plot
 #'
 #' @param emulator An \code{\link{Emulator}} object.
-#' @param validation The validation data.frame containing all inputs and outputs.
 #' @param targets The output targets (to check the relevance of failed points).
+#' @param validation The validation data.frame containing all inputs and outputs.
 #' @param sd The number of allowed standard deviations (default 3).
 #' @param plt Should the plot be produced?
 #' @param ... Dummy parameters for compatibility with the diagnostic wrapper.
@@ -71,16 +200,25 @@ standard_errors <- function(emulator, validation, targets = NULL, plt = TRUE, ..
 #' @export
 #'
 #' @examples
-#' comparison_diag(sample_emulators$ems$nS, GillespieValidation, sample_emulators$targets)
+#' comparison_diag(sample_emulators$ems$nS, sample_emulators$targets, GillespieValidation)
 #' ## An empty data.frame.
-#' comparison_diag(sample_emulators$ems$nS, GillespieValidation, sample_emulators$targets,
+#' comparison_diag(sample_emulators$ems$nS, sample_emulators$targets, GillespieValidation,
 #'  sd = 0.5)
 #' ## A data.frame containing one point.
-comparison_diag <- function(emulator, validation, targets = NULL, sd = 3, plt = T, ...) {
-  input_points <- validation[,names(emulator$ranges)]
-  output_points <- validation[,emulator$output_name]
-  emulator_exp <- emulator$get_exp(input_points)
-  emulator_unc <- sd * sqrt(emulator$get_cov(input_points) + emulator$disc$internal^2 + emulator$disc$external^2)
+comparison_diag <- function(emulator, targets = NULL, validation = NULL, sd = 3, plt = T, ...) {
+  if (is.null(validation)) {
+    dat <- k_fold_measure(emulator, ...)
+    input_points <- dat[,names(emulator$ranges)]
+    output_points <- dat[,emulator$output_name]
+    emulator_exp <- dat[,"E"]
+    emulator_unc <- sd * sqrt(dat[,"V"] + emulator$disc$internal^2 + emulator$disc$external^2)
+  }
+  else {
+    input_points <- validation[,names(emulator$ranges)]
+    output_points <- validation[,emulator$output_name]
+    emulator_exp <- emulator$get_exp(input_points)
+    emulator_unc <- sd * sqrt(emulator$get_cov(input_points) + emulator$disc$internal^2 + emulator$disc$external^2)
+  }
   em_ranges <- range(c(emulator_exp + emulator_unc, emulator_exp - emulator_unc))
   emulator_invalid <- (output_points > emulator_exp + emulator_unc) | (output_points < emulator_exp - emulator_unc)
   if (!is.null(targets)) {
@@ -121,8 +259,8 @@ comparison_diag <- function(emulator, validation, targets = NULL, sd = 3, plt = 
 #' @importFrom graphics abline plot
 #'
 #' @param emulator An \code{\link{Emulator}} object.
-#' @param validation The validation data.frame containing all inputs and outputs.
 #' @param targets The targets to compare suitability against.
+#' @param validation The validation data.frame containing all inputs and outputs.
 #' @param cutoff The cutoff for the implausibility measures.
 #' @param plt Should the plot be produced?
 #' @param ... Dummy parameters for compatibility with the diagnostic wrapper.
@@ -131,15 +269,24 @@ comparison_diag <- function(emulator, validation, targets = NULL, sd = 3, plt = 
 #' @export
 #'
 #' @examples
-#' classification_diag(sample_emulators$ems$nS, GillespieValidation, sample_emulators$targets)
+#' classification_diag(sample_emulators$ems$nS, sample_emulators$targets, GillespieValidation)
 #' ## An empty data.frame.
-#' classification_diag(sample_emulators$ems$nS, GillespieValidation, sample_emulators$targets,
+#' classification_diag(sample_emulators$ems$nS, sample_emulators$targets, GillespieValidation,
 #'  cutoff = 1)
 #' ## An empty data.frame.
-classification_diag <- function(emulator, validation, targets, cutoff = 3, plt = T, ...) {
-  input_points <- validation[,names(emulator$ranges)]
-  output_points <- validation[,emulator$output_name]
+classification_diag <- function(emulator, targets, validation = NULL, cutoff = 3, plt = T, ...) {
   this_target <- targets[[emulator$output_name]]
+  if (is.null(validation)) {
+    dat <- k_fold_measure(emulator, this_target, ...)
+    input_points <- dat[,names(emulator$ranges)]
+    output_points <- dat[,emulator$output_name]
+    em_imp <- dat[,"I"]
+  }
+  else {
+    input_points <- validation[,names(emulator$ranges)]
+    output_points <- validation[,emulator$output_name]
+    em_imp <- emulator$implausibility(input_points, this_target)
+  }
   if (is.atomic(this_target)) {
     t_cutoff <- 1 * cutoff/3
     sim_imp <- abs(output_points - rep(mean(this_target), length(output_points)))/rep(diff(this_target)/2, length(output_points))
@@ -148,7 +295,6 @@ classification_diag <- function(emulator, validation, targets, cutoff = 3, plt =
     t_cutoff <- cutoff
     sim_imp <- purrr::map_dbl(output_points, ~sqrt((this_target$val-.)^2/this_target$sigma^2))
   }
-  em_imp <- emulator$implausibility(input_points, this_target)
   misclass <- (em_imp > cutoff) & (sim_imp <= t_cutoff)
   if (plt) {
     plot(em_imp, sim_imp, pch = 16,
@@ -163,8 +309,8 @@ classification_diag <- function(emulator, validation, targets, cutoff = 3, plt =
 #'
 #' Performs the standard set of validation diagnostics on emulators.
 #'
-#' All the diagnostics here assume the existence of a validation (or 'hold-out') dataset
-#' from the simulator. The presence of a set of targets is optional for some checks but
+#' All the diagnostics here can be performed with or without a validation (or 'holdout')
+#' set of data. The presence of a set of targets is optional for some checks but
 #' mandatory for others: the appropriate warnings will be given in the event that some
 #' checks cannot be applied.
 #'
@@ -176,16 +322,19 @@ classification_diag <- function(emulator, validation, targets, cutoff = 3, plt =
 #'
 #'   Classification Errors (ce)
 #'
+#'   Regression Residuals (re)
+#'
 #'   All of the above (all)
 #'
 #' For details of each of the tests, see the help files for \code{\link{standard_errors}},
-#' \code{\link{comparison_diag}} and \code{\link{classification_diag}} respectively.
+#' \code{\link{comparison_diag}}, \code{\link{classification_diag}} and
+#' \code{\link{residual_diag}} respectively.
 #'
 #' @importFrom graphics par
 #'
 #' @param emulators A list of \code{\link{Emulator}} objects.
-#' @param validation The validation set, containing all inputs and outputs.
 #' @param targets The list of observations for the outputs
+#' @param validation The validation set, containing all inputs and outputs.
 #' @param which_diag Which diagnostics should be performed (see description)
 #' @param ... Any additional parameters to pass to the diagnostics (eg sd, cutoff, ...)
 #'
@@ -194,20 +343,22 @@ classification_diag <- function(emulator, validation, targets, cutoff = 3, plt =
 #' @export
 #'
 #' @examples
-#' validation_diagnostics(sample_emulators$ems, GillespieValidation, sample_emulators$targets)
+#' validation_diagnostics(sample_emulators$ems, sample_emulators$targets, GillespieValidation)
 #' # data.frame of failed points and a 3x3 set of plots
-#' validation_diagnostics(sample_emulators$ems, GillespieValidation, sample_emulators$targets,
+#' validation_diagnostics(sample_emulators$ems, sample_emulators$targets, GillespieValidation,
 #'  c('ce','cd'))
 #' # data.frame and a 3x2 set of plots
-#' validation_diagnostics(sample_emulators$ems, GillespieValidation, sample_emulators$targets,
+#' validation_diagnostics(sample_emulators$ems, sample_emulators$targets, GillespieValidation,
 #'  cutoff = 2, sd = 2)
-validation_diagnostics <- function(emulators, validation, targets = NULL, which_diag = 'all', ...) {
+#' # k-fold (with k = 3)
+#' validation_diagnostics(sample_emulators$ems, sample_emulators$targets, k = 3)
+validation_diagnostics <- function(emulators, targets = NULL, validation = NULL, which_diag = c('se', 'cd', 'ce'), ...) {
   if ("Emulator" %in% class(emulators))
     emulators <- setNames(list(emulators), emulators$output_name)
   fail_point_list <- list()
-  if (length(which_diag) == 1 && which_diag == 'all') actual_diag <- c('se', 'cd', 'ce')
+  if (length(which_diag) == 1 && which_diag == 'all') actual_diag <- c('se', 'cd', 'ce', 're')
   else {
-    actual_diag <- which_diag[which_diag %in% c('se', 'cd', 'ce')]
+    actual_diag <- which_diag[which_diag %in% c('se', 'cd', 'ce', 're')]
     if (length(which_diag) != length(actual_diag)) warning(paste("Unrecognised diagnostics:", paste0(which_diag[!which_diag %in% c('se', 'cd', 'ce')], collapse = ", "), "\n\tValid diagnostic labels are cd, se, ce or all."))
   }
   mf <- length(actual_diag)
@@ -217,9 +368,10 @@ validation_diagnostics <- function(emulators, validation, targets = NULL, which_
   }
   op <- par(mfrow = c(3, mf))
   for (i in 1:length(emulators)) {
-    if ('cd' %in% actual_diag) fail_point_list[[length(fail_point_list)+1]] <- comparison_diag(emulators[[i]], validation, targets, ...)
-    if ('ce' %in% actual_diag) fail_point_list[[length(fail_point_list)+1]] <- classification_diag(emulators[[i]], validation, targets, ...)
-    if ('se' %in% actual_diag) fail_point_list[[length(fail_point_list)+1]] <- standard_errors(emulators[[i]], validation, targets, ...)
+    if ('cd' %in% actual_diag) fail_point_list[[length(fail_point_list)+1]] <- comparison_diag(emulators[[i]], targets, validation, ...)
+    if ('ce' %in% actual_diag) fail_point_list[[length(fail_point_list)+1]] <- classification_diag(emulators[[i]], targets, validation, ...)
+    if ('se' %in% actual_diag) fail_point_list[[length(fail_point_list)+1]] <- standard_errors(emulators[[i]], targets, validation, ...)
+    if ('re' %in% actual_diag) fail_point_list[[length(fail_point_list)+1]] <- residual_diag(emulators[[i]], ...)
   }
   par(op)
   failed_points <- unique(do.call('rbind', fail_point_list))
@@ -251,7 +403,7 @@ validation_diagnostics <- function(emulators, validation, targets = NULL, which_
 #' Some combinations are not permitted, as the output would not be meaningful. Errors
 #' arising from an eigendecomposition cannot be plotted against either emulator prediction
 #' or a particular parameter (due to the transformation induced by the eigendecomposition);
-#' Q-Q plots cannoot be plotted for a non-decomposed set of errors, as the correlation
+#' Q-Q plots are not plotted for a non-decomposed set of errors, as the correlation
 #' between errors makes it much harder to interpret.
 #'
 #' @importFrom stats qqnorm qqline
@@ -326,51 +478,4 @@ individual_errors <- function(em, validation, errtype = "normal", xtype = "index
   }
   output <- data.frame(variable = x_vals, error = indiv_errors)
   return(output)
-}
-
-#' Summary Statistics for Emulators
-#'
-#' Generates measures for emulator quality
-#'
-#' A couple of summary statistics can be generated for emulators, based on their
-#' prediction errors on a validation set. This function produces the test statistic
-#' for a comparison to a relevant chi-squared distribution, and the similar test
-#' statistic for an F-distribution. In both cases, the expectation and standard
-#' deviation of the underlying distribution are also provided.
-#'
-#' The output of this function is a logical vector stating whether the derived
-#' value lies within 3-sigma of the expected value. In systems where errors are
-#' expected to be correlated, higher weight should be given to the Mahalanobis
-#' measure than the chi-squared measure. Any anomalous results can be investigated
-#' in more depth using the \code{\link{individual_errors}} function.
-#'
-#' @param em The emulator to test
-#' @param validation The validation set, consisting of points and output(s)
-#'
-#' @return Whether the observed value lies within 3-sigma of the expected value..
-#'
-#' @export
-#'
-#' @examples
-#'  summary_diagnostic(sample_emulators$ems$nR, GillespieValidation)
-summary_diagnostic <- function(em, validation) {
-  points <- validation[,names(em$ranges)]
-  outputs <- validation[,em$output_name]
-  m <- nrow(validation)
-  n <- nrow(em$in_data)
-  q <- length(em$basis_f)
-  indiv_errs <- outputs - em$get_exp(points)
-  chi_sq_measure <- sum(indiv_errs^2/em$get_cov(points))
-  print(paste("Chi-squared:", round(chi_sq_measure,4), "against mean", m, "with standard deviation", round(sqrt(2*m),4)))
-  cov_mat <- em$get_cov(points, full = TRUE)
-  cov_inv <- tryCatch(
-    chol2inv(chol(cov_mat)),
-    error = function(e) {MASS::ginv(cov_mat)}
-  )
-  mahal_measure <- t(indiv_errs) %*% cov_inv %*% indiv_errs
-  print(paste("Mahalanobis:", round(mahal_measure,4), "against mean", m, "with standard deviation", round(sqrt(2*m*(m+n-q-2)/(n-q-4)),4)))
-  #return(list(chi = chi_sq_measure, mahalanobis = as.numeric(mahal_measure)))
-  chi_valid <- (abs(chi_sq_measure - m)/sqrt(2*m) <= 3)
-  mahal_valid <- (abs(mahal_measure - m)/sqrt(2*m*(m+n-q-2)/(n-q-4)) <= 3)
-  return(c(chi_valid, mahal_valid))
 }

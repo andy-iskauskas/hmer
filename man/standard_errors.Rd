@@ -4,14 +4,14 @@
 \alias{standard_errors}
 \title{Emulator Standardised Errors}
 \usage{
-standard_errors(emulator, validation, targets = NULL, plt = TRUE, ...)
+standard_errors(emulator, targets = NULL, validation = NULL, plt = TRUE, ...)
 }
 \arguments{
 \item{emulator}{An \code{\link{Emulator}} object.}
 
-\item{validation}{The validation data.frame, with all inputs and outputs.}
-
 \item{targets}{The output targets (to check the relevance of failed points).}
+
+\item{validation}{The validation data.frame, with all inputs and outputs.}
 
 \item{plt}{Should the histogram be produced?}
 
@@ -33,9 +33,16 @@ If \code{plt = TRUE}, then the histogram of standardised errors is provided. Reg
 the set of points that fail this diagnostic are returned as a data.frame. If the output
 target is provided as a (val, sigma) pair, then the 'failing' points are checked for
 relevance: if they are a long way from the target region, then they are discounted.
+
+If a validation dataset is not provided, then cross-validation is performed using the
+training set. By default, leave-one-out cross-validation is used; the parameter \code{k}
+can be provided as an optional argument to this function to perform k-fold cross validation
+(where k must be a multiple of the dataset size).
 }
 \examples{
-standard_errors(sample_emulators$ems$nS, GillespieValidation, sample_emulators$targets)
+standard_errors(sample_emulators$ems$nS, sample_emulators$targets, GillespieValidation)
 ## An empty data.frame.
+standard_errors(sample_emulators$ems$nS, sample_emulators$targets)
+# leave-one-out cross-validation
 
 }

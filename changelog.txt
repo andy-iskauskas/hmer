@@ -1,4 +1,6 @@
 Changelog (Release Branch)
+09/09/2021 - v0.9.1. Additional diagnostics, including support for leave-one-out and k-fold diagnostic methods in validation_diagnostics. Major stability change to emulator_plot functionality.
+
 25/08/2021 - v0.9.0. Major changes to how targets and uncertainties are treated. Targets can be specified as (val, sigma) pairs or as (lo, hi) pairs and are treated accordingly; internal and external discrepancies moved to emulator object and initialised inside emulator_from_data. Other minor fixes.
 
 05/08/2021 - v0.8.9. Fixes to variance emulator construction; effect_strength function addes to investigate active parameter impact; function-call vignette included.

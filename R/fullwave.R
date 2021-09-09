@@ -167,7 +167,7 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL, prop_train = 
   print("Performing diagnostics...")
   invalid_ems <- c()
   for (i in 1:length(ems)) {
-    comp_fail <- nrow(comparison_diag(ems[[i]], valid, targets, plt = FALSE))
+    comp_fail <- nrow(comparison_diag(ems[[i]], targets, valid, plt = FALSE))
     if (comp_fail > nrow(valid)/4) {
       invalid_ems <- c(invalid_ems, i)
       print(paste("Emulator for output", ems[[i]]$output_name, "fails comparison diagnostics. It will not be matched to at this wave."))
@@ -179,10 +179,10 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL, prop_train = 
     emulator_uncerts <- purrr::map_dbl(ems, ~sqrt(.$u_sigma^2 + targets[[.$output_name]]$sigma^2)/targets[[.$output_name]]$sigma)
   if (length(ems) == 0) stop("No emulator passed diagnostic checks.")
   for (i in 1:length(ems)) {
-    misclass <- nrow(classification_diag(ems[[i]], valid, targets, cutoff = cutoff, plt = FALSE))
+    misclass <- nrow(classification_diag(ems[[i]], targets, valid, cutoff = cutoff, plt = FALSE))
     while(misclass > 0) {
       ems[[i]] <- ems[[i]]$set_sigma(ems[[i]]$u_sigma*1.1)
-      misclass <- nrow(classification_diag(ems[[i]], valid, targets, plt = FALSE))
+      misclass <- nrow(classification_diag(ems[[i]], targets, valid, plt = FALSE))
     }
   }
   emulator_order <- c(purrr::map_dbl(ems, ~sum(.$implausibility(data, targets[[.$output_name]], cutoff))), use.names = FALSE)

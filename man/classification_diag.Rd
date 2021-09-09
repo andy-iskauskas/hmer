@@ -4,14 +4,21 @@
 \alias{classification_diag}
 \title{Classification Diagnostic}
 \usage{
-classification_diag(emulator, validation, targets, cutoff = 3, plt = T, ...)
+classification_diag(
+  emulator,
+  targets,
+  validation = NULL,
+  cutoff = 3,
+  plt = T,
+  ...
+)
 }
 \arguments{
 \item{emulator}{An \code{\link{Emulator}} object.}
 
-\item{validation}{The validation data.frame containing all inputs and outputs.}
-
 \item{targets}{The targets to compare suitability against.}
+
+\item{validation}{The validation data.frame containing all inputs and outputs.}
 
 \item{cutoff}{The cutoff for the implausibility measures.}
 
@@ -35,9 +42,9 @@ against one another. Misclassified points (i.e. those in the bottom right 'quadr
 are highlighted in red.
 }
 \examples{
-classification_diag(sample_emulators$ems$nS, GillespieValidation, sample_emulators$targets)
+classification_diag(sample_emulators$ems$nS, sample_emulators$targets, GillespieValidation)
 ## An empty data.frame.
-classification_diag(sample_emulators$ems$nS, GillespieValidation, sample_emulators$targets,
+classification_diag(sample_emulators$ems$nS, sample_emulators$targets, GillespieValidation,
  cutoff = 1)
 ## An empty data.frame.
 }

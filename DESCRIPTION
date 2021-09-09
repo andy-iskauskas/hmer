@@ -1,7 +1,7 @@
 Package: hmer
 Type: Package
 Title: History Matching And Emulation Package
-Version: 0.9.0
+Version: 0.9.1
 Author: person("Andrew", "Iskauskas", email = "andrew.iskauskas@durham.ac.uk", role = c('aut', 'cre'))
 Maintainer: Andrew Iskauskas <andrew.iskauskas@durham.ac.uk>
 Description: A set of objects and functions for Bayes Linear emulation and history matching.
@@ -28,7 +28,8 @@ Imports:
   rlang,
   dfoptim,
   moments,
-  cluster
+  cluster,
+  isoband
 License: GPL-3
 Encoding: UTF-8
 LazyData: true

@@ -4,14 +4,21 @@
 \alias{comparison_diag}
 \title{Emulator Comparison Diagnostic}
 \usage{
-comparison_diag(emulator, validation, targets = NULL, sd = 3, plt = T, ...)
+comparison_diag(
+  emulator,
+  targets = NULL,
+  validation = NULL,
+  sd = 3,
+  plt = T,
+  ...
+)
 }
 \arguments{
 \item{emulator}{An \code{\link{Emulator}} object.}
 
-\item{validation}{The validation data.frame containing all inputs and outputs.}
-
 \item{targets}{The output targets (to check the relevance of failed points).}
+
+\item{validation}{The validation data.frame containing all inputs and outputs.}
 
 \item{sd}{The number of allowed standard deviations (default 3).}
 
@@ -35,11 +42,16 @@ If \code{plt = TRUE}, then the equivalent plot is provided. As with
 \code{\link{standard_errors}}, if a target is provided to the diagnostic, then points
 whose emulator bound does not encompass the simulator result but lie far from the
 desired output are discounted.
+
+If a validation dataset is not provided, then cross-validation is performed using the
+training set. By default, leave-one-out cross-validation is used; the parameter \code{k}
+can be provided as an optional argument to this function to perform k-fold cross validation
+(where k must be a multiple of the dataset size).
 }
 \examples{
-comparison_diag(sample_emulators$ems$nS, GillespieValidation, sample_emulators$targets)
+comparison_diag(sample_emulators$ems$nS, sample_emulators$targets, GillespieValidation)
 ## An empty data.frame.
-comparison_diag(sample_emulators$ems$nS, GillespieValidation, sample_emulators$targets,
+comparison_diag(sample_emulators$ems$nS, sample_emulators$targets, GillespieValidation,
  sd = 0.5)
 ## A data.frame containing one point.
 }
