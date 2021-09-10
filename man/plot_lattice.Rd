@@ -4,7 +4,7 @@
 \alias{plot_lattice}
 \title{Plot Lattice of Emulator Implausibilities}
 \usage{
-plot_lattice(ems, targets, ppd = 20, cb = FALSE, cutoff = 3)
+plot_lattice(ems, targets, ppd = 20, cb = FALSE, cutoff = 3, maxpoints = 50000)
 }
 \arguments{
 \item{ems}{The \code{\link{Emulator}} objects in question.}
@@ -16,6 +16,8 @@ plot_lattice(ems, targets, ppd = 20, cb = FALSE, cutoff = 3)
 \item{cb}{Whether or not a colourblind-friendly plot should be produced.}
 
 \item{cutoff}{The cutoff value for non-implausible points.}
+
+\item{maxpoints}{The limit on the number of points to be evaluated.}
 }
 \value{
 A ggplot object
@@ -30,13 +32,17 @@ Two dimensional optical depth plots (lower triangle);
 
 Two dimensional minimum implausibility plots (upper triangle).
 
-The optical depth is calculated as follows. A regular grid is constructed across the
+The optical depth is calculated as follows. A set of points is constructed across the
 full d-dimensional parameter space, and implausibility is calculated at each point.
 The points are collected into groups based on their placement in a projection to a
 one- or two-dimensional slice of the parameter space. For each group, the proportion
 of non-implausible points is calculated, and this value in [0,1] is plotted. The
 minimum implausibility plots are similar, but with minimum implausibility calculated
 rather than proportion of non-implausible points.
+
+The \code{maxpoints} argument is used as a cutoff for if a regular ppd grid would
+result in a very large number of points. If this is the case, then \code{maxpoints} points
+are sampled uniformly from the region instead of regularly spacing them.
 }
 \examples{
 \donttest{

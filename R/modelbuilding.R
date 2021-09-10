@@ -332,58 +332,6 @@ emulator_from_data <- function(input_data, output_names, ranges,
   return(out_ems)
 }
 
-#' Variance Emulator Creation (Deprecated)
-#'
-#' For stochastic systems, it can be helpful to emulate the variance as well as the function.
-#' This is particularly true if one expects the variance to be very different in different
-#' areas of the parameter space (for example, in an epidemic model). This function performs
-#' the requisite two-stage Bayes Linear update.
-#'
-#' Two sets of data are required: the observed variance of the stochastic runs at each point,
-#' and their corresponding mean output values. The data.frames should have the same named
-#' inputs and outputs. A parameter \code{npoints} is also required: this is a single numeric
-#' or vector of numerics representing the number of replicates done at each input point.
-#'
-#' All other parameters passed to this function are equivalent to those in
-#' \code{\link{emulator_from_data}} - one notable absence is that by default, the returned
-#' emulators are the Bayes Linear adjusted forms.
-#'
-#' @param input_data_var The variance data.
-#' @param input_data_exp The function data.
-#' @param npoints The number of replicates per observation.
-#' @param output_names The observation names.
-#' @param ranges A named list of parameter ranges
-#' @param input_names The names of the parameters (if \code{ranges} is not provided).
-#' @param kurt The expected kurtosis of the data.
-#' @param beta A list of regression coefficients for each output.
-#' @param u A list of \code{\link{Correlator}} objects for each output.
-#' @param c_lengths A list of correlation lengths for each output.
-#' @param funcs A list of regression functions for each output.
-#' @param deltas Nugget terms for each correlation structure.
-#' @param ev Estimates of ensemble variability for each output.
-#' @param quadratic Should a quadratic or linear fit be found?
-#' @param beta.var Should regression coefficient uncertainty be included?
-#' @param discrepancies Any internal/external discrepancies in data.
-#'
-#' @return A list of lists: one for the variance emulators and one for the function emulators.
-#' @export
-#'
-variance_emulator_from_data_old <- function(input_data_var, input_data_exp, npoints,
-                                        output_names, ranges, input_names = names(ranges),
-                                        kurt = 3, beta, u,
-                                        c_lengths, funcs, deltas, ev,
-                                        quadratic = TRUE, beta.var = FALSE, discrepancies = NULL) {
-  p_v_e <- emulator_from_data(input_data_var, output_names, ranges, input_names, beta, u, c_lengths, funcs, deltas, ev, quadratic, beta.var, adjusted = FALSE)
-  var_mods <- purrr::map(p_v_e, ~(.$get_exp(input_data_var)^2 + .$get_cov(input_data_var))/c(npoints) * (kurt - 1 + 2/(c(npoints)-1)))
-  for (i in 1:length(p_v_e)) p_v_e[[i]]$s_diag <- c(var_mods[[i]])
-  t_v_e <- setNames(purrr::map(seq_along(p_v_e), ~p_v_e[[.]]$adjust(input_data_var, output_names[[.]])), output_names)
-  exp_mods <- purrr::map(t_v_e, ~.$get_exp(input_data_exp)/c(npoints))
-  p_e_e <- emulator_from_data(input_data_exp, output_names, ranges, input_names, beta, u, c_lengths, funcs, deltas, ev, quadratic, beta.var, adjusted = FALSE, discrepancies = discrepancies)
-  for (i in 1:length(p_e_e)) p_e_e[[i]]$s_diag <- c(exp_mods[[i]])
-  t_e_e <- setNames(purrr::map(seq_along(p_e_e), ~p_e_e[[.]]$adjust(input_data_exp, output_names[[.]])), output_names)
-  return(list(variance = t_v_e, expectation = t_e_e))
-}
-
 #' Variance Emulator Creation
 #'
 #' For stochastic systems, it can be helpful to emulate the variance as well as the function.
@@ -454,8 +402,10 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
     else {
       variance_em <- emulator_from_data(all_var, i, ranges, quadratic = FALSE, adjusted = FALSE, ...)[[1]]
     }
-    var_mod <- (variance_em$get_exp(all_var)^2 + variance_em$get_cov(all_var))/all_n * (kurt_ave - 1 + 2/(all_n-1))
-    variance_em$s_diag <- c(var_mod, use.names = FALSE)
+    #var_mod <- (variance_em$get_exp(all_var)^2 + variance_em$get_cov(all_var))/all_n * (kurt_ave - 1 + 2/(all_n-1))
+    var_mod <- function(x, n) (variance_em$get_exp(x)^2 + variance_em$get_cov(x))/n * (kurt_ave - 1 + 2/(n-1))
+    variance_em$s_diag <- var_mod
+    variance_em$samples <- all_n
     if (all(is_high_rep) || !any(is_high_rep))
       v_em <- variance_em$adjust(all_var, i)
     else
@@ -463,10 +413,14 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
     variance_emulators <- c(variance_emulators, v_em)
   }
   variance_emulators <- setNames(variance_emulators, output_names)
-  exp_mods <- purrr::map(variance_emulators, ~.$get_exp(collected_df[,input_names])/collected_df$n)
+  #exp_mods <- purrr::map(variance_emulators, ~.$get_exp(collected_df[,input_names])/collected_df$n)
+  exp_mods <- purrr::map(variance_emulators, ~function(x, n) .$get_exp(x)/n)
   exp_data <- setNames(collected_df[,c(input_names, paste0(output_names, 'mean'))], c(input_names, output_names))
   exp_em <- emulator_from_data(exp_data, output_names, ranges, input_names, adjusted = FALSE, ...)
-  for (i in 1:length(exp_em)) exp_em[[i]]$s_diag <- c(exp_mods[[i]])
+  for (i in 1:length(exp_em)) {
+    exp_em[[i]]$s_diag <- exp_mods[[i]]
+    exp_em[[i]]$samples <- collected_df$n
+  }
   expectation_emulators <- setNames(purrr::map(seq_along(exp_em), ~exp_em[[.]]$adjust(exp_data, output_names[[.]])), output_names)
   return(list(variance = variance_emulators, expectation = expectation_emulators))
 }

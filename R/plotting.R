@@ -300,13 +300,17 @@ output_plot <- function(ems, targets, points = NULL, npoints = 1000) {
 #'
 #' Two dimensional minimum implausibility plots (upper triangle).
 #'
-#' The optical depth is calculated as follows. A regular grid is constructed across the
+#' The optical depth is calculated as follows. A set of points is constructed across the
 #' full d-dimensional parameter space, and implausibility is calculated at each point.
 #' The points are collected into groups based on their placement in a projection to a
 #' one- or two-dimensional slice of the parameter space. For each group, the proportion
 #' of non-implausible points is calculated, and this value in [0,1] is plotted. The
 #' minimum implausibility plots are similar, but with minimum implausibility calculated
 #' rather than proportion of non-implausible points.
+#'
+#' The \code{maxpoints} argument is used as a cutoff for if a regular ppd grid would
+#' result in a very large number of points. If this is the case, then \code{maxpoints} points
+#' are sampled uniformly from the region instead of regularly spacing them.
 #'
 #' @importFrom cowplot plot_grid get_legend
 #' @importFrom stats xtabs
@@ -317,6 +321,7 @@ output_plot <- function(ems, targets, points = NULL, npoints = 1000) {
 #' @param ppd The number of points to sample per dimension.
 #' @param cb Whether or not a colourblind-friendly plot should be produced.
 #' @param cutoff The cutoff value for non-implausible points.
+#' @param maxpoints The limit on the number of points to be evaluated.
 #'
 #' @return A ggplot object
 #' @export
@@ -326,7 +331,7 @@ output_plot <- function(ems, targets, points = NULL, npoints = 1000) {
 #'  plot_lattice(sample_emulators$ems, sample_emulators$targets, ppd = 10)
 #'  plot_lattice(sample_emulators$ems$nS, sample_emulators$targets)
 #' }
-plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE, cutoff = 3) {
+plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE, cutoff = 3, maxpoints = 5e4) {
   get_count <- function(df, nbins, nms) {
     out_df <- setNames(expand.grid(1:nbins, 1:nbins), nms)
     out_df$Freq <- 0
@@ -338,25 +343,30 @@ plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE, cutoff = 3) {
     return(xtabs(x_form, data = out_df))
   }
   ranges <- if("Emulator" %in% class(ems)) ems$ranges else ems[[1]]$ranges
-  dim_unif <- purrr::map(ranges, ~seq(.[[1]], .[[2]], length.out = ppd))
-  plotgrid <- expand.grid(dim_unif)
+  if (ppd^length(ranges) > maxpoints) {
+    plotgrid <- setNames(data.frame(do.call('cbind', purrr::map(ranges, ~runif(maxpoints, .[[1]], .[[2]])))), names(ranges))
+  }
+  else {
+    dim_unif <- purrr::map(ranges, ~seq(.[[1]], .[[2]], length.out = ppd))
+    plotgrid <- expand.grid(dim_unif)
+  }
   imps <- nth_implausible(ems, plotgrid, targets)
   df <- setNames(data.frame(cbind(plotgrid, imps)), c(names(ranges), "I"))
-  bins <- ppd-1
+  bins <- if (ppd^length(ranges) > maxpoints) 20 else ppd
   df_filtered <- subset(df, I <= cutoff)
   one_dim <- setNames(data.frame(do.call('cbind', purrr::map(seq_along(ranges), function(x) {
-    binpoints <- seq(ranges[[x]][1], ranges[[x]][2], length.out = bins)
+    binpoints <- seq(ranges[[x]][1]-1e-6, ranges[[x]][2]+1e-6, length.out = bins+1)
     intervals <- findInterval(df[,names(ranges)[[x]]], binpoints)
-    tot_in_bin <- c(tabulate(intervals, nbins = bins))
+    tot_in_bin <- c(tabulate(intervals, bins))
     tot_in_bin[tot_in_bin == 0] <- 1
-    tot_NROY <- c(tabulate(findInterval(df_filtered[,names(ranges)[[x]]], binpoints), nbins = bins))
+    tot_NROY <- c(tabulate(findInterval(df_filtered[,names(ranges)[[x]]], binpoints), bins))
     props <- tot_NROY/tot_in_bin
     return(props[intervals])
   }))), names(ranges))
   variable_combs <- unlist(purrr::map(outer(names(ranges), names(ranges), paste)[upper.tri(outer(names(ranges), names(ranges), paste))],
                                       ~strsplit(., " ")), recursive = FALSE)
   two_dim <- purrr::map(variable_combs, function(x) {
-    binpoints <- purrr::map(seq_along(x), ~seq(ranges[[x[.]]][1], ranges[[x[.]]][2], length.out = bins))
+    binpoints <- purrr::map(seq_along(x), ~seq(ranges[[x[.]]][1]-1e-6, ranges[[x[.]]][2]+1e-6, length.out = bins+1))
     intervals <- setNames(data.frame(do.call('cbind', purrr::map(seq_along(x), ~findInterval(df[,x[.]], binpoints[[.]])))), x)
     tot_in_bin <- table(intervals)
     NROY_class <- setNames(data.frame(do.call('cbind', purrr::map(seq_along(x), ~findInterval(df_filtered[,x[.]], binpoints[[.]])))), x)
@@ -366,7 +376,7 @@ plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE, cutoff = 3) {
     return(apply(intervals, 1, function(x) props[x[1], x[2]]))
   })
   mins <- purrr::map(variable_combs, function(x) {
-    binpoints <- purrr::map(seq_along(x), ~seq(ranges[[x[.]]][1], ranges[[x[.]]][2], length.out = bins))
+    binpoints <- purrr::map(seq_along(x), ~seq(ranges[[x[.]]][1]-1e-6, ranges[[x[.]]][2]+1e-6, length.out = bins+1))
     intervals <- setNames(data.frame(do.call('cbind', purrr::map(seq_along(x), ~findInterval(df[,x[.]], binpoints[[.]])))), x)
     minimp <- matrix(rep(0, bins^2), nrow = bins)
     for (i in 1:bins) {
@@ -377,7 +387,14 @@ plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE, cutoff = 3) {
   })
   full_df <- setNames(data.frame(cbind(one_dim, two_dim, mins)),
                       c(paste0(names(ranges), 'op'), paste0(purrr::map_chr(variable_combs, ~paste(., collapse = "")), "op"), paste0(purrr::map_chr(variable_combs, ~paste(., collapse = "")), "min")))
-  full_df <- data.frame(cbind(plotgrid, full_df))
+  if (ppd^length(ranges) > maxpoints) {
+    grid_df <- expand.grid(purrr::map(ranges, ~seq(.[[1]], .[[2]], length.out = bins)))
+    ordering <- apply(grid_df, 1, function(x) which.min(apply(plotgrid[,names(ranges)], 1, function(y) sum((x-y)^2))))
+    full_df <- data.frame(cbind(grid_df, full_df[ordering,]))
+  }
+  else {
+    full_df <- data.frame(cbind(expand.grid(purrr::map(ranges, ~seq(.[[1]], .[[2]], length.out = bins))), full_df))
+  }
   u_mat <- l_mat <- matrix(rep("", length(ranges)^2), nrow = length(ranges))
   comb_names <- purrr::map(variable_combs, paste, collapse = "")
   u_mat[upper.tri(u_mat)] <- paste0(comb_names, 'min')

@@ -14,7 +14,7 @@ exp_sq(x, xp, hp)
 \item{hp}{The hyperparameter theta (correlation length)}
 }
 \value{
-The exponental-squared correlation between x and xp.
+The exponential-squared correlation between x and xp.
 }
 \description{
 For points \code{x}, \code{xp} and a correlation length \code{theta}, gives the exponent

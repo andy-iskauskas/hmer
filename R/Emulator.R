@@ -24,8 +24,9 @@ Emulator <- R6::R6Class(
     o_em = NULL,
     output_name = NULL,
     disc = list(internal = 0, external = 0),
-    s_diag = 0,
-    initialize = function(basis_f, beta, u, ranges, data = NULL, model = NULL, original_em = NULL, out_name = NULL, a_vars = NULL, discs = NULL, s_diag = 0) {
+    s_diag = NULL,
+    samples = 0,
+    initialize = function(basis_f, beta, u, ranges, data = NULL, model = NULL, original_em = NULL, out_name = NULL, a_vars = NULL, discs = NULL, s_diag = NULL, samples = 0) {
       self$model <- model
       self$model_terms <- tryCatch(
         c("1", labels(terms(self$model))),
@@ -38,7 +39,8 @@ Emulator <- R6::R6Class(
       self$u_mu <- function(x) 0
       self$u_sigma <- u$sigma
       self$corr <- u$corr
-      self$s_diag <- s_diag
+      if (!is.null(s_diag)) self$s_diag <- s_diag else self$s_diag <- function(x, n) 0
+      self$samples <- samples
       if (!is.null(out_name)) self$output_name <- out_name
       if (is.null(a_vars)) {
         self$active_vars <- purrr::map_lgl(seq_along(ranges), function(x) {
@@ -61,7 +63,9 @@ Emulator <- R6::R6Class(
         self$out_data <- data[, !names(data) %in% names(self$ranges)]
       }
       if (!is.null(self$in_data)) {
-        d_corr <- self$u_sigma^2 * apply(self$in_data, 1, function(y) apply(self$in_data, 1, self$corr$get_corr, y, self$active_vars)) + diag(self$s_diag, nrow = nrow(self$in_data))
+        temp_in <- eval_funcs(scale_input, self$in_data, self$ranges, FALSE)
+        sample_mod <- purrr::map_dbl(seq_along(1:nrow(temp_in)), ~self$s_diag(temp_in[.,], self$samples[.]))
+        d_corr <- self$u_sigma^2 * apply(self$in_data, 1, function(y) apply(self$in_data, 1, self$corr$get_corr, y, self$active_vars)) + diag(sample_mod, nrow = nrow(self$in_data))
         private$data_corrs <- tryCatch(
           private$data_corrs <- chol2inv(chol(d_corr)),
           error = function(e) {
@@ -75,7 +79,7 @@ Emulator <- R6::R6Class(
         private$beta_u_cov_modifier <- self$beta_sigma %*% t(private$design_matrix) %*% private$data_corrs
       }
     },
-    get_exp = function(x) {
+    get_exp = function(x, samps = NULL) {
       x <- x[, names(x) %in% names(self$ranges)]
       x <- eval_funcs(scale_input, x, self$ranges)
       g <- t(apply(x, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y)))
@@ -94,7 +98,7 @@ Emulator <- R6::R6Class(
       if (length(self$beta_mu) == 1) return(c(beta_part + u_part))
       return(beta_part + u_part)
     },
-    get_cov = function(x, xp = NULL, full = FALSE) {
+    get_cov = function(x, xp = NULL, full = FALSE, samps = NULL) {
       x <- eval_funcs(scale_input, x[, names(x) %in% names(self$ranges)], self$ranges)
       g_x <- apply(x, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y))
       x <- data.matrix(x)
@@ -311,7 +315,9 @@ Emulator <- R6::R6Class(
       }
       else {
         G <- apply(this_data_in, 1, function(x) purrr::map_dbl(self$basis_f, purrr::exec, x))
-        Ot <- apply(this_data_in, 1, function(x) apply(this_data_in, 1, self$corr$get_corr, x, self$active_vars)) + diag(self$s_diag, nrow = nrow(this_data_in))
+        temp_in <- eval_funcs(scale_input, this_data_in, self$ranges, FALSE)
+        sample_mod <- purrr::map_dbl(seq_along(1:nrow(temp_in)), ~self$s_diag(temp_in[.,], self$samples[.]))
+        Ot <- apply(this_data_in, 1, function(x) apply(this_data_in, 1, self$corr$get_corr, x, self$active_vars)) + diag(sample_mod, nrow = nrow(this_data_in))
         O <- tryCatch(
           chol2inv(chol(Ot)),
           error = function(x) {
@@ -336,7 +342,7 @@ Emulator <- R6::R6Class(
                              u = list(sigma = self$u_sigma, corr = self$corr),
                              ranges = self$ranges, data = data[, c(names(self$ranges), out_name)],
                              original_em = self, out_name = out_name, model = self$model,
-                             a_vars = self$active_vars, s_diag = self$s_diag, discs = self$disc)
+                             a_vars = self$active_vars, s_diag = self$s_diag, discs = self$disc, samples = self$samples)
       return(new_em)
     },
     set_sigma = function(sigma) {
@@ -352,7 +358,7 @@ Emulator <- R6::R6Class(
     },
     set_hyperparams = function(hp, nugget = self$corr$nugget) {
       current_u <- self$corr
-      if (names(current_u$hyper_p) != names(hp)) stop("Hyperparameter specification does not match current correlation function.")
+      if (all(names(current_u$hyper_p) != names(hp))) stop("Hyperparameter specification does not match current correlation function.")
       if (is.null(self$o_em)) {
         new_em <- self$clone()
         new_em$corr <- new_em$corr$set_hyper_p(hp, nugget)

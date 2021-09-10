@@ -7,7 +7,7 @@
 #' @param xp A numeric position vector
 #' @param hp The hyperparameter theta (correlation length)
 #'
-#' @return The exponental-squared correlation between x and xp.
+#' @return The exponential-squared correlation between x and xp.
 #' @export
 #' @examples
 #' exp_sq(1,2, list(theta = 0.1))
@@ -23,6 +23,24 @@ exp_sq_d <- function(x, xp, hp, xi, xpi = NULL) {
   return((2/hp$theta^2 * (if (xi == xpi) 1 else 0) - 4/hp$theta^4 * (x[xi] - xp[xi]) * (x[xpi] - xp[xpi]) * exp_sq(x, xp, hp)))
 }
 
+#' Matern correlation function
+#'
+#' For points \code{x}, \code{xp}, and a pair of hyperparameters \code{nu} and \code{rho}, gives
+#' the Matern correlation between the two points.
+#'
+#' At present, only half-integer arguments for nu are supported.
+#'
+#' @param x A numeric position vector
+#' @param xp A numeric position vector
+#' @param hp The hyperparameters nu (smoothness) and rho (correlation length), as a named list
+#'
+#' @return The Matern correlation between x and xp.
+#' @export
+#' @examples
+#' matern(1, 2, list(nu = 1.5, rho = 0.1))
+#' #> 5.504735e-07
+#' matern(c(1,2,-1), c(1.5, 2.9,-0.7), list(nu = 1.5, rho = 0.2))
+#' #> 0.0009527116
 matern <- function(x, xp, hp) {
   if (floor(hp$nu*2) != hp$nu*2 || floor(hp$nu) == hp$nu) stop("Matern hyperparameter nu must be half-integer.")
   p <- hp$nu-0.5
