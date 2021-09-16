@@ -161,6 +161,12 @@ Emulator <- R6::R6Class(
       return(round(beta_part + u_part + bupart, 10))
     },
     get_exp_d = function(x, p) {
+      deriv_func <- tryCatch(
+        get(paste0(self$corr$corr_name, "_d")),
+        error = function(e) return(NULL)
+      )
+      if(is.null(deriv_func)) stop("No derivative expression available for correlation function.")
+      range_scale <- diff(self$ranges[[p]])/2
       x <- x[, names(x) %in% names(self$ranges)]
       x <- eval_funcs(scale_input, x, self$ranges)
       if (!p %in% names(self$ranges)) return(0)
@@ -174,6 +180,7 @@ Emulator <- R6::R6Class(
         g_d <- purrr::map(self$model_terms, ~D(parse(text = sub("I\\((\\w*\\^\\d*)\\)", "\\1", gsub(":", "*", .))), p))
       }
       g <- matrix(unlist(do.call('rbind', purrr::map(seq_along(x[,1]), function(y) purrr::map(g_d, ~eval(., envir = x[y,]))))), nrow = nrow(x))
+      g <- g/range_scale
       x <- data.matrix(x)
       bu <- t(apply(x, 1, self$beta_u_cov))
       if (length(self$beta_mu) == 1) beta_part <- g * self$beta_mu
@@ -181,19 +188,27 @@ Emulator <- R6::R6Class(
       u_part <- apply(x, 1, self$u_mu)
       if (!is.null(self$in_data)) {
         c_data <- apply(self$in_data, 1, function(b) apply(x, 1, function(a) self$corr$get_corr_d(a, b, p_ind, actives = self$active_vars)))
+        c_data <- c_data/range_scale
         if (length(self$beta_mu) == 1)
-          u_part <- t(u_part + (t(bu) %*% t(private$design_matrix) + self$u_sigma^2 * c_data) %*% private$u_exp_modifier)
+          u_part <- c(t(u_part + (t(bu) %*% t(private$design_matrix) + self$u_sigma^2 * c_data) %*% private$u_exp_modifier))
         else
           u_part <- u_part + (bu %*% t(private$design_matrix) + self$u_sigma^2 * c_data) %*% private$u_exp_modifier
       }
-      range_mult <- diff(self$ranges[[p]])/2
-      if (length(self$beta_mu) == 1) return(c(beta_part + u_part)/range_mult)
-      return((beta_part + u_part)/range_mult)
+      if (length(self$beta_mu) == 1) return(c(beta_part + u_part))
+      return(beta_part + u_part)
     },
     get_cov_d = function(x, p1, xp = NULL, p2 = NULL, full = FALSE) {
+      # I am not convinced that this is doing what it should (it's hard to know). Keep thinking on this.
+      deriv_func <- tryCatch(
+        get(paste0(self$corr$corr_name, "_d")),
+        error = function(e) return(NULL)
+      )
+      if(is.null(deriv_func)) stop("No derivative expression available for correlation function.")
+      range_scale1 <- diff(self$ranges[[p1]])/2
       x <- x[, names(x) %in% names(self$ranges)]
       x <- eval_funcs(scale_input, x, self$ranges)
       if (is.null(p2)) p2 <- p1
+      range_scale2 <- diff(self$ranges[[p2]])/2
       if (!p1 %in% names(self$ranges) || !p2 %in% names(self$ranges)) {
         if (!full || is.null(xp)) return(0)
         return(matrix(0, nrow = nrow(x), ncol = nrow(xp)))
@@ -209,7 +224,6 @@ Emulator <- R6::R6Class(
         model_terms <- self$model_terms
         g_d1 <- purrr::map(self$model_terms, ~D(parse(text = sub("I\\((\\w*\\^\\d*)\\)", "\\1", gsub(":", "*", .))), p1))
         g_d2 <- purrr::map(self$model_terms, ~D(parse(text = sub("I\\((\\w*\\^\\d*)\\)", "\\1", gsub(":", "*", .))), p2))
-
       }
       g_x <- t(matrix(unlist(do.call('rbind', purrr::map(seq_along(x[,1]), function(y) purrr::map(g_d1, ~eval(., envir = x[y,]))))), nrow = nrow(x)))
       gp_x <- t(matrix(unlist(do.call('rbind', purrr::map(seq_along(x[,1]), function(y) purrr::map(g_d2, ~eval(., envir = x[y,]))))), nrow = nrow(x)))
@@ -219,25 +233,27 @@ Emulator <- R6::R6Class(
       if (is.null(xp)) {
         null_flag <- TRUE
         xp <- x
-        gp_x <- g_x
         bupart_xp <- bupart_x
       }
       else {
         xp <- eval_funcs(scale_input, xp[, names(xp) %in% names(self$ranges)], self$ranges)
-        gp_x <- apply(xp, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y))
+        gp_x <- t(matrix(unlist(do.call('rbind', purrr::map(seq_along(xp[,1]), function(y) purrr::map(g_d2, ~eval(., envir = xp[y,]))))), nrow = nrow(xp)))
         xp <- data.matrix(xp)
         bupart_xp <- apply(xp, 1, self$beta_u_cov)
       }
+      g_x <- g_x/range_scale1
+      gp_x <- gp_x/range_scale2
       if (full || nrow(x) != nrow(xp)) {
-          x_xp_c <- apply(xp, 1, function(b) apply(x, 1, function(a) self$corr$get_corr_d(a, b, p1_ind, p2_ind, self$active_vars)))
+          x_xp_c <- apply(xp, 1, function(b) apply(x, 1, function(a) self$corr$get_corr_d(a, b, p1_ind, p2_ind, self$active_vars)))/(range_scale1*range_scale2)
         if (is.null(nrow(g_x))) beta_part <- g_x %*% self$beta_sigma %*% gp_x
         else beta_part <- t(g_x) %*% self$beta_sigma %*% gp_x
         u_part <- self$u_sigma^2 * x_xp_c
         if (!is.null(self$in_data)) {
-          c_x <- apply(self$in_data, 1, function(b) apply(x, 1, function(a) self$corr$get_corr_d(a, b, p1_ind, p2_ind, self$active_vars)))
-          c_xp <- if(null_flag) -c_x else -1*apply(self$in_data, 1, function(b) apply(xp, 1, self$corr$get_corr_d(a, b, p1_ind, p2_ind, self$active_vars)))
-          # c_x <- -2*apply(self$in_data, 1, function(y) x[,p1] - y[p1]) * apply(self$in_data, 1, function(y) apply(x, 1, self$corr$get_corr, y, self$active_vars))/self$corr$hyper_p$theta^2
-          # c_xp <- if(null_flag) -c_x else 2*apply(self$in_data, 1, function(y) x[,p2] - y[p2]) * apply(self$in_data, 1, function(y) apply(xp, 1, self$corr$get_corr, y, self$active_vars))/self$corr$hyper_p$theta^2
+          c_x <- apply(self$in_data, 1, function(b) apply(x, 1, function(a) self$corr$get_corr_d(a, b, p1_ind, p2_ind, self$active_vars)))/(range_scale1*range_scale2)
+          c_xp <- if(null_flag)
+            -1*c_x
+          else
+            -1*apply(self$in_data, 1, function(b) apply(xp, 1, function(a) self$corr$get_corr_d(a, b, p1_ind, p2_ind, self$active_vars)))/(range_scale1*range_scale2)
           if(nrow(x) == 1) {
             c_x <- t(c_x)
             c_xp <- t(c_xp)
@@ -257,16 +273,13 @@ Emulator <- R6::R6Class(
         point_seq <- 1:nrow(x)
         if (is.null(nrow(g_x))) beta_part <- diag(diag(self$beta_sigma) * outer(g_x, gp_x))
         else beta_part <- purrr::map_dbl(point_seq, ~g_x[,.] %*% self$beta_sigma %*% gp_x[,.])
-        if (p1 == p2) {
-          u_part <- self$u_sigma^2 * purrr::map_dbl(point_seq, ~(2/self$corr$hyper_p$theta^2 - 4/self$corr$hyper_p$theta^4 * (x[.,p1] - xp[.,p1])^2) * self$corr$get_corr(x[.,], xp[.,], self$active_vars))
-        }
-        else
-          u_part <- self$u_sigma^2 * purrr::map_dbl(point_seq, ~-4/self$corr$hyper_p$theta^4 * (x[.,p1]-xp[.,p1]) * (x[.,p2]-xp[.,p2]) * self$corr$get_corr(x[.,], xp[.,], self$active_vars))
+        u_part <- self$u_sigma^2 * purrr::map_dbl(point_seq, ~self$corr$get_corr_d(x[.,], xp[.,], p1_ind, p2_ind, self$active_vars))/(range_scale1*range_scale2)
         if (!is.null(self$in_data)) {
-          c_x <- apply(self$in_data, 1, function(b) apply(x, 1, function(a) self$corr$get_corr_d(a, b, p1_ind, p2_ind, self$active_vars)))
-          c_xp <- if(null_flag) -c_x else -1*apply(self$in_data, 1, function(b) apply(xp, 1, self$corr$get_corr_d(a, b, p1_ind, p2_ind, self$active_vars)))
-          # c_x <- -2*apply(self$in_data, 1, function(y) x[,p1] - y[p1]) * apply(self$in_data, 1, function(y) apply(x, 1, self$corr$get_corr, y, self$active_vars))/self$corr$hyper_p$theta^2
-          # c_xp <- if(null_flag) -c_x else 2*apply(self$in_data, 1, function(y) x[,p2] - y[p2]) * apply(self$in_data, 1, function(y) apply(xp, 1, self$corr$get_corr, y, self$active_vars))/self$corr$hyper_p$theta^2
+          c_x <- apply(self$in_data, 1, function(b) apply(x, 1, function(a) self$corr$get_corr_d(a, b, p1_ind, p2_ind, self$active_vars)))/(range_scale1*range_scale2)
+          c_xp <- if(null_flag)
+            -1*c_x
+          else
+            -1*apply(self$in_data, 1, function(b) apply(xp, 1, function(a) self$corr$get_corr_d(a, b, p1_ind, p2_ind, self$active_vars)))/(range_scale1*range_scale2)
           if (nrow(x) == 1) {
             c_x <- t(c_x)
             c_xp <- t(c_xp)
@@ -278,9 +291,7 @@ Emulator <- R6::R6Class(
         if(is.null(nrow(g_x))) bupart <- purrr::map_dbl(point_seq, ~t(purrr::map_dbl(self$basis_f, purrr::exec, x[.,])) * bupart_xp[.] + t(bupart_x[.] * purrr::map_dbl(self$basis_f, purrr::exec, xp[.,])))
         else bupart <- purrr::map_dbl(point_seq, ~t(purrr::map_dbl(self$basis_f, purrr::exec, x[.,])) %*% bupart_xp[,.] + t(bupart_x[,.] %*% purrr::map_dbl(self$basis_f, purrr::exec, xp[.,])))
       }
-      rm1 <- diff(self$ranges[[p1]])/2
-      rm2 <- diff(self$ranges[[p2]])/2
-      return(round(beta_part + u_part + bupart, 10)/(rm1*rm2))
+      return(round(beta_part + u_part + bupart, 10))
     },
     implausibility = function(x, z, cutoff = NULL) {
       disc_quad <- sum(purrr::map_dbl(self$disc, ~.^2))

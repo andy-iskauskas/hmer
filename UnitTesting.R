@@ -13,6 +13,9 @@ unit_test <- function() {
   if (!ro) stop("Problem with Correlator construction.")
   print("Correlator construction passes...")
 
+  ## Testing Matern
+  matern_u <- list(corr = Correlator$new('matern', list(nu = 1.5, rho = 0.2), nug = 0.01))
+
   ## Check the Emulator stuff
   basis_f <- c(
     function(x) 1,
@@ -30,6 +33,7 @@ unit_test <- function() {
 
   ## Boring, non-trained, emulator
   test_e <- Emulator$new(basis_f, beta, u, ranges)
+  test_m_e <- Emulator$new(basis_f, beta, matern_u, ranges)
   ro <- all(test_e$beta_mu == c(0.7, 1.2, 0.9, -0.01)) && test_e$u_sigma == 2 && test_e$corr$hyper_p$theta == 0.1
   if (!ro) stop("Problem with Emulator construction.")
   print("Emulator construction passes...")

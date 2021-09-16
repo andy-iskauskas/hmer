@@ -20,7 +20,7 @@ exp_sq <- function(x, xp, hp) {
 
 exp_sq_d <- function(x, xp, hp, xi, xpi = NULL) {
   if (is.null(xpi)) return(-2 * (x[xi] - xp[xi]) * exp_sq(x, xp, hp)/hp$theta^2)
-  return((2/hp$theta^2 * (if (xi == xpi) 1 else 0) - 4/hp$theta^4 * (x[xi] - xp[xi]) * (x[xpi] - xp[xpi]) * exp_sq(x, xp, hp)))
+  return(2/hp$theta^2 * (if (xi == xpi) 1 else 0) * exp_sq(x, xp, hp) - 4/hp$theta^4 * (x[xi] - xp[xi]) * (x[xpi] - xp[xpi]) * exp_sq(x, xp, hp))
 }
 
 #' Matern correlation function
@@ -68,7 +68,7 @@ Correlator <- R6::R6Class(
       extra <- if (sum((x-xp)^2) < 1e-10 && use.nugget) 1 else 0
       return((1 - self$nugget) * active + self$nugget * extra)
     },
-    get_corr_d = function(x, xp = NULL, p1, p2 = NULL, actives = TRUE) {
+    get_corr_d = function(x, xp = NULL, p1, p2 = NULL, actives = rep(TRUE, length(x))) {
       if (!actives[p1] || (!is.null(p2) && !actives[p2]) || is.null(xp)) return(0)
       active_p1 <- sum(actives[1:p1])
       active_p2 <- if (!is.null(p2)) sum(actives[1:p2]) else NULL
