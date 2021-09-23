@@ -11,7 +11,7 @@ matern(x, xp, hp)
 
 \item{xp}{A numeric position vector}
 
-\item{hp}{The hyperparameters nu (smoothness) and rho (correlation length), as a named list}
+\item{hp}{The hyperparameters nu (smoothness) and theta (correlation length), as a named list}
 }
 \value{
 The Matern correlation between x and xp.
@@ -24,8 +24,8 @@ the Matern correlation between the two points.
 At present, only half-integer arguments for nu are supported.
 }
 \examples{
-matern(1, 2, list(nu = 1.5, rho = 0.1))
+matern(1, 2, list(nu = 1.5, theta = 0.1))
 #> 5.504735e-07
-matern(c(1,2,-1), c(1.5, 2.9,-0.7), list(nu = 1.5, rho = 0.2))
+matern(c(1,2,-1), c(1.5, 2.9,-0.7), list(nu = 1.5, theta = 0.2))
 #> 0.0009527116
 }

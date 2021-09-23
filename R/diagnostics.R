@@ -101,7 +101,7 @@ summary_diag <- function(emulator, validation, verbose = FALSE) {
 #'
 residual_diag <- function(emulator, histogram = FALSE, ...) {
   in_points <- eval_funcs(scale_input, data.frame(emulator$in_data), emulator$ranges, FALSE)
-  standardised_residuals <- emulator$model$residuals/emulator$u_sigma
+  standardised_residuals <- emulator$model$residuals/apply(in_points, 1, emulator$u_sigma)
   if (histogram) hist(standardised_residuals, xlab = "Standadized Residual", ylab = "Frequency", main = paste(emulator$output_name, "Residual Histogram"))
   else plot(standardised_residuals, xlab = "Point", ylab = "Standardized Residual", pch = 16, main = emulator$output_name, panel.first = abline(h = c(-3, 0, 3), lty = c(2, 1, 2)))
   return(in_points[abs(standardised_residuals) > 3,])

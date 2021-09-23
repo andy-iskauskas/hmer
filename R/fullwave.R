@@ -163,7 +163,7 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL, prop_train = 
       print(paste("Problem with emulator training:", e))
     }
   )
-  for (i in 1:length(ems)) if (ems[[i]]$u_sigma^2 < 1e-8) ems[[i]]$set_sigma(targets[[ems[[i]]$output_name]]$sigma * 0.1)
+  for (i in 1:length(ems)) if (max(apply(valid[,names(ranges)], 1, ems[[i]]$u_sigma))^2 < 1e-8) ems[[i]]$set_sigma(targets[[ems[[i]]$output_name]]$sigma * 0.1)
   print("Performing diagnostics...")
   invalid_ems <- c()
   for (i in 1:length(ems)) {
@@ -176,12 +176,12 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL, prop_train = 
   if (length(invalid_ems) > 0)
     ems <- ems[-invalid_ems]
   if (!any(purrr::map_lgl(targets, is.atomic)))
-    emulator_uncerts <- purrr::map_dbl(ems, ~sqrt(.$u_sigma^2 + targets[[.$output_name]]$sigma^2)/targets[[.$output_name]]$sigma)
+    emulator_uncerts <- purrr::map_dbl(ems, ~sqrt(mean(apply(valid[,names(ranges)], 1, .$u_sigma))^2 + targets[[.$output_name]]$sigma^2)/targets[[.$output_name]]$sigma)
   if (length(ems) == 0) stop("No emulator passed diagnostic checks.")
   for (i in 1:length(ems)) {
     misclass <- nrow(classification_diag(ems[[i]], targets, valid, cutoff = cutoff, plt = FALSE))
     while(misclass > 0) {
-      ems[[i]] <- ems[[i]]$set_sigma(ems[[i]]$u_sigma*1.1)
+      ems[[i]] <- ems[[i]]$set_sigma(function(x) 1.1 * ems[[i]]$u_sigma(x))
       misclass <- nrow(classification_diag(ems[[i]], targets, valid, plt = FALSE))
     }
   }

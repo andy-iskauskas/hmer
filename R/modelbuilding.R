@@ -318,7 +318,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
                                  ~Emulator$new(basis_f = model_basis_funcs[[.]], beta = model_betas[[.]], u = model_us[[.]], ranges = ranges, model = tryCatch(models[[.]], error = function(e) NULL), discs = discrepancies[[.]])),
   output_names)
   if (!missing(ev)) {
-    ev_deltas <- ev/purrr::map_dbl(out_ems, ~.$u_sigma)
+    ev_deltas <- ev/purrr::map_dbl(out_ems, ~mean(apply(data[,names(ranges)], 1, .$u_sigma)))
     ev_deltas <- purrr::map_dbl(ev_deltas, ~min(1/3, .))
     return(emulator_from_data(input_data, output_names, ranges, input_names, beta, u, purrr::map_dbl(out_ems, ~.$corr$hyper_p$theta), funcs, ev_deltas, quadratic = quadratic, beta.var = beta.var, discrepancies = discrepancies))
   }
