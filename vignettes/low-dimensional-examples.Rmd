@@ -62,7 +62,7 @@ The print statement for the emulator shows us the specifications: the basis func
 The print statement also indicates that Bayes Linear adjustment has been applied: if we instead wanted to examine an unadjusted emulator, we could have run `emulator_from_data` with the option `adjusted = FALSE`, or having trained an emulator we can access the prior emulator by calling `o_em`. The below commands give the same output.
 
 ```{r}
-emulator_from_data(data1d, c('f'), ranges1d)$f
+emulator_from_data(data1d, c('f'), ranges1d, adjusted = FALSE)$f
 em1d$f$o_em
 ```
 The trained emulator, by virtue of having been provided the training points, 'knows' the value of the function at those points. Hence, the expectation of the emulator at those points is identical (up to numerical precision) to the known values of $f(x)$, and the variance at those points is $0$. We can access this information using the built-in functions `get_exp` and `get_cov` of the `Emulator` object.
@@ -248,7 +248,7 @@ invalid_points <- validation_diagnostics(ems2d, targets2d, validation_data)
 Looking at these plots shows that the emulators are doing fine. Any failing points are flagged as red in the first two columns of the plots, and appear in the data.frame `invalid_points`: should we have such points it is useful to consider why they might be problematic (for example, a point at an edge or a corner of the parameter space can have strange behaviours). At this stage, we can make a variety of changes to the prior specifications in order to combat these issues, by utilising the `set_sigma` and `set_hyperparams` functions of the `Emulator` object. For instance, to inflate the emulator variance for the $f_2$ emulator:
 
 ```{r fig.width = 7, fig.height = 7}
-inflated_em <- ems2d$f2$set_sigma(function(x) 2 * ems2d$f2$u_sigma(x))
+inflated_em <- ems2d$f2$mult_sigma(2)
 new_invaliid <- validation_diagnostics(list(f1 = ems2d$f1, f2 = inflated_em), targets2d, validation_data)
 ```
 

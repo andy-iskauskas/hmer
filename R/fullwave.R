@@ -177,11 +177,12 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL, prop_train = 
     ems <- ems[-invalid_ems]
   if (!any(purrr::map_lgl(targets, is.atomic)))
     emulator_uncerts <- purrr::map_dbl(ems, ~sqrt(mean(apply(valid[,names(ranges)], 1, .$u_sigma))^2 + targets[[.$output_name]]$sigma^2)/targets[[.$output_name]]$sigma)
+  else emulator_uncerts <- NULL
   if (length(ems) == 0) stop("No emulator passed diagnostic checks.")
   for (i in 1:length(ems)) {
     misclass <- nrow(classification_diag(ems[[i]], targets, valid, cutoff = cutoff, plt = FALSE))
     while(misclass > 0) {
-      ems[[i]] <- ems[[i]]$set_sigma(function(x) 1.1 * ems[[i]]$u_sigma(x))
+      ems[[i]] <- ems[[i]]$mult_sigma(1.1)
       misclass <- nrow(classification_diag(ems[[i]], targets, valid, plt = FALSE))
     }
   }
@@ -206,6 +207,6 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL, prop_train = 
   }
   if (nrow(new_points) == 0) stop("Could not generate points in non-implausible space.")
   if (!any(purrr::map_lgl(targets, is.atomic)))
-    if (all(emulator_uncerts < 1.1) && length(emulator_uncerts) == length(targets)) print("All emulator uncertainties are comparable to target uncertainties. More waves may be unnecessary.")
+    if (!is.null(emulator_uncerts) && all(emulator_uncerts < 1.1) && length(emulator_uncerts) == length(targets)) print("All emulator uncertainties are comparable to target uncertainties. More waves may be unnecessary.")
   return(list(points = new_points, emulators = ems))
 }

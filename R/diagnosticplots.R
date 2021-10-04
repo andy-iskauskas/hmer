@@ -106,7 +106,7 @@ space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1
   else {
     for (i in u_mod) {
       if (modified == 'var')
-        ems_2 <- purrr::map(ems, ~.$set_sigma(function(x) i*.$u_sigma(x)))
+        ems_2 <- purrr::map(ems, ~.$mult_sigma(sqrt(i)))
       else if (modified == 'hp')
         ems_2 <- purrr::map(ems, ~.$set_hyperparams(purrr::map(.$corr$hyper_p, ~i*.)))
       else {
