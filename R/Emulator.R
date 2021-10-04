@@ -26,7 +26,8 @@ Emulator <- R6::R6Class(
     disc = list(internal = 0, external = 0),
     s_diag = NULL,
     samples = 0,
-    initialize = function(basis_f, beta, u, ranges, data = NULL, model = NULL, original_em = NULL, out_name = NULL, a_vars = NULL, discs = NULL, s_diag = NULL, samples = 0) {
+    multiplier = 1,
+    initialize = function(basis_f, beta, u, ranges, data = NULL, model = NULL, original_em = NULL, out_name = NULL, a_vars = NULL, discs = NULL, s_diag = NULL, samples = 0, multiplier = 1) {
       self$model <- model
       self$model_terms <- tryCatch(
         c("1", labels(terms(self$model))),
@@ -37,8 +38,9 @@ Emulator <- R6::R6Class(
       self$beta_mu <- beta$mu
       self$beta_sigma <- beta$sigma
       self$u_mu <- function(x) 0
-      self$u_sigma <- u$sigma
-      if(is.numeric(self$u_sigma)) self$u_sigma <- function(x) u$sigma
+      self$multiplier = multiplier
+      if(is.numeric(u$sigma)) self$u_sigma <- function(x) self$multiplier * u$sigma
+      else self$u_sigma <- function(x) self$multiplier * (u$sigma)(x)
       self$corr <- u$corr
       if (!is.null(s_diag)) self$s_diag <- s_diag else self$s_diag <- function(x, n) 0
       self$samples <- samples
@@ -363,7 +365,7 @@ Emulator <- R6::R6Class(
                              u = list(sigma = self$u_sigma, corr = self$corr),
                              ranges = self$ranges, data = data[, c(names(self$ranges), out_name)],
                              original_em = self, out_name = out_name, model = self$model,
-                             a_vars = self$active_vars, s_diag = self$s_diag, discs = self$disc, samples = self$samples)
+                             a_vars = self$active_vars, s_diag = self$s_diag, discs = self$disc, samples = self$samples, multiplier = self$multiplier)
       return(new_em)
     },
     set_sigma = function(sigma) {
@@ -376,6 +378,17 @@ Emulator <- R6::R6Class(
       new_o_em <- self$o_em$clone()
       if (is.numeric(sigma)) new_o_em$u_sigma <- function(x) sigma
       else new_o_em$u_sigma <- sigma
+      dat <- setNames(data.frame(cbind(eval_funcs(scale_input, data.frame(self$in_data), self$ranges, FALSE), self$out_data)), c(names(self$ranges), self$output_name))
+      return(new_o_em$adjust(dat, self$output_name))
+    },
+    mult_sigma = function(m) {
+      if (is.null(self$o_em)) {
+        new_em <- self$clone()
+        new_em$multiplier <- new_em$multiplier * m
+        return(new_em)
+      }
+      new_o_em <- self$o_em$clone()
+      new_o_em$multiplier <- new_o_em$multiplier * m
       dat <- setNames(data.frame(cbind(eval_funcs(scale_input, data.frame(self$in_data), self$ranges, FALSE), self$out_data)), c(names(self$ranges), self$output_name))
       return(new_o_em$adjust(dat, self$output_name))
     },

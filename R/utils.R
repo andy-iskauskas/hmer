@@ -55,3 +55,19 @@ eval_funcs <- function(funcs, points, ...) {
   }
   return(purrr::exec(funcs, points, ...))
 }
+
+# Inner modification of a function
+multiply_function <- function(f, mult) {
+  func_body <- body(f)
+  if (typeof(func_body) != "language" || class(func_body) == "call") body(f) <- substitute(mult * func_body)
+  else {
+    relevant <- body(f)[[length(body(f))]]
+    if (relevant[[1]] == "return") {
+      innards <- relevant[[2]]
+      body(f)[[length(body(f))]][[2]] <- substitute(mult * innards)
+    }
+    else
+      body(f)[[length(body(f))]] <- substitute(mult * relevant)
+  }
+  return(f)
+}
