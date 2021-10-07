@@ -86,6 +86,8 @@ directional_deriv <- function(em, x, v, sd = NULL, ...) {
 #'
 #' @export
 directional_proposal <- function(ems, x, targets, accept = 2, hstart = 1e-04, hcutoff = 1e-09, iteration.measure = 'exp', iteration.steps = 100, nv = 500) {
+  if (length(x) > length(ems[[1]]$ranges))
+    x <- x[,names(ems[[1]]$ranges)]
   point_implaus <- purrr::map_dbl(seq_along(ems), ~ems[[.]]$implausibility(x, z = targets[[.]]))
   x_predict <- purrr::map_dbl(ems, ~.$get_exp(x))
   is_bigger <- purrr::map_lgl(seq_along(targets), function(y) {

@@ -120,13 +120,13 @@ likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_
     else b_ml <- b
     m_diff <- if (nrow(H) == 1) t(outputs - H * b_ml) else outputs - H %*% b_ml
     sigma_ml <- sqrt(t(m_diff) %*% A_inv %*% m_diff/length(outputs))
-    if (log_lik) lik <- -length(outputs) * log(2*pi*sigma_ml^2)/2 - det(A)/2 - (t(m_diff) %*% A_inv %*% m_diff)/(2*sigma_ml^2)
+    if (log_lik) lik <- -length(outputs) * log(2*pi*sigma_ml^2)/2 - log(det(A))/2 - (t(m_diff) %*% A_inv %*% m_diff)/(2*sigma_ml^2)
     else lik <-  1/((2*pi*sigma_ml^2)^(length(outputs)/2) * sqrt(det(A))) * exp(-(t(m_diff) %*% A_inv %*% m_diff)/(2 * sigma_ml^2))
     if (return_stats) return(list(beta = b_ml, sigma = sigma_ml))
     else return(lik)
   }
   if (length(hp_range[[1]]) == 1) {
-    if (is.null(delta)) delta <- 0.1
+    if (is.null(delta)) delta <- 0.05
     best_hp <- hp_range
     best_delta <- delta
     best_params <- c(best_hp, best_delta)
@@ -148,9 +148,9 @@ likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_
     }
     else
       initial_params <- c(best_initial, if (delta == 0) 1e-10 else delta, use.names = F)
-    best_params <- nmkb(initial_params, func_to_opt, lower = c(purrr::map_dbl(hp_range, ~.[[1]]-1e-6), if(is.null(delta)) 0 else max(0, delta - 1e-6), use.names = F), upper = c(purrr::map_dbl(hp_range, ~.[[2]]+1e-6), if(is.null(delta)) 0.25 else delta + 1e-6, use.names = F), control = list(maximize = TRUE))$par
+    best_params <- nmkb(initial_params, func_to_opt, lower = c(purrr::map_dbl(hp_range, ~.[[1]]-1e-6), if(is.null(delta)) 0 else max(0, delta - 1e-6), use.names = F), upper = c(purrr::map_dbl(hp_range, ~.[[2]]+1e-6), if(is.null(delta)) 0.05 else delta + 1e-6, use.names = F), control = list(maximize = TRUE))$par
     best_hp <- best_params[-length(best_params)]
-    best_delta <- best_params[length(best_params)]
+    best_delta <- min(best_params[length(best_params)], 0.05)
   }
   # if (all(unlist(best_hp, use.names = FALSE) - purrr::map_dbl(hp_range, ~.[[1]]) < 1e-5)) {
   #   best_hp <- purrr::map_dbl(hp_range, ~sum(.)/2)

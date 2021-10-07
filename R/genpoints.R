@@ -109,7 +109,7 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
     if (verbose) print("Performing slice sampling...")
     starter_point <- points[sample(nrow(points), 1),]
     if (nrow(points) == 1)
-      spoints <- slice_gen(ems, floor(n_points)/2, z, cutoff, nth, x1 = starter_point, ...)
+      spoints <- slice_gen(ems, floor(n_points)/4, z, cutoff, nth, x1 = starter_point, ...)
     else
       spoints <- slice_gen(ems, n_points-nrow(points), z, cutoff, nth, x1 = starter_point, ...)
     if (verbose) print(paste("Slice sampling generated", nrow(spoints)-1, "more points."))
@@ -137,7 +137,7 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
   if (nrow(points) > n_points) {
     if (verbose) print("Selecting final points using maximin criterion...")
     c_measure <- op <- NULL
-    for (i in 1:100) {
+    for (i in 1:1000) {
       tp <- points[sample(nrow(points), n_points),]
       if (!"data.frame" %in% class(tp)) tp <- setNames(data.frame(tp), names(ranges))
       measure <- min(dist(tp))
@@ -278,6 +278,7 @@ line_sample <- function(ems, z, s_points, nlines = 20, ppl = 26, cutoff = 3, nth
 importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, nth = 1, distro = 'sphere', sd = NULL, ...) {
   if (nrow(s_points) >= n_points)
     return(s_points)
+  m_points <- n_points - nrow(s_points)
   ranges <- if("Emulator" %in% class(ems)) ems$ranges else ems[[1]]$ranges
   new_points <- s_points
   in_range <- function(data, ranges) {
@@ -314,12 +315,12 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, nth = 1, d
       if (accept_rate > upper_accept) sd <- sd * 1.1
       else sd <- sd * 0.9
     }
-    how_many <- max(n_points, 500)
+    how_many <- max(n_points, 250)
     prop_points <- propose_points(s_points, sd, how_many)
     accept_rate <- nrow(prop_points)/how_many
   }
   while (nrow(new_points) < n_points) {
-    prop_points <- propose_points(s_points, sd, ceiling(1.5*n_points/accept_rate))
+    prop_points <- propose_points(s_points, sd, ceiling(1.5*m_points/accept_rate))
     new_points <- rbind(new_points, prop_points)
     uniqueness <- row.names(unique(signif(new_points, 7)))
     new_points <- new_points[uniqueness,]

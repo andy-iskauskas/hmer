@@ -83,7 +83,7 @@ Emulator <- R6::R6Class(
       }
     },
     get_exp = function(x, samps = NULL) {
-      x <- x[, names(x) %in% names(self$ranges)]
+      x <- x[, names(self$ranges)[names(self$ranges) %in% names(x)]]
       x <- eval_funcs(scale_input, x, self$ranges)
       g <- t(apply(x, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y)))
       x <- data.matrix(x)
@@ -102,7 +102,7 @@ Emulator <- R6::R6Class(
       return(beta_part + u_part)
     },
     get_cov = function(x, xp = NULL, full = FALSE, samps = NULL) {
-      x <- eval_funcs(scale_input, x[, names(x) %in% names(self$ranges)], self$ranges)
+      x <- eval_funcs(scale_input, x[, names(self$ranges)[names(self$ranges) %in% names(x)]], self$ranges)
       g_x <- apply(x, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y))
       x <- data.matrix(x)
       bupart_x <- apply(x, 1, self$beta_u_cov)
@@ -114,7 +114,7 @@ Emulator <- R6::R6Class(
         bupart_xp <- bupart_x
       }
       else {
-        xp <- eval_funcs(scale_input, xp[, names(xp) %in% names(self$ranges)], self$ranges)
+        xp <- eval_funcs(scale_input, xp[, names(self$ranges)[names(self$ranges) %in% names(xp)]], self$ranges)
         g_xp <- apply(xp, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y))
         xp <- data.matrix(xp)
         bupart_xp <- apply(xp, 1, self$beta_u_cov)
@@ -175,7 +175,7 @@ Emulator <- R6::R6Class(
       )
       if(is.null(deriv_func)) stop("No derivative expression available for correlation function.")
       range_scale <- diff(self$ranges[[p]])/2
-      x <- x[, names(x) %in% names(self$ranges)]
+      x <- x[, names(self$ranges)[names(self$ranges) %in% names(x)]]
       x <- eval_funcs(scale_input, x, self$ranges)
       if (!p %in% names(self$ranges)) return(0)
       p_ind <- which(names(self$ranges) == p)
@@ -213,7 +213,7 @@ Emulator <- R6::R6Class(
       )
       if(is.null(deriv_func)) stop("No derivative expression available for correlation function.")
       range_scale1 <- diff(self$ranges[[p1]])/2
-      x <- x[, names(x) %in% names(self$ranges)]
+      x <- x[, names(self$ranges)[names(self$ranges) %in% names(x)]]
       x <- eval_funcs(scale_input, x, self$ranges)
       if (is.null(p2)) p2 <- p1
       range_scale2 <- diff(self$ranges[[p2]])/2
@@ -244,7 +244,7 @@ Emulator <- R6::R6Class(
         bupart_xp <- bupart_x
       }
       else {
-        xp <- eval_funcs(scale_input, xp[, names(xp) %in% names(self$ranges)], self$ranges)
+        xp <- eval_funcs(scale_input, xp[, names(self$ranges)[names(self$ranges) %in% names(xp)]], self$ranges)
         gp_x <- t(matrix(unlist(do.call('rbind', purrr::map(seq_along(xp[,1]), function(y) purrr::map(g_d2, ~eval(., envir = xp[y,]))))), nrow = nrow(xp)))
         xp <- data.matrix(xp)
         bupart_xp <- apply(xp, 1, self$beta_u_cov)
