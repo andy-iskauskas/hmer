@@ -122,6 +122,7 @@ likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_
     sigma_ml <- sqrt(t(m_diff) %*% A_inv %*% m_diff/length(outputs))
     if (log_lik) lik <- -length(outputs) * log(2*pi*sigma_ml^2)/2 - log(det(A))/2 - (t(m_diff) %*% A_inv %*% m_diff)/(2*sigma_ml^2)
     else lik <-  1/((2*pi*sigma_ml^2)^(length(outputs)/2) * sqrt(det(A))) * exp(-(t(m_diff) %*% A_inv %*% m_diff)/(2 * sigma_ml^2))
+    if (!is.finite(lik)) lik <- 0
     if (return_stats) return(list(beta = b_ml, sigma = sigma_ml))
     else return(lik)
   }
