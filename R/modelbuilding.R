@@ -148,7 +148,7 @@ likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_
     }
     else
       initial_params <- c(best_initial, if (delta == 0) 1e-10 else delta, use.names = F)
-    best_params <- nmkb(initial_params, func_to_opt, lower = c(purrr::map_dbl(hp_range, ~.[[1]]-1e-6), if(is.null(delta)) 0 else max(0, delta - 1e-6), use.names = F), upper = c(purrr::map_dbl(hp_range, ~.[[2]]+1e-6), if(is.null(delta)) 0.05 else delta + 1e-6, use.names = F), control = list(maximize = TRUE))$par
+    best_params <- nmkb(initial_params, func_to_opt, lower = c(purrr::map_dbl(hp_range, ~.[[1]]-1e-6), if(is.null(delta)) 0 else max(0, delta - 1e-6), use.names = F), upper = c(purrr::map_dbl(hp_range, ~.[[2]]+1e-6), if(is.null(delta)) 0.1 else delta + 1e-6, use.names = F), control = list(maximize = TRUE))$par
     best_hp <- best_params[-length(best_params)]
     best_delta <- min(best_params[length(best_params)], 0.05)
   }
