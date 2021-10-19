@@ -109,7 +109,7 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
     if (verbose) print("Performing slice sampling...")
     starter_point <- points[sample(nrow(points), 1),]
     if (nrow(points) == 1)
-      spoints <- slice_gen(ems, floor(n_points)/4, z, cutoff, nth, x1 = starter_point, ...)
+      spoints <- slice_gen(ems, floor(n_points)/10, z, cutoff, nth, x1 = starter_point, ...)
     else
       spoints <- slice_gen(ems, n_points-nrow(points), z, cutoff, nth, x1 = starter_point, ...)
     if (verbose) print(paste("Slice sampling generated", nrow(spoints)-1, "more points."))
@@ -305,18 +305,21 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, nth = 1, d
     if (distro == "normal")
       sd <- diag((purrr::map_dbl(ranges, diff)/6)^2, length(ranges))
     else
-      sd <- purrr::map_dbl(ranges, diff)/3
+      sd <- purrr::map_dbl(ranges, diff)
   }
   accept_rate <- NULL
   upper_accept <- 0.125
   lower_accept <- 0.075
-  while (is.null(accept_rate) || accept_rate > upper_accept || accept_rate < lower_accept) {
+  while ((is.null(accept_rate) || accept_rate > upper_accept || accept_rate < lower_accept) && nrow(new_points) < n_points) {
     if (!is.null(accept_rate)) {
       if (accept_rate > upper_accept) sd <- sd * 1.1
       else sd <- sd * 0.9
     }
     how_many <- max(n_points, 250)
     prop_points <- propose_points(s_points, sd, how_many)
+    new_points <- rbind(new_points, prop_points)
+    uniqueness <- row.names(unique(signif(new_points, 7)))
+    new_points <- new_points[uniqueness,]
     accept_rate <- nrow(prop_points)/how_many
   }
   while (nrow(new_points) < n_points) {
