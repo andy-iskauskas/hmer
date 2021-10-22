@@ -69,6 +69,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #' @param plausible_set An optional set of known non-implausible points (for eg line sampling).
 #' @param verbose Should progress statements be printed to the console?
 #' @param cluster Should emulator clustering be considered in the LHS generation?
+#' @param resample Number of times to resample using line and/or importance sampling.
 #' @param ... Any parameters to pass to individual sampling functions, eg \code{distro} for importance sampling.
 #'
 #' @return A data.frame containing the set of new points to run the model at.
@@ -87,7 +88,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #'  pts_no_importance <- generate_new_runs(sample_emulators$ems, 100, sample_emulators$targets,
 #'   method = c('line'))
 #' }
-generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'importance'), cutoff = 3, nth = 1, plausible_set, verbose = FALSE, cluster = FALSE, ...) {
+generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'importance'), cutoff = 3, nth = 1, plausible_set, verbose = FALSE, cluster = FALSE, resample = 1, ...) {
   ranges <- if ("Emulator" %in% class(ems)) ems$ranges else ems[[1]]$ranges
   possible_methods <- c('lhs', 'line', 'importance', 'slice', 'optical')
   which_methods <- possible_methods[possible_methods %in% method]
@@ -98,6 +99,16 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
     if (cluster) points <- lhs_gen_cluster(ems, n_points, z, cutoff, nth, verbose = verbose, ...)
     else points <- lhs_gen(ems, n_points, z, cutoff, nth, verbose = verbose, ...)
     if (verbose) print(paste("LH sampling generated", nrow(points), "points."))
+    if (nrow(points) < floor(n_points/4)) {
+      if (verbose) print(paste("Cutoff", cutoff, "not generating enough points at LH stage. Increasing cutoff."))
+      points <- generate_new_runs(ems = ems, n_points = n_points, z = z, method = method, cutoff = cutoff+0.5, nth = nth, verbose = verbose, cluster = cluster, resample = resample, ...)
+    }
+    new_points <- points[nth_implausible(ems, points, z, n = nth, cutoff = cutoff),]
+    if (nrow(new_points) == 0) {
+      warning(paste("Could not generate points with implausibility", cutoff))
+      return(points)
+    }
+    else points <- new_points
   }
   else points <- plausible_set[nth_implausible(ems, plausible_set, z, n = nth, cutoff = cutoff),]
   n_current <- nrow(points)
@@ -147,6 +158,38 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
       }
     }
     points <- op
+  }
+  if (("importance" %in% which_methods || "line" %in% which_methods) && resample != 0) {
+    for (nsamp in 1:resample) {
+      points <- points[sample(1:nrow(points), floor(n_points)/2),]
+      n_current <- nrow(points)
+      if ("line" %in% which_methods) {
+        if (verbose) print("Resampling: Performing line sampling...")
+        points <- line_sample(ems, z, points, cutoff = cutoff, nth = nth, ...)
+        if (verbose) print(paste("Line sampling generated", nrow(points)-n_current, "more points."))
+        n_current <- nrow(points)
+      }
+      if ("importance" %in% which_methods) {
+        if (verbose) print("Resampling: Performing importance sampling...")
+        points <- importance_sample(ems, n_points, z, points, cutoff, nth, ...)
+        if (verbose) print(paste("Importance sampling generated", nrow(points)-n_current, "more points."))
+        n_current <- nrow(points)
+      }
+      if (nrow(points) > n_points) {
+        if (verbose) print("Selecting final points using maximin criterion...")
+        c_measure <- op <- NULL
+        for (i in 1:1000) {
+          tp <- points[sample(nrow(points), n_points),]
+          if (!"data.frame" %in% class(tp)) tp <- setNames(data.frame(tp), names(ranges))
+          measure <- min(dist(tp))
+          if (is.null(c_measure) || measure > c_measure) {
+            op <- tp
+            c_measure <- measure
+          }
+        }
+        points <- op
+      }
+    }
   }
   return(points)
 }

@@ -306,6 +306,12 @@ Emulator <- R6::R6Class(
       return(round(beta_part + u_part + bupart, 10))
     },
     implausibility = function(x, z, cutoff = NULL) {
+      if (nrow(x) > 1000) {
+        k <- ceiling(nrow(x)/1000)
+        m <- ceiling(nrow(x)/k)
+        s_df <- split(x, rep(1:k, each = m, length.out = nrow(x)))
+        return(unlist(purrr::map(s_df, ~self$implausibility(., z = z, cutoff = cutoff)), use.names = FALSE))
+      }
       disc_quad <- sum(purrr::map_dbl(self$disc, ~.^2))
       if (!is.numeric(z) && !is.null(z$val)) {
         imp_var <- self$get_cov(x) + z$sigma^2 + disc_quad
