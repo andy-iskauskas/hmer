@@ -99,16 +99,17 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
     if (cluster) points <- lhs_gen_cluster(ems, n_points, z, cutoff, nth, verbose = verbose, ...)
     else points <- lhs_gen(ems, n_points, z, cutoff, nth, verbose = verbose, ...)
     if (verbose) print(paste("LH sampling generated", nrow(points), "points."))
-    if (nrow(points) < floor(n_points/4)) {
+    if (nrow(points) < max(50, 5*length(ranges))) {
       if (verbose) print(paste("Cutoff", cutoff, "not generating enough points at LH stage. Increasing cutoff."))
-      points <- generate_new_runs(ems = ems, n_points = n_points, z = z, method = method, cutoff = cutoff+0.5, nth = nth, verbose = verbose, cluster = cluster, resample = resample, ...)
+      points <- generate_new_runs(ems = ems, n_points = n_points, z = z, method = method, cutoff = cutoff+0.5, nth = nth, verbose = verbose, cluster = cluster, resample = resample-1, ...)
+      new_points <- points[nth_implausible(ems, points, z, n = nth, cutoff = cutoff),]
+      if (verbose) print(paste(nrow(new_points), "remain from higher implausibility"))
+      if (nrow(new_points) == 0) {
+        warning(paste("Could not generate points with implausibility", cutoff))
+        return(points)
+      }
+      else points <- new_points
     }
-    new_points <- points[nth_implausible(ems, points, z, n = nth, cutoff = cutoff),]
-    if (nrow(new_points) == 0) {
-      warning(paste("Could not generate points with implausibility", cutoff))
-      return(points)
-    }
-    else points <- new_points
   }
   else points <- plausible_set[nth_implausible(ems, plausible_set, z, n = nth, cutoff = cutoff),]
   n_current <- nrow(points)
@@ -159,7 +160,7 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
     }
     points <- op
   }
-  if (("importance" %in% which_methods || "line" %in% which_methods) && resample != 0) {
+  if (("importance" %in% which_methods || "line" %in% which_methods) && resample > 0) {
     for (nsamp in 1:resample) {
       points <- points[sample(1:nrow(points), floor(n_points)/2),]
       n_current <- nrow(points)
