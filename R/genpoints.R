@@ -58,7 +58,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #' not-yet-ruled-out space, or it may miss small disconnected regions of parameter space.
 #'
 #' @importFrom mvtnorm dmvnorm rmvnorm
-#' @importFrom stats setNames runif dist
+#' @importFrom stats setNames runif dist cov
 #'
 #' @param ems A list of \code{\link{Emulator}} objects, trained on previous design points.
 #' @param n_points The desired number of points to propose for the next wave.
@@ -96,7 +96,28 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
   if (any(!method %in% possible_methods)) warning(paste("Unrecognised method name(s)", method[!method %in% possible_methods], "ignored."))
   if (missing(plausible_set) || 'lhs' %in% which_methods) {
     if (verbose) print("Performing Latin Hypercube sampling...")
-    if (cluster) points <- lhs_gen_cluster(ems, n_points, z, cutoff, nth, verbose = verbose, ...)
+    if (cluster) {
+      points <- lhs_gen_cluster(ems, n_points, z, cutoff, nth, verbose = verbose, ...)
+      cutoff_current <- cutoff
+      while(nrow(points) < 5*length(ranges)) {
+        cutoff_current <- cutoff_current + 1
+        points <- lhs_gen_cluster(ems, n_points, z, cutoff, nth, verbose = verbose, ...)
+      }
+      while(cutoff_current > cutoff) {
+        plaus_points <- points[nth_implausible(ems, points, z, cutoff = cutoff_current),]
+        if (nrow(plaus_points) == 0) break
+        points <- generate_new_runs(ems, n_points, z, method = which_methods[!which_methods %in% c('lhs')], cutoff = cutoff_current, nth = nth, plausible_set = plaus_points, verbose = verbose, resample = resample - 1, ...)
+        cutoff_current <- cutoff_current - 0.5
+      }
+      if (cutoff_current != cutoff) {
+        if (verbose) print(paste("Cannot reach implausibility cutoff", cutoff, "- points returned will have implausibility no bigger than", cutoff_current))
+        points <- points[sample(1:nrow(points), floor(nrow(points)/2)),]
+        cutoff <- cutoff_current
+      }
+      else {
+        points <- points[nth_implausible(ems, points, z, cutoff = cutoff),]
+      }
+    }
     else {
       points <- eval_funcs(scale_input, setNames(data.frame(2 * (lhs::randomLHS(n_points * 10, length(ranges))-0.5)), names(ranges)), ranges, FALSE)
       point_imps <- nth_implausible(ems, points, z)
@@ -118,7 +139,7 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
           cutoff <- cutoff_current
         }
         else {
-          points <- points[nth_implausible(ems , points, z, cutoff = cutoff),]
+          points <- points[nth_implausible(ems, points, z, cutoff = cutoff),]
         }
       }
       else {
@@ -126,21 +147,6 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
         if (!"data.frame" %in% class(points)) points <- setNames(data.frame(points), names(ranges))
       }
     }
-    # if (verbose) print("Performing LH sampling...")
-    # if (cluster) points <- lhs_gen_cluster(ems, n_points, z, cutoff, nth, verbose = verbose, ...)
-    # else points <- lhs_gen(ems, n_points, z, cutoff, nth, verbose = verbose, ...)
-    # if (verbose) print(paste("LH sampling generated", nrow(points), "points."))
-    # if (nrow(points) < max(50, 5*length(ranges))) {
-    #   if (verbose) print(paste("Cutoff", cutoff, "not generating enough points at LH stage. Increasing cutoff."))
-    #   points <- generate_new_runs(ems = ems, n_points = n_points, z = z, method = method, cutoff = cutoff+0.5, nth = nth, verbose = verbose, cluster = cluster, resample = resample-1, ...)
-    #   new_points <- points[nth_implausible(ems, points, z, n = nth, cutoff = cutoff),]
-    #   if (verbose) print(paste(nrow(new_points), "remain from higher implausibility"))
-    #   if (nrow(new_points) == 0) {
-    #     warning(paste("Could not generate points with implausibility", cutoff))
-    #     return(points)
-    #   }
-    #   else points <- new_points
-    # }
   }
   else {
     points <- plausible_set[nth_implausible(ems, plausible_set, z, n = nth, cutoff = cutoff),]
@@ -362,28 +368,36 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, nth = 1, d
   in_range <- function(data, ranges) {
     apply(data, 1, function(x) all(purrr::map_lgl(seq_along(ranges), ~x[.] >= ranges[[.]][1] && x[.] <= ranges[[.]][2])))
   }
+  s_estruct <- eigen(cov(s_points))
+  pca_transform <- function(x, forward = TRUE) {
+    if ("data.frame" %in% class(x)) x <- data.matrix(x)
+    if (forward) return(x %*% s_estruct$vectors %*% diag(1/sqrt(s_estruct$values)))
+    return(x %*% diag(sqrt(s_estruct$values)) %*% t(s_estruct$vectors))
+  }
   propose_points <- function(sp, sd, how_many = n_points) {
-    wp <- sp[sample(nrow(sp), how_many, replace = TRUE), ]
+    sp_trafo <- pca_transform(sp)
+    wp <- sp_trafo[sample(nrow(sp_trafo), how_many, replace = TRUE), ]
     if (distro == "normal") pp <- t(apply(wp, 1, function(x) mvtnorm::rmvnorm(1, mean = unlist(x, use.names = F), sigma = sd)))
     else pp <- t(apply(wp, 1, function(x) runifs(1, length(s_points), unlist(x, use.names = F), r = sd)))
     prop_points <- setNames(data.frame(pp), names(ranges))
-    valid <- in_range(prop_points, ranges) & nth_implausible(ems, prop_points, z, n = nth, cutoff = cutoff)
+    back_traf <- setNames(data.frame(pca_transform(pp, FALSE)), names(ranges))
+    valid <- in_range(back_traf, ranges) & nth_implausible(ems, back_traf, z, n = nth, cutoff = cutoff)
     if (distro == "normal") {
-      tweights <- apply(prop_points, 1, function(x) 1/nrow(s_points) * sum(apply(s_points, 1, function(y) mvtnorm::dmvnorm(x, mean = y, sigma = sd))))
-      min_w <- min(apply(s_points, 1, function(x) 1/nrow(s_points) * sum(apply(s_points, 1, function(y) mvtnorm::dmvnorm(x, mean = y, sigma = sd)))))
+      tweights <- apply(prop_points, 1, function(x) 1/nrow(sp_trafo) * sum(apply(sp_trafo, 1, function(y) mvtnorm::dmvnorm(x, mean = y, sigma = sd))))
+      min_w <- min(apply(sp_trafo, 1, function(x) 1/nrow(sp_trafo) * sum(apply(sp_trafo, 1, function(y) mvtnorm::dmvnorm(x, mean = y, sigma = sd)))))
       weights <- min_w/tweights
     }
     else
-      weights <- apply(prop_points, 1, function(x) sum(apply(s_points, 1, function(y) punifs(x, y, r = sd))))
+      weights <- apply(prop_points, 1, function(x) sum(apply(sp_trafo, 1, function(y) punifs(x, y, r = sd))))
     allow <- runif(length(weights)) < 1/weights
     accepted <- valid & allow
-    return(prop_points[accepted,])
+    return(back_traf[accepted,])
   }
   if (is.null(sd)) {
     if (distro == "normal")
-      sd <- diag((purrr::map_dbl(ranges, diff)/6)^2, length(ranges))
+      sd <- diag(2, length(ranges))
     else
-      sd <- purrr::map_dbl(ranges, diff)
+      sd <- rep(2, length(ranges))
   }
   accept_rate <- NULL
   upper_accept <- 0.125
