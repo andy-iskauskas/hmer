@@ -95,24 +95,54 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
   n_current <- 0
   if (any(!method %in% possible_methods)) warning(paste("Unrecognised method name(s)", method[!method %in% possible_methods], "ignored."))
   if (missing(plausible_set) || 'lhs' %in% which_methods) {
-    if (verbose) print("Performing LH sampling...")
+    if (verbose) print("Performing Latin Hypercube sampling...")
     if (cluster) points <- lhs_gen_cluster(ems, n_points, z, cutoff, nth, verbose = verbose, ...)
-    else points <- lhs_gen(ems, n_points, z, cutoff, nth, verbose = verbose, ...)
-    if (verbose) print(paste("LH sampling generated", nrow(points), "points."))
-    if (nrow(points) < max(50, 5*length(ranges))) {
-      if (verbose) print(paste("Cutoff", cutoff, "not generating enough points at LH stage. Increasing cutoff."))
-      points <- generate_new_runs(ems = ems, n_points = n_points, z = z, method = method, cutoff = cutoff+0.5, nth = nth, verbose = verbose, cluster = cluster, resample = resample-1, ...)
-      new_points <- points[nth_implausible(ems, points, z, n = nth, cutoff = cutoff),]
-      if (verbose) print(paste(nrow(new_points), "remain from higher implausibility"))
-      if (nrow(new_points) == 0) {
-        warning(paste("Could not generate points with implausibility", cutoff))
-        return(points)
+    else {
+      points <- eval_funcs(scale_input, setNames(data.frame(2 * (lhs::randomLHS(n_points * 10, length(ranges))-0.5)), names(ranges)), ranges, FALSE)
+      point_imps <- nth_implausible(ems, points, z)
+      required_points <- max(50, 5*length(ranges))
+      if (sum(point_imps <= cutoff) < required_points) {
+        cutoff_current <- ceiling(2*sort(point_imps)[required_points])/2
+        if (length(which_methods) == 1)
+          return(points[nth_implausible(ems, points, z, cutoff = cutoff_current),])
+        while(cutoff_current > cutoff) {
+          if (verbose) print(paste0("Proposing at implausibility I=", cutoff_current))
+          plaus_points <- points[nth_implausible(ems, points, z, cutoff = cutoff_current),]
+          if (nrow(plaus_points) == 0) break
+          points <- generate_new_runs(ems, n_points, z, method = which_methods[!which_methods %in% c('lhs')], cutoff = cutoff_current, nth = nth, plausible_set = plaus_points, verbose = verbose, resample = resample - 1, ...)
+          cutoff_current <- cutoff_current - 0.5
+        }
+        if (cutoff_current != cutoff) {
+          if (verbose) print(paste("Cannot reach implausibility cutoff", cutoff, "- points returned will have implausibility no bigger than", cutoff_current))
+          points <- points[sample(1:nrow(points), floor(nrow(points)/2)),]
+          cutoff <- cutoff_current
+        }
+        else {
+          points <- points[nth_implausible(ems , points, z, cutoff = cutoff),]
+        }
       }
-      else points <- new_points
     }
+    # if (verbose) print("Performing LH sampling...")
+    # if (cluster) points <- lhs_gen_cluster(ems, n_points, z, cutoff, nth, verbose = verbose, ...)
+    # else points <- lhs_gen(ems, n_points, z, cutoff, nth, verbose = verbose, ...)
+    # if (verbose) print(paste("LH sampling generated", nrow(points), "points."))
+    # if (nrow(points) < max(50, 5*length(ranges))) {
+    #   if (verbose) print(paste("Cutoff", cutoff, "not generating enough points at LH stage. Increasing cutoff."))
+    #   points <- generate_new_runs(ems = ems, n_points = n_points, z = z, method = method, cutoff = cutoff+0.5, nth = nth, verbose = verbose, cluster = cluster, resample = resample-1, ...)
+    #   new_points <- points[nth_implausible(ems, points, z, n = nth, cutoff = cutoff),]
+    #   if (verbose) print(paste(nrow(new_points), "remain from higher implausibility"))
+    #   if (nrow(new_points) == 0) {
+    #     warning(paste("Could not generate points with implausibility", cutoff))
+    #     return(points)
+    #   }
+    #   else points <- new_points
+    # }
   }
-  else points <- plausible_set[nth_implausible(ems, plausible_set, z, n = nth, cutoff = cutoff),]
+  else {
+    points <- plausible_set[nth_implausible(ems, plausible_set, z, n = nth, cutoff = cutoff),]
+  }
   n_current <- nrow(points)
+  if (verbose) print(paste0(n_current, " points generated from LHS at I=", cutoff))
   if (nrow(points) == 0) {
     warning("No non-implausible points found from initial step.")
     return(points)
