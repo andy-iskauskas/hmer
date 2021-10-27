@@ -121,6 +121,10 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
           points <- points[nth_implausible(ems , points, z, cutoff = cutoff),]
         }
       }
+      else {
+        points <- points[point_imps <= cutoff,]
+        if (!"data.frame" %in% class(points)) points <- setNames(data.frame(points), names(ranges))
+      }
     }
     # if (verbose) print("Performing LH sampling...")
     # if (cluster) points <- lhs_gen_cluster(ems, n_points, z, cutoff, nth, verbose = verbose, ...)

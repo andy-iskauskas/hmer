@@ -221,8 +221,8 @@ As in the one-dimensional case, we will define a target to match to. In this cas
 ```{r}
 ranges2d <- list(x = c(-pi/2, pi/2), y = c(-1, 1))
 targets2d <- list(
-  f1 = list(val = func1(c(0.1, 0.4)), sigma = 0.1),
-  f2 = list(val = func2(c(0.1, 0.4)), sigma = 0.005)
+  f1 = list(val = func1(c(0.1, 0.4)), sigma = sqrt(0.1)),
+  f2 = list(val = func2(c(0.1, 0.4)), sigma = sqrt(0.005))
 )
 ```
 
@@ -260,10 +260,10 @@ The `hmer` package allows us to create plots analogous to those made by-hand in 
 
 ```{r fig.width = 7, fig.height = 7}
 emulator_plot(ems2d)
-emulator_plot(ems2d, var_name = 'sd')
+emulator_plot(ems2d, plot_type = 'sd')
 ```
 
-The `emulator_plot` function can produce a number of things: the default is an expectation plot equivalent to the blue line in the one dimensional case. The `var_name` command determines what is plotted: 'var' has it plot the variance and 'sd' the standard deviation, which play the part of the distance from blue line to red dotted lines in the one-dimensional case. These combined plots are used mainly for diagnostics - to obtain an expectation or variance plot with meaningful scale, we plot them one-by-one.
+The `emulator_plot` function can produce a number of things: the default is an expectation plot equivalent to the blue line in the one dimensional case. The `plot_type` command determines what is plotted: 'var' has it plot the variance and 'sd' the standard deviation, which play the part of the distance from blue line to red dotted lines in the one-dimensional case. These combined plots are used mainly for diagnostics - to obtain an expectation or variance plot with meaningful scale, we plot them one-by-one.
 
 ```{r fig.width = 7, fig.height = 7}
 emulator_plot(ems2d$f1, plot_type = 'sd') + geom_point(data = initial_data, aes(x = x, y = y))

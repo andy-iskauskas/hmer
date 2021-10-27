@@ -195,7 +195,10 @@ Emulator <- R6::R6Class(
         if(is.null(nrow(g_x))) bupart <- purrr::map_dbl(point_seq, ~t(purrr::map_dbl(self$basis_f, purrr::exec, x[.,])) * bupart_xp[.] + t(bupart_x[.] * purrr::map_dbl(self$basis_f, purrr::exec, xp[.,])))
         else bupart <- purrr::map_dbl(point_seq, ~t(purrr::map_dbl(self$basis_f, purrr::exec, x[.,])) %*% bupart_xp[,.] + t(bupart_x[,.] %*% purrr::map_dbl(self$basis_f, purrr::exec, xp[.,])))
       }
-      return(round(beta_part + u_part + bupart, 10))
+      ## I don't like this, but there's a lot of rounding error going on
+      result <- round(beta_part + u_part + bupart, 10)
+      result[result < 0] <- 1e-6
+      return(result)
     },
     ## This derivative form assumes u_sigma is constant.
     get_exp_d = function(x, p) {

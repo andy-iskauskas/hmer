@@ -77,8 +77,8 @@ Emulators can be used as a (statistical) surrogate for the model, and in particu
 ```{r fig.width = 7, fig.height = 7}
 emulator_plot(wave1_emulators)
 emulator_plot(wave1_emulators$nS, params = c('aIR', 'aSR'), fixed_vals = list(aSI = 0.3))
-emulator_plot(wave1_emulators$nI, var_name = 'var')
-emulator_plot(wave1_emulators$nI, var_name = 'sd')
+emulator_plot(wave1_emulators$nI, plot_type = 'var')
+emulator_plot(wave1_emulators$nI, plot_type = 'sd')
 ```
 
 Almost all the return values of plots produced by `hmer` are `ggplot` objects, and so can be augmented after the fact.
@@ -90,8 +90,8 @@ emulator_plot(wave1_emulators$nS, params = c('aIR', 'aSR')) + ggplot2::geom_poin
 Using these, we can plot implausibility across the parameter space, again using `emulator_plot`. We can also combine the implausibilities into a combined measure of point suitability by considering maximum implausibility across all outputs. While traditionally, implausibility plots are green-red, a colourblind friendly palette is available with the use of `cb=TRUE`.
 
 ``` {r fig.width = 7, fig.height = 7}
-emulator_plot(wave1_emulators, var = 'imp', targets = targets)
-emulator_plot(wave1_emulators, var_name = 'nimp', targets = targets, cb = TRUE)
+emulator_plot(wave1_emulators, plot_type = 'imp', targets = targets)
+emulator_plot(wave1_emulators, plot_type = 'nimp', targets = targets, cb = TRUE)
 ```
 
 While these plots represent slices of parameter space, other functionality allows a rough understanding of the behaviour across the full space.In particular, the `plot_lattice` function provides a plot of optical depth and minimum implausibility for all parameter combinations.
@@ -158,7 +158,7 @@ wave_variance(GillespieMultiWaveEmulators, names(targets))
 Each of the functions in constructing emulators has a number of options with which the default behaviour can be modified. However, if investigation of the emulator structure is not required and one simply wants the next set of proposed points, then the `full_wave` function allows this. It requires only a set of points to train the emulators on. If applying this at later waves, the emulators from previous waves are provided as a list to the `old_emulators` argument.
 
 ```{r}
-f_w <- full_wave(GillespieSIR, list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05)), targets)
+f_w <- suppressWarnings(full_wave(GillespieSIR, list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05)), targets))
 ```
 
 This provides two things: a next set of points to evaluate the model on, and the emulators that gave rise to them.
