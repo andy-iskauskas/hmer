@@ -37,7 +37,7 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5, ...)
   pal <- viridis::viridis(length(waves), option = "D", direction = -1)
   g <- ggpairs(total_data, columns = 1:length(input_names), aes(colour = wave),
           lower = list(continuous = plotfun),
-          upper = 'blank', title = "Wave Points Location", progress = FALSE) +
+          upper = 'blank', title = "Wave Points Location", progress = FALSE, legend = 1) +
     scale_colour_manual(values = pal) +
     scale_fill_manual(values = alpha(pal, 0.5)) +
     theme_bw()
@@ -107,15 +107,14 @@ wave_values <- function(waves, targets, output_names = names(targets), surround 
     g <- ggplot(data = data, mapping = mapping) +
       geom_point(cex = p_size) +
       scale_colour_manual(values = pal) +
-      theme_bw() +
-      geom_rect(xmin = targets[[xname]][1], xmax = targets[[xname]][2], ymin = targets[[yname]][1], ymax = targets[[yname]][2], colour = 'red', fill = NA, lwd = l_wid)
+      theme_bw()
+    if (surround) g <- g + geom_point(cex = p_size, pch = 1, colour = 'black')
+      g <- g + geom_rect(xmin = targets[[xname]][1], xmax = targets[[xname]][2], ymin = targets[[yname]][1], ymax = targets[[yname]][2], colour = 'red', fill = NA, lwd = l_wid)
     if (zoom) {
       xrange <- (targets[[xname]][2]-targets[[xname]][1])/2
       yrange <- (targets[[yname]][2]-targets[[yname]][1])/2
       g <- g + coord_cartesian(xlim = c(targets[[xname]][1] - xrange, targets[[xname]][2] + xrange), ylim = c(targets[[yname]][1] - yrange, targets[[yname]][2] + yrange)) + theme_void()
     }
-    if (surround)
-      g <- g + geom_point(cex = p_size, pch = 1, colour = 'black')
     return(g)
   }
   dfun <- function(data, mapping, targets) {
@@ -130,7 +129,7 @@ wave_values <- function(waves, targets, output_names = names(targets), surround 
           lower = list(continuous = wrap(lfun, targets = targets)),
           diag = list(continuous = wrap(dfun, targets = targets)),
           upper = list(continuous = wrap(lfun, targets = targets, zoom = TRUE)), progress = FALSE,
-          title = "Output plots with Targets")
+          title = "Output plots with Targets", legend = 1)
 }
 
 #' Multiple Wave Inputs vs Outputs
@@ -195,8 +194,7 @@ wave_dependencies <- function(waves, targets, output_names = names(targets), inp
             ylim(y_limit) +
             geom_hline(yintercept = line_limits, colour = 'red', lwd = l_wid) +
             theme_bw() +
-            theme(axis.ticks = element_blank()) +
-            theme(legend.position = 'none')
+            theme(axis.ticks = element_blank())
           if (normalize) {
             yrange <- diff(targets[[output_names[i]]])/2
             g <- g + coord_cartesian(ylim = c(targets[[output_names[i]]][1] - yrange, targets[[output_names[i]]][2] + yrange))
@@ -206,7 +204,7 @@ wave_dependencies <- function(waves, targets, output_names = names(targets), inp
     }
   }
   return(suppressWarnings(GGally::ggmatrix(plots = plot_list, ncol = length(input_names), nrow = length(output_names),
-                                           xAxisLabels = input_names, yAxisLabels = output_names, progress = FALSE, title = "Outputs vs Inputs")))
+                                           xAxisLabels = input_names, yAxisLabels = output_names, progress = FALSE, legend = 1, title = "Outputs vs Inputs")))
 }
 
 #' Plot simulator outputs for multiple waves

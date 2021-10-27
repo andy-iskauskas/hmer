@@ -14,6 +14,7 @@ generate_new_runs(
   plausible_set,
   verbose = FALSE,
   cluster = FALSE,
+  resample = 1,
   ...
 )
 }
@@ -35,6 +36,8 @@ generate_new_runs(
 \item{verbose}{Should progress statements be printed to the console?}
 
 \item{cluster}{Should emulator clustering be considered in the LHS generation?}
+
+\item{resample}{Number of times to resample using line and/or importance sampling.}
 
 \item{...}{Any parameters to pass to individual sampling functions, eg \code{distro} for importance sampling.}
 }

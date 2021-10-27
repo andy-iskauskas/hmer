@@ -154,7 +154,7 @@ imp_plot <- function(em, z, plotgrid = NULL, ppd = 30, cb = FALSE, nth = NULL) {
 #'
 #' Given a single emulator, or a set of emulators, the emulator statistics can be plotted
 #' across a two-dimensional slice of the parameter space. Which statistic is plotted is
-#' determined by \code{var_name}: options are 'exp', 'var', 'sd', 'imp', and 'nimp', which
+#' determined by \code{plot_type}: options are 'exp', 'var', 'sd', 'imp', and 'nimp', which
 #' correspond to expectation, variance, standard deviation, implausibility, and nth-max
 #' implausibility.
 #'
@@ -163,7 +163,7 @@ imp_plot <- function(em, z, plotgrid = NULL, ppd = 30, cb = FALSE, nth = NULL) {
 #' with the \code{params} and \code{fixed_vals} parameters (see examples).
 #'
 #' If the statistic is 'exp', 'var' or 'sd', then the minimal set of parameters to pass to this
-#' function are \code{ems} (which can be a list of emulators or a single one) and \code{var_name}.
+#' function are \code{ems} (which can be a list of emulators or a single one) and \code{plot_type}.
 #' If the statistic is 'imp' or 'nimp', then the \code{targets} must be supplied - it is not
 #' necessary to specify the individual target for a single emulator plot. If the statistic is
 #' 'nimp', then the level of maximum implausiblility can be chosen with the parameter \code{nth}.
@@ -181,7 +181,7 @@ imp_plot <- function(em, z, plotgrid = NULL, ppd = 30, cb = FALSE, nth = NULL) {
 #' @importFrom cowplot plot_grid
 #'
 #' @param ems An \code{\link{Emulator}} object, or a list thereof.
-#' @param var_name The statistic to plot (see description or examples).
+#' @param plot_type The statistic to plot (see description or examples).
 #' @param ppd The number of points per plotting dimension
 #' @param targets If required, the targets from which to calculate implausibility
 #' @param cb A boolean representing whether a colourblind-friendly plot is produced.
@@ -196,14 +196,14 @@ imp_plot <- function(em, z, plotgrid = NULL, ppd = 30, cb = FALSE, nth = NULL) {
 #'  # Reducing ppd to 10 for speed.
 #'  emulator_plot(sample_emulators$ems, ppd = 10)
 #'  emulator_plot(sample_emulators$ems$nS, ppd = 10)
-#'  emulator_plot(sample_emulators$ems, var_name = 'var', ppd = 10, params = c('aIR', 'aSR'))
-#'  emulator_plot(sample_emulators$ems, var_name = 'imp', ppd = 10,
+#'  emulator_plot(sample_emulators$ems, plot_type = 'var', ppd = 10, params = c('aIR', 'aSR'))
+#'  emulator_plot(sample_emulators$ems, plot_type = 'imp', ppd = 10,
 #'   targets = sample_emulators$targets,
 #'   fixed_vals = list(aSR = 0.02))
-#'  emulator_plot(sample_emulators$ems, var_name = 'nimp', cb = TRUE,
+#'  emulator_plot(sample_emulators$ems, plot_type = 'nimp', cb = TRUE,
 #'   targets = sample_emulators$targets, nth = 2, ppd = 10)
 #'
-emulator_plot <- function(ems, var_name = 'exp', ppd = 30, targets = NULL, cb = FALSE, params = NULL, fixed_vals = NULL, nth = 1) {
+emulator_plot <- function(ems, plot_type = 'exp', ppd = 30, targets = NULL, cb = FALSE, params = NULL, fixed_vals = NULL, nth = 1) {
   if ("Emulator" %in% class(ems)){
     ranges <- ems$ranges
     single_em <- TRUE
@@ -226,17 +226,17 @@ emulator_plot <- function(ems, var_name = 'exp', ppd = 30, targets = NULL, cb = 
     for (i in 1:length(unused_nms)) plotgrid[[unused_nms[i]]] <- sum(ranges[[unused_nms[i]]])/2
   }
   get_plot <- function(em) {
-    if (var_name == 'exp') return(exp_plot(em, plotgrid, ppd))
-    if (var_name == 'var') return(var_plot(em, plotgrid, ppd))
-    if (var_name == 'sd') return(var_plot(em, plotgrid, ppd, sd = TRUE))
-    if (var_name == 'imp') {
+    if (plot_type == 'exp') return(exp_plot(em, plotgrid, ppd))
+    if (plot_type == 'var') return(var_plot(em, plotgrid, ppd))
+    if (plot_type == 'sd') return(var_plot(em, plotgrid, ppd, sd = TRUE))
+    if (plot_type == 'imp') {
       if (is.null(targets)) stop("Cannot plot implausibility without target value.")
     }
     if (!is.null(targets$val)) return(imp_plot(em, targets, plotgrid, ppd, cb))
     else return(imp_plot(em, targets[[em$output_name]], plotgrid, ppd, cb))
   }
   if (single_em) return(get_plot(ems))
-  if (var_name == 'nimp') return(imp_plot(ems, targets, plotgrid, ppd, cb, nth))
+  if (plot_type == 'nimp') return(imp_plot(ems, targets, plotgrid, ppd, cb, nth))
   else {
     plotlist <- purrr::map(ems, get_plot)
     for (i in 1:length(plotlist)) {
@@ -428,4 +428,50 @@ plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE, cutoff = 3, maxpoin
   legend_list <- list(cowplot::get_legend(plot_list[[2]]), cowplot::get_legend(plot_list[[length(ranges)+1]]))
   for (i in 1:length(plot_list)) plot_list[[i]] <- plot_list[[i]] + theme(legend.position = 'none')
   return(suppressMessages(cowplot::plot_grid(cowplot::plot_grid(plotlist = plot_list), cowplot::plot_grid(plotlist = legend_list, ncol = 1, rel_heights = c(1, 1/length(ranges))), rel_widths = c(1, 0.1))))
+}
+
+#' Active variable plotting
+#'
+#' For a set of emulators, demonstrate which variables are active.
+#'
+#' Each emulator has a list of 'active' variables; those which contribute in an appreciable way
+#' to its regression surface. It can be instructive to examine the differences in active variables
+#' for a give collection of emulators. The plot here produces an nxp grid for n emulators in p
+#' inputs; a square is blacked out if that variable does not contribute to that output.
+#'
+#' Both the outputs and inputs can be restricted to colelctions of interest, if desired, with the
+#' optional \code{output_names} and \code{input_names} parameters.
+#'
+#' @param ems The list of emulators to consider
+#' @param output_names The names of the outputs to include in the plot, if not all
+#' @param input_names The names of the inputs to include in the plot, if not all
+#' @return A ggplot object corresponding to the plot
+#'
+#' @export
+#'
+#' @examples
+#'  plot_actives(sample_emulators$ems)
+#'  # Remove the nR output and aIR input from the plot
+#'  plot_actives(sample_emulators$ems, c('nS', 'nI'), c('aSI', 'aSR'))
+#'  # Note that we can equally restrict the emulator list...
+#'  plot_actives(sample_emulators$ems[c('nS', 'nI')], input_names = c('aSI', 'aSR'))
+plot_actives <- function(ems, output_names = NULL, input_names = NULL) {
+  if ("Emulator" %in% class(ems)) {
+    ems <- list(ems)
+  }
+  in_names <- names(ems[[1]]$ranges)
+  active_list <- setNames(data.frame(do.call('rbind', purrr::map(ems, ~.$active_vars))), in_names)
+  if (!is.null(input_names)) active_list <- active_list[, input_names]
+  if (!is.null(output_names)) active_list <- active_list[row.names(active_list) %in% output_names, ]
+  if (nrow(active_list) == 0 || length(active_list) == 0) stop("No inputs/outputs to plot.")
+  active_list <- data.matrix(active_list)
+  reshaped <- reshape2::melt(active_list)
+  reshaped$value <- as.factor(reshaped$value)
+  Var1 <- Var2 <- value <- NULL
+  g <- ggplot(data = reshaped, aes(x = Var2, y = Var1, fill = value)) +
+    geom_tile(colour = 'black') +
+    scale_fill_manual(values = c('black', 'white'), labels = c("FALSE", "TRUE"), name = "Active?") +
+    labs(title = "Active variables", x = "Parameter", y = "Output") +
+    theme_minimal()
+  return(g)
 }

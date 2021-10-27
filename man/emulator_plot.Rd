@@ -6,7 +6,7 @@
 \usage{
 emulator_plot(
   ems,
-  var_name = "exp",
+  plot_type = "exp",
   ppd = 30,
   targets = NULL,
   cb = FALSE,
@@ -18,7 +18,7 @@ emulator_plot(
 \arguments{
 \item{ems}{An \code{\link{Emulator}} object, or a list thereof.}
 
-\item{var_name}{The statistic to plot (see description or examples).}
+\item{plot_type}{The statistic to plot (see description or examples).}
 
 \item{ppd}{The number of points per plotting dimension}
 
@@ -41,7 +41,7 @@ A function for plotting emulator expectations, variances, and implausibilities
 \details{
 Given a single emulator, or a set of emulators, the emulator statistics can be plotted
 across a two-dimensional slice of the parameter space. Which statistic is plotted is
-determined by \code{var_name}: options are 'exp', 'var', 'sd', 'imp', and 'nimp', which
+determined by \code{plot_type}: options are 'exp', 'var', 'sd', 'imp', and 'nimp', which
 correspond to expectation, variance, standard deviation, implausibility, and nth-max
 implausibility.
 
@@ -50,7 +50,7 @@ parameters are taken to be fixed at their mid-range values. This behaviour can b
 with the \code{params} and \code{fixed_vals} parameters (see examples).
 
 If the statistic is 'exp', 'var' or 'sd', then the minimal set of parameters to pass to this
-function are \code{ems} (which can be a list of emulators or a single one) and \code{var_name}.
+function are \code{ems} (which can be a list of emulators or a single one) and \code{plot_type}.
 If the statistic is 'imp' or 'nimp', then the \code{targets} must be supplied - it is not
 necessary to specify the individual target for a single emulator plot. If the statistic is
 'nimp', then the level of maximum implausiblility can be chosen with the parameter \code{nth}.
@@ -67,11 +67,11 @@ time, increase this value. The default is 30.
  # Reducing ppd to 10 for speed.
  emulator_plot(sample_emulators$ems, ppd = 10)
  emulator_plot(sample_emulators$ems$nS, ppd = 10)
- emulator_plot(sample_emulators$ems, var_name = 'var', ppd = 10, params = c('aIR', 'aSR'))
- emulator_plot(sample_emulators$ems, var_name = 'imp', ppd = 10,
+ emulator_plot(sample_emulators$ems, plot_type = 'var', ppd = 10, params = c('aIR', 'aSR'))
+ emulator_plot(sample_emulators$ems, plot_type = 'imp', ppd = 10,
   targets = sample_emulators$targets,
   fixed_vals = list(aSR = 0.02))
- emulator_plot(sample_emulators$ems, var_name = 'nimp', cb = TRUE,
+ emulator_plot(sample_emulators$ems, plot_type = 'nimp', cb = TRUE,
   targets = sample_emulators$targets, nth = 2, ppd = 10)
 
 }

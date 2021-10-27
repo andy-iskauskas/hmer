@@ -100,7 +100,7 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
     else {
       points <- eval_funcs(scale_input, setNames(data.frame(2 * (lhs::randomLHS(n_points * 10, length(ranges))-0.5)), names(ranges)), ranges, FALSE)
       point_imps <- nth_implausible(ems, points, z)
-      required_points <- max(50, 5*length(ranges))
+      required_points <- 5*length(ranges)
       if (sum(point_imps <= cutoff) < required_points) {
         cutoff_current <- ceiling(2*sort(point_imps)[required_points])/2
         if (length(which_methods) == 1)

@@ -330,7 +330,8 @@ Emulator <- R6::R6Class(
         point_seq <- 1:nrow(x)
         if (is.null(nrow(g_x))) beta_part <- diag(diag(self$beta_sigma) * outer(g_x, gp_x))
         else beta_part <- purrr::map_dbl(point_seq, ~g_x[,.] %*% self$beta_sigma %*% gp_x[,.])
-        u_part <- purrr::map_dbl(point_seq, ~self$u_sigma(x[.,]) * self$u_sigma(xp[.,]) * self$corr$get_corr_d(x[.,], xp[.,], p1_ind, p2_ind, self$active_vars))/(range_scale1*range_scale2)
+        if (is.numeric(self$u_sigma)) u_part <- purrr::map_dbl(point_seq, ~self$u_sigma^2 * self$corr$get_corr_d(x[.,], xp[.,], p1_ind, p2_ind, self$active_vars))/(range_scale1*range_scale2)
+        else u_part <- purrr::map_dbl(point_seq, ~self$u_sigma(x[.,]) * self$u_sigma(xp[.,]) * self$corr$get_corr_d(x[.,], xp[.,], p1_ind, p2_ind, self$active_vars))/(range_scale1*range_scale2)
         if (!is.null(self$in_data)) {
           c_x <- apply(self$in_data, 1, function(b) apply(x, 1, function(a) self$corr$get_corr_d(a, b, p1_ind, p2_ind, self$active_vars)))/(range_scale1*range_scale2)
           c_xp <- if(null_flag)

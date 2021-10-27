@@ -61,8 +61,15 @@ one for each output.
 Many of the parameters that can be passed to this function are optional: the minimal operating
 example requires \code{input_data}, \code{output_names}, and one of \code{ranges} or
 \code{input_names}. If \code{ranges} is supplied, the input names are generated from that
-list; if only \code{input_names} is specified, then the ranges are assumed to be [-1, 1]
-for every input.
+list, data.frame, or data.matrix; if only \code{input_names} is specified, then the ranges
+are assumed to be [-1, 1] for every input.
+
+The ranges can be provided in alternative ways: either as a named list of length-2 numeric
+vectors (corresponding to the maximum and minimum for each parameter); as a data.frame with
+2 columns where each row corresponds to a parameter; or as a data.matrix defined similarly
+as the data.frame. In the cases where the ranges are provided as a data.frame or a data.matrix,
+the \code{row.names} of the data object must be provided, corresponding to the names of the
+parameters.
 
 If the minimum information is provided, then an emulator is fitted as follows. The basis
 functions and associated regression coefficients are generated using \code{step} and \code{lm}

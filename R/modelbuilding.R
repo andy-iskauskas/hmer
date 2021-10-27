@@ -1,3 +1,29 @@
+## Helper function for converting ranges from data.frame or data.matrix to list
+convertRanges <- function(object) {
+  if (is.null(object) || missing(object)) return(object)
+  if ("matrix" %in% class(object)) {
+    if (ncol(object) == 2 && length(row.names(object)[row.names(object)!=""]) == nrow(object)) return(setNames(purrr::map(1:nrow(object), ~c(object[.,1], object[.,2], use.names = FALSE)), row.names(object)))
+    else {
+      warning("Data.matrix of ranges is misspecified (either row.names incomplete, or dimension of data.frame is not nx2)")
+      return(NULL)
+    }
+  }
+  if (class(object) == "list") {
+    if (length(names(object)) == length(object) && all(purrr::map_dbl(object, length) == 2)) return(object)
+    else {
+      warning("List of ranges is misspecified (either not all named, or not all have a maximum and minimum)")
+      return(NULL)
+    }
+  }
+  if (class(object) == "data.frame") {
+    if (length(object) == 2 && !any(purrr::map_lgl(1:nrow(object), ~row.names(object)[.]==.))) return(setNames(purrr::map(1:nrow(object), ~c(object[.,1], object[.,2])), row.names(object)))
+    else {
+      warning("Data.frame of ranges is misspecified (either row.names incomplete, or dimension of data.frame is not nx2)")
+      return(NULL)
+    }
+  }
+}
+
 #' Model Generation
 #'
 #' Creates a best fit of coefficients for a given data set.
@@ -169,8 +195,15 @@ likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_
 #' Many of the parameters that can be passed to this function are optional: the minimal operating
 #' example requires \code{input_data}, \code{output_names}, and one of \code{ranges} or
 #' \code{input_names}. If \code{ranges} is supplied, the input names are generated from that
-#' list; if only \code{input_names} is specified, then the ranges are assumed to be [-1, 1]
-#' for every input.
+#' list, data.frame, or data.matrix; if only \code{input_names} is specified, then the ranges
+#' are assumed to be [-1, 1] for every input.
+#'
+#' The ranges can be provided in alternative ways: either as a named list of length-2 numeric
+#' vectors (corresponding to the maximum and minimum for each parameter); as a data.frame with
+#' 2 columns where each row corresponds to a parameter; or as a data.matrix defined similarly
+#' as the data.frame. In the cases where the ranges are provided as a data.frame or a data.matrix,
+#' the \code{row.names} of the data object must be provided, corresponding to the names of the
+#' parameters.
 #'
 #' If the minimum information is provided, then an emulator is fitted as follows. The basis
 #' functions and associated regression coefficients are generated using \code{step} and \code{lm}
@@ -256,6 +289,10 @@ emulator_from_data <- function(input_data, output_names, ranges,
     warning("No ranges provided. Inputs assumed to be in ranges [-1, 1].")
     ranges <- setNames(purrr::map(input_names, ~c(-1, 1)), input_names)
   }
+  else {
+    ranges <- convertRanges(ranges)
+  }
+  if (is.null(ranges)) stop("Ranges either not specified, or misspecified.")
   data <- setNames(cbind(eval_funcs(scale_input, input_data[,names(ranges)], ranges), input_data[,output_names]), c(names(ranges), output_names))
   if (!"data.frame" %in% class(data)) data <- setNames(data.frame(data), c(names(ranges), output_names))
   if (missing(funcs)) {

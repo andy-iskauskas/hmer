@@ -1,4 +1,6 @@
 Changelog (Release Branch)
+27/10/2021 - v0.9.4. Multiple changes, including improved sampling schema for point proposal; readability improvements for plots; additional minor plots; limited support for different data structures in emulator_from_data.
+
 07/10/2021 - v0.9.3. Added support for functional sigma and corresponding adjustments in other functions; stability and QoL improvements to model selection and point proposal.
 
 16/09/2021 - v0.9.2. Introduced functionality for derivative emulation and proposing points based on 'emulated gradient descent'.

@@ -123,7 +123,7 @@ target1d <- list(f = list(val = 0, sigma = 0.05))
 The `generate_new_runs` function is used to propose new points. There are a multitude of different methods that can be used to propose the new points: in this particular one-dimensional case, it makes sense to take the most basic approach. This is to generate a large number of space-filling points, reject those that the emulator rules out as implausible, and select the subset of the remaining points that has the maximal minimum distance between them (so as to cover as much of the non-implausible space as possible).
 
 ```{r}
-new_points1d <- generate_new_runs(em1d, 10, target1d, method = 'lhs', measure.method = 'maximin')
+new_points1d <- generate_new_runs(em1d, 10, target1d, method = 'lhs')
 ```
 
 The necessary parameters here are the (list of) emulators, the number of points (here, 10), and the target(s).
@@ -174,7 +174,7 @@ legend('topleft', inset = c(0.05, 0.05), legend = c("Function value", "Emulated 
 This plot underlines the importance of using all waves of emulation. The first wave was trained over most of the space, and so gives a moderately confident estimate of the function on the interval $[0, 0.5]$. The second wave emulator is trained only on regions that are of interest at this point, and so is less confident than the first wave emulator in parts of parameter space. However, we still have the emulator from the first wave, which contains all the information of the previous training runs by design. In this wave of history matching, therefore, we use both the first- and second-wave emulator to propose points.
 
 ```{r, fig.width = 7, fig.height = 7}
-new_new_points1d <- generate_new_runs(c(em1d_2, em1d), 10, z = c(target1d, target1d), method = 'lhs', measure.method = 'maximin')
+new_new_points1d <- generate_new_runs(c(em1d_2, em1d), 10, z = target1d, method = 'lhs')
 
 plot(data = plot1d_2, f ~ x, ylim = c(min(plot1d_2[,-1]), max(plot1d_2[,-1])),
      type = 'l', main = "Emulator of a Simple 1-dimensional Function: Wave 2", xlab = "Parameter value", ylab = "Function value")
@@ -249,7 +249,7 @@ Looking at these plots shows that the emulators are doing fine. Any failing poin
 
 ```{r fig.width = 7, fig.height = 7}
 inflated_em <- ems2d$f2$mult_sigma(2)
-new_invaliid <- validation_diagnostics(list(f1 = ems2d$f1, f2 = inflated_em), targets2d, validation_data)
+new_invalid <- validation_diagnostics(list(f1 = ems2d$f1, f2 = inflated_em), targets2d, validation_data)
 ```
 
 The `set_sigma` and `set_hyperparams` functions create a new Emulator object, so in general we would replace the old emulator with the new one rather than combining lists (e.g. `ems2d$f2 <- emd2d$f2$set_sigma(...)`). In this case, such tinkering is not required and hence we did not replace the $f_2$ emulator in situ.
@@ -266,7 +266,7 @@ emulator_plot(ems2d, var_name = 'sd')
 The `emulator_plot` function can produce a number of things: the default is an expectation plot equivalent to the blue line in the one dimensional case. The `var_name` command determines what is plotted: 'var' has it plot the variance and 'sd' the standard deviation, which play the part of the distance from blue line to red dotted lines in the one-dimensional case. These combined plots are used mainly for diagnostics - to obtain an expectation or variance plot with meaningful scale, we plot them one-by-one.
 
 ```{r fig.width = 7, fig.height = 7}
-emulator_plot(ems2d$f1, var_name = 'sd') + geom_point(data = initial_data, aes(x = x, y = y))
+emulator_plot(ems2d$f1, plot_type = 'sd') + geom_point(data = initial_data, aes(x = x, y = y))
 ```
 
 The above single plot shows that perhaps the emulator is overly uncertain at a small distance from its training points. This could be rectified by more carefully choosing the design so that points lie closer to the boundary, or by inflating the correlation length so that more distant points have a higher correlation with the training points. In any event, an underconfident emulator is not a disasterous outcome: it merely means that the points proposed will be from a larger non-implausible space.
@@ -274,8 +274,8 @@ The above single plot shows that perhaps the emulator is overly uncertain at a s
 The final two plots that `emulator_plot` can provide are those of implausibility, and nth-maximum implausibility.
 
 ```{r fig.width = 7, fig.height = 7}
-emulator_plot(ems2d, var_name = 'imp', targets = targets2d)
-emulator_plot(ems2d, var_name = 'nimp', targets = targets2d)
+emulator_plot(ems2d, plot_type = 'imp', targets = targets2d)
+emulator_plot(ems2d, plot_type = 'nimp', targets = targets2d)
 ```
 
 The implausibility of a point $x$, given a target $z$, is determined by the following expression:
