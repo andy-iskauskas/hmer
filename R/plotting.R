@@ -475,3 +475,29 @@ plot_actives <- function(ems, output_names = NULL, input_names = NULL) {
     theme_minimal()
   return(g)
 }
+
+#' Plot proposed points
+#'
+#' A wrapper around R's base plot to show proposed points
+#'
+#' Given a set of points proposed from emulators at a given wave, it's often useful to look at
+#' how they are spread and where in parameter space they tend to lie relative to the original
+#' ranges of the parameters. This function provides pairs plots of the parameters, with the
+#' bounds of the plots calculated with respect to the parameter ranges provided.
+#'
+#' @param points The points to plot
+#' @param ranges The parameter ranges
+#' @param p_size The size of the plotted points (passed to \code{cex})
+#'
+#' @return The corresponding pairs plot
+#' @export
+#' @examples
+#'  plot_wrap(GillespieSIR[,1:3], sample_emulators$ems[[1]]$ranges)
+#'
+plot_wrap <- function(points, ranges = NULL, p_size = 0.5) {
+  if (is.null(ranges))
+    boundary_points <- setNames(data.frame(do.call('cbind', purrr::map(names(points), ~c(min(points[,.]), max(points[,.]))))), names(points))
+  else
+    boundary_points <- setNames(data.frame(do.call('rbind', purrr::map(1:2, ~purrr::map_dbl(ranges, function(x) x[[.]])))), names(ranges))
+  plot(rbind(points, boundary_points), pch = 16, cex = p_size, col = c(rep('black', nrow(points)), 'white', 'white'))
+}

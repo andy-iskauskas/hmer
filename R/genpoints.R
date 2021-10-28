@@ -127,11 +127,15 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
         if (length(which_methods) == 1)
           return(points[nth_implausible(ems, points, z, cutoff = cutoff_current),])
         while(cutoff_current > cutoff) {
-          if (verbose) print(paste0("Proposing at implausibility I=", cutoff_current))
           plaus_points <- points[nth_implausible(ems, points, z, cutoff = cutoff_current),]
           if (nrow(plaus_points) == 0) break
+          if (verbose) print(paste0("Proposing at implausibility I=", cutoff_current))
           points <- generate_new_runs(ems, n_points, z, method = which_methods[!which_methods %in% c('lhs')], cutoff = cutoff_current, nth = nth, plausible_set = plaus_points, verbose = verbose, resample = resample - 1, ...)
-          cutoff_current <- cutoff_current - 0.5
+          point_imps <- nth_implausible(ems, points, z)
+          cutoff_temp <- max(cutoff, ceiling(2*sort(point_imps)[required_points])/2)
+          if (cutoff_temp == cutoff_current) break
+          plaus_points <- points[point_imps <= cutoff_temp,]
+          cutoff_current <- cutoff_temp
         }
         if (cutoff_current != cutoff) {
           if (verbose) print(paste("Cannot reach implausibility cutoff", cutoff, "- points returned will have implausibility no bigger than", cutoff_current))

@@ -466,7 +466,6 @@ individual_errors <- function(em, validation, errtype = "normal", xtype = "index
   if (xtype == "index") x_vals <- 1:length(outputs)
   else if (xtype == "em") x_vals <- em_pred
   else x_vals <- validation[,xtype]
-  if (errtype == "cholpivot") x_vals <- x_vals[attr(Q, 'pivot')]
   if (plottype == "normal") {
     x_lab <- switch(xtype, "index" = "Index", "em" = "Emulator Prediction", xtype)
     appended <- switch(errtype, "normal" = "", "eigen" = " (eigendecomposition)", "chol" = " (Choleksy decomposition)", "cholpivot" = " (pivoted Cholesky decomposition)")

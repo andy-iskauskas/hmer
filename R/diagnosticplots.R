@@ -68,6 +68,7 @@ behaviour_plot <- function(ems, points) {
 #' @param u_mod The proportional values by which to inflate/deflate the relevant statistic.
 #' @param intervals The interval values of the implausibility cutoff at which to evaluate.
 #' @param modified The statistic to modify: disc, var or hp (see above)
+#' @param maxpoints The maximum number of points to evaluate at
 #'
 #' @return A ggplot object
 #' @export
@@ -76,12 +77,18 @@ behaviour_plot <- function(ems, points) {
 #' space_removed(sample_emulators$ems, sample_emulators$targets, ppd = 5)
 # space_removed(sample_emulators$ems$nS, sample_emulators$targets,
 #  ppd = 5, u_mod = seq(0.75, 1.25, by = 0.25), intervals = seq(2, 6, by = 0.1))
-space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1), intervals = seq(0, 10, length.out = 200), modified = 'obs') {
+space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1), intervals = seq(0, 10, length.out = 200), modified = 'obs', maxpoints = NULL) {
   value <- variable <- NULL
   if ("Emulator" %in% class(ems))
     ems <- setNames(list(ems), ems$output_name)
   ranges <- ems[[1]]$ranges
-  ptgrid <- setNames(expand.grid(purrr::map(ranges, ~seq(.[[1]], .[[2]], length.out = ppd))), names(ranges))
+  if (is.null(maxpoints)) maxpoints <- 100*length(ranges)
+  if (ppd^length(ranges) > maxpoints) {
+    ptgrid <- setNames(data.frame(do.call('cbind', purrr::map(ranges, ~runif(maxpoints, .[[1]], .[[2]])))), names(ranges))
+  }
+  else {
+    ptgrid <- setNames(expand.grid(purrr::map(ranges, ~seq(.[[1]], .[[2]], length.out = ppd))), names(ranges))
+  }
   imp_array <- array(0, dim = c(length(intervals), length(u_mod)))
   if (!modified %in% c('obs', 'disc', 'var', 'hp')) {
     warning("Unrecognised vary parameter. Setting to observation error (obs).")
