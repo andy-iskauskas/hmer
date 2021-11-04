@@ -60,7 +60,7 @@ nth_implausible <- function(ems, x, z, n = 1, max_imp = 20, cutoff = NULL) {
   }
   if (length(ems) == 1) return(t(implausibles))
   implausibles <- t(apply(d_implausibles, 1, function(x) purrr::map_dbl(unique(names(x)), ~max(x[names(x) == .]))))
-  if (nrow(implausibles) == 1) implausibles <- t(implausibles)
+  if (nrow(implausibles) == 1 && nrow(x) != 1) implausibles <- t(implausibles)
   if (n == 1) imps <- apply(implausibles, 1, max)
   else imps <- apply(implausibles, 1, function(x) -sort(-x, partial = 1:n)[n])
   return(purrr::map_dbl(imps, ~min(., max_imp)))
