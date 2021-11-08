@@ -335,8 +335,8 @@ lhs_gen_cluster <- function(ems, n_points, z, cutoff = 3, nth = 1, previous_ems 
 }
 
 # Line Sampling function
-line_sample <- function(ems, z, s_points, nlines = 20, ppl = 26, cutoff = 3, nth = 1, ...) {
-  ranges <- if("Emulator" %in% class(ems)) ems$ranges else ems[[1]]$ranges
+line_sample <- function(ems, z, s_points, nlines = 20, ppl = 50, cutoff = 3, nth = 1, ...) {
+  ranges <- if("Emulator" %in% class(ems)) ems$ranges else ems[[length(ems)]]$ranges
   in_range <- function(data, ranges) {
     apply(data, 1, function(x) all(purrr::map_lgl(seq_along(ranges), ~x[.] >= ranges[[.]][1] && x[.] <= ranges[[.]][2])))
   }
@@ -349,7 +349,20 @@ line_sample <- function(ems, z, s_points, nlines = 20, ppl = 26, cutoff = 3, nth
     return(list(p1 = pts[1,], p2 = pts[2,], d = pt_dist))
   })
   best_pts <- s_lines[order(purrr::map_dbl(s_lines, ~.$d), decreasing = TRUE)][1:nlines]
-  samp_pts <- do.call('rbind', lapply(best_pts, function(x) do.call('rbind', lapply(seq(-1, 1, length.out = ppl), function(y) (x[[1]]+x[[2]])/2 + y*(x[[2]]-x[[1]])))))
+  get_limits <- function(points) {
+    point_dist <- sqrt(sum((points[[1]]-points[[2]])^2))
+    range_dist <- sqrt(sum(purrr::map_dbl(ranges, ~(.[[2]]-.[[1]])^2)))
+    dist_ratio <- range_dist/point_dist
+    l_seq <- seq(1-dist_ratio, dist_ratio, length.out = 1000)
+    line_points <- setNames(data.frame(do.call('rbind', purrr::map(l_seq, ~points[[1]] + .*(points[[2]]-points[[1]])))), names(ranges))
+    is_in_range <- in_range(line_points, ranges)
+    valid_ls <- l_seq[is_in_range]
+    return(c(valid_ls[1], valid_ls[length(valid_ls)]))
+  }
+  samp_pts <- do.call('rbind', lapply(best_pts, function(x) {
+    these_lims <- get_limits(x)
+    do.call('rbind', lapply(seq(these_lims[1], these_lims[2], length.out = ppl), function(y) (x[[1]]+x[[2]])/2 + y*(x[[2]]-x[[1]])))
+  }))
   imps <- nth_implausible(ems, samp_pts, z, n = nth, cutoff = cutoff)
   in_rg <- in_range(samp_pts, ranges)
   include_points <- purrr::map_lgl(seq_along(imps), function(x) {

@@ -4,7 +4,15 @@
 \alias{nth_implausible}
 \title{nth Maximum Implausibility}
 \usage{
-nth_implausible(ems, x, z, n = 1, max_imp = 20, cutoff = NULL)
+nth_implausible(
+  ems,
+  x,
+  z,
+  n = 1,
+  max_imp = 20,
+  cutoff = NULL,
+  sequential = FALSE
+)
 }
 \arguments{
 \item{ems}{A set of \code{\link{Emulator}} objects.}
@@ -18,6 +26,8 @@ nth_implausible(ems, x, z, n = 1, max_imp = 20, cutoff = NULL)
 \item{max_imp}{A maximum implausibility to return (often used with plotting)}
 
 \item{cutoff}{A numeric value, or vector of such, representing allowed implausibility}
+
+\item{sequential}{Should the emulators be evaluated sequentially?}
 }
 \value{
 Either the nth maximum implausibilities, or booleans (if cutoff is given).
@@ -28,6 +38,13 @@ measures for a given set of observations. The maximum implausibility of a point,
 given a set of univariate emulators and an associated collection of target values,
 is the largest implausibility of the collected set of implasusibilities. The 2nd
 maximum is the maximum of the set without the largest value, and so on.
+}
+\details{
+If \code{sequential = TRUE} and a specific \code{cutoff} has been provided, then the
+emulators' implausibility will be evaluated one emulator at a time. If a point
+is judged non-implausible by more than \code{n} emulators, \code{FALSE} is
+returned without evaluating any more. Due to R efficiencies, this is more efficient
+than the 'evaluate all' method once more than around 10 emulators are considered.
 }
 \examples{
 # A single point
