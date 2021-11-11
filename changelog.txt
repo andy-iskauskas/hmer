@@ -1,4 +1,6 @@
 Changelog (Release Branch)
+11/11/2021 - v0.9.5. Minor improvements and fixes, mainly to sampling methods. The option to search for 'good' points is now present in generate_new_runs.
+
 27/10/2021 - v0.9.4. Multiple changes, including improved sampling schema for point proposal; readability improvements for plots; additional minor plots; limited support for different data structures in emulator_from_data.
 
 07/10/2021 - v0.9.3. Added support for functional sigma and corresponding adjustments in other functions; stability and QoL improvements to model selection and point proposal.

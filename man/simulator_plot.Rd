@@ -13,6 +13,7 @@ simulator_plot(
     0)),
   normalize = FALSE,
   logscale = FALSE,
+  barcol = "#444444",
   ...
 )
 }
@@ -30,6 +31,8 @@ simulator_plot(
 \item{normalize}{If true, plotting is done with rescaled target bounds.}
 
 \item{logscale}{If true, targets are log-scaled before plotting.}
+
+\item{barcol}{The colour of the target error bars/bounds}
 
 \item{...}{Optional parameters (not to be used directly)}
 }

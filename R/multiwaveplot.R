@@ -225,6 +225,7 @@ wave_dependencies <- function(waves, targets, output_names = names(targets), inp
 #' @param wave_numbers Which waves to plot. If not supplied, all waves are plotted.
 #' @param normalize If true, plotting is done with rescaled target bounds.
 #' @param logscale If true, targets are log-scaled before plotting.
+#' @param barcol The colour of the target error bars/bounds
 #' @param ... Optional parameters (not to be used directly)
 #'
 #' @return A ggplot object.
@@ -236,7 +237,7 @@ wave_dependencies <- function(waves, targets, output_names = names(targets), inp
 #'  simulator_plot(GillespieMultiWaveData[2:4], sample_emulators$targets,
 #'   zero_in = FALSE, wave_numbers = c(1,3))
 #'
-simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_numbers = seq(ifelse(zero_in, 0, 1), length(wave_points)-ifelse(zero_in, 1, 0)), normalize = FALSE, logscale = FALSE, ...) {
+simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_numbers = seq(ifelse(zero_in, 0, 1), length(wave_points)-ifelse(zero_in, 1, 0)), normalize = FALSE, logscale = FALSE, barcol = "#444444", ...) {
   for (i in 1:length(z)) {
     if (!is.atomic(z[[i]])) z[[i]] <- c(z[[i]]$val - 3*z[[i]]$sigma, z[[i]]$val + 3*z[[i]]$sigma)
   }
@@ -269,7 +270,7 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_
     geom_line(aes(group = run, colour = wave)) +
     scale_colour_manual(values = pal) +
     geom_point(data = obs, aes(x = variable, y = (min+max)/2)) +
-    geom_errorbar(data = obs, aes(y = (min+max)/2, ymax = max, ymin = min), width = 0.1, size = 1.25) +
+    geom_errorbar(data = obs, aes(y = (min+max)/2, ymax = max, ymin = min), width = 0.1, size = 1.25, colour = barcol) +
     labs(title = paste0("Simulator evaluations at wave points", (if (normalize) ": normalised" else (if (logscale) ": log-scale" else "")))) +
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))

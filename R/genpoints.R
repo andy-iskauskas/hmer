@@ -49,6 +49,12 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #'
 #' For any sampling strategy, the parameters \code{ems} and \code{z} must be provided.
 #'
+#' The option \code{seek} determines how many points should be chosen that have a higher
+#' probability of matching targets, as opposed to not missing targets. Due to the danger of
+#' such an approach in terms of obtaining a representative space-filling design over the
+#' space, this value should not be too high: a rough guide is that it should be no larger
+#' than 10% of the desired number of points. The default is \code{seek = 0}.
+#'
 #' The default behaviour is as follows. A set of initial points are generated from an LHD;
 #' line sampling is performed to find the boundaries; and finally this collection of points
 #' is augmented to the desired number of points by importance sampling using uniform
@@ -70,6 +76,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #' @param verbose Should progress statements be printed to the console?
 #' @param cluster Should emulator clustering be considered in the LHS generation?
 #' @param resample Number of times to resample using line and/or importance sampling.
+#' @param seek How many 'good' points to search for
 #' @param ... Any parameters to pass to individual sampling functions, eg \code{distro} for importance sampling.
 #'
 #' @return A data.frame containing the set of new points to run the model at.
@@ -88,7 +95,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #'  pts_no_importance <- generate_new_runs(sample_emulators$ems, 100, sample_emulators$targets,
 #'   method = c('line'))
 #' }
-generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'importance'), cutoff = 3, nth = 1, plausible_set, verbose = FALSE, cluster = FALSE, resample = 1, ...) {
+generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'importance'), cutoff = 3, nth = 1, plausible_set, verbose = FALSE, cluster = FALSE, resample = 1, seek = 0, ...) {
   ranges <- if ("Emulator" %in% class(ems)) ems$ranges else ems[[1]]$ranges
   possible_methods <- c('lhs', 'line', 'importance', 'slice', 'optical')
   which_methods <- possible_methods[possible_methods %in% method]
@@ -220,11 +227,15 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
         if (verbose) print(paste("Importance sampling generated", nrow(points)-n_current, "more points."))
         n_current <- nrow(points)
       }
-      if (nrow(points) > n_points) {
+      if (seek > 0) {
+        if (verbose) print("Looking for high-probability match points...")
+        extra_points <- seek_good(ems, seek, z, points, cutoff = cutoff, ...)
+      }
+      if (nrow(points) > n_points-seek) {
         if (verbose) print("Selecting final points using maximin criterion...")
         c_measure <- op <- NULL
         for (i in 1:1000) {
-          tp <- points[sample(nrow(points), n_points),]
+          tp <- points[sample(nrow(points), n_points-seek),]
           if (!"data.frame" %in% class(tp)) tp <- setNames(data.frame(tp), names(ranges))
           measure <- min(dist(tp))
           if (is.null(c_measure) || measure > c_measure) {
@@ -236,6 +247,7 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
       }
     }
   }
+  if (seek > 0) points <- rbind(points, extra_points)
   return(points)
 }
 
@@ -386,6 +398,7 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, nth = 1, d
     apply(data, 1, function(x) all(purrr::map_lgl(seq_along(ranges), ~x[.] >= ranges[[.]][1] && x[.] <= ranges[[.]][2])))
   }
   s_estruct <- eigen(cov(s_points))
+  s_estruct$values <- s_estruct$values + rep(0.05 * mean(s_estruct$values), length(s_estruct$values))
   pca_transform <- function(x, forward = TRUE) {
     if ("data.frame" %in% class(x)) x <- data.matrix(x)
     if (forward) return(x %*% s_estruct$vectors %*% diag(1/sqrt(s_estruct$values)))
@@ -496,4 +509,47 @@ op_depth_gen <- function(ems, n_points, z, n.runs = 100, cutoff = 3, nth = 1, pl
     df <- op
   }
   return(df)
+}
+
+## Good point generation
+#'
+#' @importFrom stats pnorm
+seek_good <- function(ems, n_points, z, plausible_set, cutoff = 3, distro = "norm", ...) {
+  dist_func <- get(paste0("p", distro))
+  get_prob <- function(ems, points, targets) {
+    for (i in 1:length(targets)) {
+      if (!is.atomic(targets[[i]])) targets[[i]] <- c(targets[[i]]$val - 3*targets[[i]]$sigma, targets[[i]]$val + 3*targets[[i]]$sigma)
+    }
+    em_exps <- data.frame(do.call('cbind', purrr::map(ems, ~.$get_exp(points))))
+    em_sds <- sqrt(data.frame(do.call('cbind', purrr::map(ems, ~.$get_cov(points)))))
+    em_probs <- data.frame(do.call('rbind', purrr::map(1:nrow(em_exps), function(x) {
+      purrr::map_dbl(1:length(em_exps[x,]), function(y) {
+        pnorm(targets[[ems[[y]]$output_name]][2], em_exps[x,y], em_sds[x,y]) - pnorm(targets[[ems[[y]]$output_name]][1], em_exps[x,y], em_sds[x,y])
+      })
+    })))
+    result <- apply(em_probs, 1, function(x) prod(purrr::map_dbl(unique(names(targets)), ~min(x[purrr::map_chr(ems, function(a) a$output_name) == .]))))
+    return(result)
+  }
+  select_minimal <- function(data, first_index, how_many) {
+    data_dist <- data.matrix(dist(data, upper = TRUE, diag = TRUE))[-first_index,]
+    picked_rows <- c(first_index)
+    while(length(picked_rows) < how_many) {
+      new_point_dists <- purrr::map_dbl(row.names(data_dist), function(x) {
+        temp_dd <- data_dist[!row.names(data_dist) %in% x,]
+        dists <- apply(temp_dd[,c(picked_rows, as.numeric(x))], 1, min)
+        return(max(dists))
+      })
+      next_row <- row.names(data_dist)[which.min(new_point_dists)]
+      data_dist <- data_dist[!row.names(data_dist) %in% next_row,]
+      picked_rows <- c(picked_rows, as.numeric(next_row))
+    }
+    return(data[picked_rows,])
+  }
+  point_set <- importance_sample(ems, max(20*n_points, 4*nrow(plausible_set)), z, plausible_set, cutoff = cutoff, ...)
+  probs <- get_prob(ems, point_set, z)
+  o_points <- point_set[order(probs, decreasing = TRUE),]
+  keep_points <- o_points[1:(10*n_points),]
+  row.names(keep_points) <- 1:nrow(keep_points)
+  final_set <- select_minimal(keep_points, 1, n_points)
+  return(final_set)
 }

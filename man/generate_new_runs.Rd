@@ -15,6 +15,7 @@ generate_new_runs(
   verbose = FALSE,
   cluster = FALSE,
   resample = 1,
+  seek = 0,
   ...
 )
 }
@@ -38,6 +39,8 @@ generate_new_runs(
 \item{cluster}{Should emulator clustering be considered in the LHS generation?}
 
 \item{resample}{Number of times to resample using line and/or importance sampling.}
+
+\item{seek}{How many 'good' points to search for}
 
 \item{...}{Any parameters to pass to individual sampling functions, eg \code{distro} for importance sampling.}
 }
@@ -80,6 +83,12 @@ in each parameter direction can be determined. From these derived marginals, poi
 sampled.
 
 For any sampling strategy, the parameters \code{ems} and \code{z} must be provided.
+
+The option \code{seek} determines how many points should be chosen that have a higher
+probability of matching targets, as opposed to not missing targets. Due to the danger of
+such an approach in terms of obtaining a representative space-filling design over the
+space, this value should not be too high: a rough guide is that it should be no larger
+than 10% of the desired number of points. The default is \code{seek = 0}.
 
 The default behaviour is as follows. A set of initial points are generated from an LHD;
 line sampling is performed to find the boundaries; and finally this collection of points
