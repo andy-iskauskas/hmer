@@ -398,7 +398,7 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, nth = 1, d
     apply(data, 1, function(x) all(purrr::map_lgl(seq_along(ranges), ~x[.] >= ranges[[.]][1] && x[.] <= ranges[[.]][2])))
   }
   s_estruct <- eigen(cov(s_points))
-  s_estruct$values <- s_estruct$values + rep(0.05 * mean(s_estruct$values), length(s_estruct$values))
+  s_estruct$values <- purrr::map_dbl(s_estruct$values, function(x) {if(x < 1e-10) 1e-10 else x})
   pca_transform <- function(x, forward = TRUE) {
     if ("data.frame" %in% class(x)) x <- data.matrix(x)
     if (forward) return(x %*% s_estruct$vectors %*% diag(1/sqrt(s_estruct$values)))
