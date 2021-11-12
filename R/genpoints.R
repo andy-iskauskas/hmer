@@ -397,12 +397,15 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, nth = 1, d
   in_range <- function(data, ranges) {
     apply(data, 1, function(x) all(purrr::map_lgl(seq_along(ranges), ~x[.] >= ranges[[.]][1] && x[.] <= ranges[[.]][2])))
   }
-  s_estruct <- eigen(cov(s_points))
+  s_trafo <- sweep(sweep(s_points, 2, apply(s_points, 2, mean), "-"), 2, apply(s_points, 2, sd), "/")
+  s_estruct <- eigen(cov(s_trafo))
   s_estruct$values <- purrr::map_dbl(s_estruct$values, function(x) {if(x < 1e-10) 1e-10 else x})
   pca_transform <- function(x, forward = TRUE) {
+    if (forward) x <- sweep(sweep(x, 2, apply(s_points, 2, mean), "-"), 2, apply(s_points, 2, sd), "/")
     if ("data.frame" %in% class(x)) x <- data.matrix(x)
     if (forward) return(x %*% s_estruct$vectors %*% diag(1/sqrt(s_estruct$values)))
-    return(x %*% diag(sqrt(s_estruct$values)) %*% t(s_estruct$vectors))
+    pre_traf <- x %*% diag(sqrt(s_estruct$values)) %*% t(s_estruct$vectors)
+    return(sweep(sweep(pre_traf, 2, apply(s_points, 2, sd), "*"), 2, apply(s_points, 2, mean), "+"))
   }
   propose_points <- function(sp, sd, how_many = n_points) {
     sp_trafo <- pca_transform(sp)
