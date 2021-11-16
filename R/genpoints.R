@@ -97,6 +97,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #' }
 generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'importance'), cutoff = 3, nth = 1, plausible_set, verbose = FALSE, cluster = FALSE, resample = 1, seek = 0, ...) {
   ranges <- if ("Emulator" %in% class(ems)) ems$ranges else ems[[1]]$ranges
+  if (n_points < 10*length(ranges)) n_points <- 10*length(ranges)
   possible_methods <- c('lhs', 'line', 'importance', 'slice', 'optical')
   which_methods <- possible_methods[possible_methods %in% method]
   n_current <- 0
