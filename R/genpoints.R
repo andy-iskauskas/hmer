@@ -86,7 +86,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #' @examples
 #' # A simple example that runs quickly with some passed parameters to subroutines
 #' pts <- generate_new_runs(sample_emulators$ems, 20, sample_emulators$targets,
-#'  measure.method = 'maximin', distro = 'normal')
+#'  measure.method = 'maximin', distro = 'sphere', resample = 0)
 #' \donttest{
 #'  pts_optical <- generate_new_runs(sample_emulators$ems, 100, sample_emulators$targets,
 #'   method = c('optical'), plausible_set = pts)
@@ -131,18 +131,20 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
       point_imps <- nth_implausible(ems, points, z)
       required_points <- 5*length(ranges)
       if (sum(point_imps <= cutoff) < required_points) {
-        cutoff_current <- ceiling(2*sort(point_imps)[required_points])/2
+        cutoff_current <- sort(point_imps)[required_points]
         if (length(which_methods) == 1)
           return(points[nth_implausible(ems, points, z, cutoff = cutoff_current),])
         while(cutoff_current > cutoff) {
-          plaus_points <- points[nth_implausible(ems, points, z, cutoff = cutoff_current),]
-          if (nrow(plaus_points) == 0) break
-          if (verbose) print(paste0("Proposing at implausibility I=", cutoff_current))
+          plaus_points <- points[point_imps <= cutoff_current,]
+          if (nrow(plaus_points) == 0) {
+            if (verbose) print("No plausible points in the set; cannot proceed.")
+            break
+          }
+          if (verbose) print(paste0("Proposing at implausibility I=", round(cutoff_current, 4)))
           points <- generate_new_runs(ems, n_points, z, method = which_methods[!which_methods %in% c('lhs')], cutoff = cutoff_current, nth = nth, plausible_set = plaus_points, verbose = verbose, resample = resample - 1, ...)
           point_imps <- nth_implausible(ems, points, z)
-          cutoff_temp <- max(cutoff, ceiling(2*sort(point_imps)[required_points])/2)
+          cutoff_temp <- max(cutoff, sort(point_imps)[required_points])
           if (cutoff_temp == cutoff_current) break
-          plaus_points <- points[point_imps <= cutoff_temp,]
           cutoff_current <- cutoff_temp
         }
         if (cutoff_current != cutoff) {
@@ -393,7 +395,7 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, nth = 1, d
   if (nrow(s_points) >= n_points)
     return(s_points)
   m_points <- n_points - nrow(s_points)
-  ranges <- if("Emulator" %in% class(ems)) ems$ranges else ems[[1]]$ranges
+  ranges <- if("Emulator" %in% class(ems)) ems$ranges else ems[[length(ems)]]$ranges
   new_points <- s_points
   in_range <- function(data, ranges) {
     apply(data, 1, function(x) all(purrr::map_lgl(seq_along(ranges), ~x[.] >= ranges[[.]][1] && x[.] <= ranges[[.]][2])))
