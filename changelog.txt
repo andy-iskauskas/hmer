@@ -1,4 +1,6 @@
 Changelog (Release Branch)
+14/12/2021 - v0.9.6. Major changes to behaviour and handling of hierarchical emulators; support for diagnostics and implausibility of said emulators; separation of hierarchical emulators from 'standard' ones via a new R6 class.
+
 11/11/2021 - v0.9.5. Minor improvements and fixes, mainly to sampling methods. The option to search for 'good' points is now present in generate_new_runs.
 
 27/10/2021 - v0.9.4. Multiple changes, including improved sampling schema for point proposal; readability improvements for plots; additional minor plots; limited support for different data structures in emulator_from_data.

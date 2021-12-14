@@ -98,3 +98,23 @@
 #'  \item{targets}{The targets to match to, as a set of val-sigma pairs.}
 #' }
 "sample_emulators"
+
+#' Birth-Death Model Results
+#'
+#' An RData object containing two data.frames. The first consists of ten parameter
+#' sets run through a simple, two-parameter, stochastic birth-death model; five of the
+#' points have 500 replicates and the other five have only 5 replicates. The second
+#' consists of ten further points, each with ten replicates. The objects are denoted
+#' \code{training} and \code{validation}, representing their expected usage.
+#'
+#' The initial population for the simulations is 100 people; the model is run until
+#' t = 15 to obtain the results to emulate.
+#'
+#' @format A list of two data.frames \code{training} and \code{validation}: each
+#' data.frame has the following columns:
+#' \describe{
+#'  \item{lambda}{Birth rate}
+#'  \item{mu}{Death rate}
+#'  \item{Y}{The number of people at time t = 15}
+#' }
+"BirthDeath"

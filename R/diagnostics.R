@@ -1,3 +1,38 @@
+#' Data Cleaning for Stochastic Emulators
+#'
+#' Reforms the data to allow for meaningful diagnostics on variance emulators.
+#'
+#' Takes a data.frame of points (with replicates), and generates a set of
+#' meaningful statistics based on them and dependent on the type of emulator.
+#'
+#' @param data The data to reform
+#' @param in_names The names of the input parameters
+#' @param out_name The output value
+#' @param is.variance Is the emulator a mean or variance emulator?
+#' @param boots The number of samples for bootstrapping (if required)
+#'
+#' @importFrom stats sd
+#'
+#' @keywords internal
+#' @noRd
+#'
+#' @return A data.frame consisting of the summary stats (mean, sd, n)
+clean_data <- function(data, in_names, out_name, is.variance = FALSE, boots = 1000) {
+  unique_points <- unique(data[,in_names])
+  summary_stats <- purrr::map(1:nrow(unique_points), function(i) {
+    relev <- data[purrr::map_lgl(1:nrow(data), ~all(data[.,in_names] == unique_points[i,])),out_name]
+    if (!is.variance)
+      return(c(mean(relev), sd(relev)^2/length(relev), length(relev)))
+    var_mean <- sd(relev)^2
+    bootstrap <- purrr::map_dbl(1:boots, function(a) {
+      repsamp <- sample(relev, length(relev), replace = TRUE)
+      sd(repsamp)^2
+    })
+    return(c(var_mean, sd(bootstrap)^2, length(relev)))
+  })
+  return(setNames(data.frame(do.call('rbind', summary_stats)), c('mean', 'var', 'n')))
+}
+
 k_fold_measure <- function(em, target = NULL, k = 1, ...) {
   train_data <- setNames(data.frame(cbind(eval_funcs(scale_input, data.frame(em$in_data), em$ranges, FALSE), em$out_data)), c(names(em$ranges), em$output_name))
   ordering <- 1:nrow(train_data)
@@ -101,7 +136,10 @@ summary_diag <- function(emulator, validation, verbose = FALSE) {
 #'
 residual_diag <- function(emulator, histogram = FALSE, ...) {
   in_points <- eval_funcs(scale_input, data.frame(emulator$in_data), emulator$ranges, FALSE)
-  standardised_residuals <- emulator$model$residuals/apply(in_points, 1, emulator$u_sigma)
+  if (is.numeric(emulator$u_sigma))
+    standardised_residuals <- emulator$model$residuals/emulator$u_sigma
+  else
+    standardised_residuals <- emulator$model$residuals/apply(in_points, 1, emulator$u_sigma)
   if (histogram) hist(standardised_residuals, xlab = "Standadized Residual", ylab = "Frequency", main = paste(emulator$output_name, "Residual Histogram"))
   else plot(standardised_residuals, xlab = "Point", ylab = "Standardized Residual", pch = 16, main = emulator$output_name, panel.first = abline(h = c(-3, 0, 3), lty = c(2, 1, 2)))
   return(in_points[abs(standardised_residuals) > 3,])
@@ -144,16 +182,31 @@ residual_diag <- function(emulator, histogram = FALSE, ...) {
 #' # leave-one-out cross-validation
 #'
 standard_errors <- function(emulator, targets = NULL, validation = NULL, plt = TRUE, ...) {
-  if (is.null(validation)) {
-    dat <- k_fold_measure(emulator, ...)
-    input_points <- dat[,names(emulator$ranges)]
-    output_points <- dat[,emulator$output_name]
-    errors <- (dat[,"E"] - output_points)/sqrt(dat[,"V"] + emulator$disc$internal^2 + emulator$disc$external^2)
+  if ("Hierarchical" %in% class(emulator)) {
+    if (is.null(validation)) stop("LOO diagnostics not (yet) supported for hierarchical emulators.")
+    cleaned <- list(...)[['cleaned']]
+    if (!is.null(cleaned)) cleaned_data <- cleaned
+    else cleaned_data <- clean_data(validation, names(emulator$ranges), emulator$output_name, emulator$em_type == "variance")
+    input_points <- unique(validation[,names(emulator$ranges)])
+    em_exps <- emulator$get_exp(input_points)
+    em_vars <- emulator$get_cov(input_points)
+    output_points <- cleaned_data$mean
+    num <- em_exps - cleaned_data$mean
+    denom <- sqrt(em_vars + cleaned_data$var + emulator$disc$internal^2 + emulator$disc$external^2)
+    errors <- num/denom
   }
   else {
-    input_points <- validation[,names(emulator$ranges)]
-    output_points <- validation[,emulator$output_name]
-    errors <- (emulator$get_exp(input_points) - output_points)/sqrt(emulator$get_cov(input_points) + emulator$disc$internal^2 + emulator$disc$external^2)
+    if (is.null(validation)) {
+      dat <- k_fold_measure(emulator, ...)
+      input_points <- dat[,names(emulator$ranges)]
+      output_points <- dat[,emulator$output_name]
+      errors <- (dat[,"E"] - output_points)/sqrt(dat[,"V"] + emulator$disc$internal^2 + emulator$disc$external^2)
+    }
+    else {
+      input_points <- validation[,names(emulator$ranges)]
+      output_points <- validation[,emulator$output_name]
+      errors <- (emulator$get_exp(input_points) - output_points)/sqrt(emulator$get_cov(input_points) + emulator$disc$internal^2 + emulator$disc$external^2)
+    }
   }
   if (plt) {
     hist(errors, xlab = "Standardised Error", main = emulator$output_name)
@@ -206,18 +259,31 @@ standard_errors <- function(emulator, targets = NULL, validation = NULL, plt = T
 #'  sd = 0.5)
 #' ## A data.frame containing one point.
 comparison_diag <- function(emulator, targets = NULL, validation = NULL, sd = 3, plt = T, ...) {
-  if (is.null(validation)) {
-    dat <- k_fold_measure(emulator, ...)
-    input_points <- dat[,names(emulator$ranges)]
-    output_points <- dat[,emulator$output_name]
-    emulator_exp <- dat[,"E"]
-    emulator_unc <- sd * sqrt(dat[,"V"] + emulator$disc$internal^2 + emulator$disc$external^2)
+  if ("Hierarchical" %in% class(emulator)) {
+    if (is.null(validation)) stop("LOO diagnostics not (yet) supported for hierarchical emulators.")
+    cleaned <- list(...)[['cleaned']]
+    if (!is.null(cleaned)) cleaned_data <- cleaned
+    else cleaned_data <- clean_data(validation, names(emulator$ranges), emulator$output_name, emulator$em_type == "variance")
+    input_points <- unique(validation[,names(emulator$ranges)])
+    emulator_exp <- emulator$get_exp(input_points)
+    em_vars <- emulator$get_cov(input_points)
+    emulator_unc <- sd * sqrt(em_vars + cleaned_data$var + emulator$disc$internal^2 + emulator$disc$external^2)
+    output_points <- cleaned_data$mean
   }
   else {
-    input_points <- validation[,names(emulator$ranges)]
-    output_points <- validation[,emulator$output_name]
-    emulator_exp <- emulator$get_exp(input_points)
-    emulator_unc <- sd * sqrt(emulator$get_cov(input_points) + emulator$disc$internal^2 + emulator$disc$external^2)
+    if (is.null(validation)) {
+      dat <- k_fold_measure(emulator, ...)
+      input_points <- dat[,names(emulator$ranges)]
+      output_points <- dat[,emulator$output_name]
+      emulator_exp <- dat[,"E"]
+      emulator_unc <- sd * sqrt(dat[,"V"] + emulator$disc$internal^2 + emulator$disc$external^2)
+    }
+    else {
+      input_points <- validation[,names(emulator$ranges)]
+      output_points <- validation[,emulator$output_name]
+      emulator_exp <- emulator$get_exp(input_points)
+      emulator_unc <- sd * sqrt(emulator$get_cov(input_points) + emulator$disc$internal^2 + emulator$disc$external^2)
+    }
   }
   em_ranges <- range(c(emulator_exp + emulator_unc, emulator_exp - emulator_unc))
   emulator_invalid <- (output_points > emulator_exp + emulator_unc) | (output_points < emulator_exp - emulator_unc)
@@ -276,16 +342,26 @@ comparison_diag <- function(emulator, targets = NULL, validation = NULL, sd = 3,
 #' ## An empty data.frame.
 classification_diag <- function(emulator, targets, validation = NULL, cutoff = 3, plt = T, ...) {
   this_target <- targets[[emulator$output_name]]
-  if (is.null(validation)) {
-    dat <- k_fold_measure(emulator, this_target, ...)
-    input_points <- dat[,names(emulator$ranges)]
-    output_points <- dat[,emulator$output_name]
-    em_imp <- dat[,"I"]
+  if ("Hierarchical" %in% class(emulator)) {
+    if (is.null(validation)) stop("LOO diagnostics not (yet) supported for hierarchical emulators.")
+    input_points <- unique(validation[,names(emulator$ranges)])
+    cleaned <- list(...)[['cleaned']]
+    if (!is.null(cleaned)) output_points <- cleaned$mean
+    else output_points <- clean_data(validation, names(emulator$ranges), emulator$output_name, emulator$em_type == "validation")$mean
+    em_imp <- emulator$implausibility(input_points, this_target)
   }
   else {
-    input_points <- validation[,names(emulator$ranges)]
-    output_points <- validation[,emulator$output_name]
-    em_imp <- emulator$implausibility(input_points, this_target)
+    if (is.null(validation)) {
+      dat <- k_fold_measure(emulator, this_target, ...)
+      input_points <- dat[,names(emulator$ranges)]
+      output_points <- dat[,emulator$output_name]
+      em_imp <- dat[,"I"]
+    }
+    else {
+      input_points <- validation[,names(emulator$ranges)]
+      output_points <- validation[,emulator$output_name]
+      em_imp <- emulator$implausibility(input_points, this_target)
+    }
   }
   if (is.atomic(this_target)) {
     t_cutoff <- 1 * cutoff/3
@@ -355,6 +431,14 @@ classification_diag <- function(emulator, targets, validation = NULL, cutoff = 3
 validation_diagnostics <- function(emulators, targets = NULL, validation = NULL, which_diag = c('se', 'cd', 'ce'), ...) {
   if ("Emulator" %in% class(emulators))
     emulators <- setNames(list(emulators), emulators$output_name)
+  if (is.null(validation) && any(purrr::map_lgl(emulators, ~"Hierarchical" %in% class(.)))) {
+    stop("LOO diagnostics not (yet) supported for hierarchical emulators.")
+  }
+  cleaning_dat <- purrr::map(emulators, function(x) {
+    if ("Hierarchical" %in% class(x)) valid_dat <- clean_data(validation, names(x$ranges), x$output_name, x$em_type == "validation")
+    else valid_dat <- NULL
+    valid_dat
+  })
   fail_point_list <- list()
   if (length(which_diag) == 1 && which_diag == 'all') actual_diag <- c('se', 'cd', 'ce', 're')
   else {
@@ -368,9 +452,9 @@ validation_diagnostics <- function(emulators, targets = NULL, validation = NULL,
   }
   op <- par(mfrow = c(3, mf))
   for (i in 1:length(emulators)) {
-    if ('cd' %in% actual_diag) fail_point_list[[length(fail_point_list)+1]] <- comparison_diag(emulators[[i]], targets, validation, ...)
-    if ('ce' %in% actual_diag) fail_point_list[[length(fail_point_list)+1]] <- classification_diag(emulators[[i]], targets, validation, ...)
-    if ('se' %in% actual_diag) fail_point_list[[length(fail_point_list)+1]] <- standard_errors(emulators[[i]], targets, validation, ...)
+    if ('cd' %in% actual_diag) fail_point_list[[length(fail_point_list)+1]] <- comparison_diag(emulators[[i]], targets, validation, cleaned = cleaning_dat[[i]], ...)
+    if ('ce' %in% actual_diag) fail_point_list[[length(fail_point_list)+1]] <- classification_diag(emulators[[i]], targets, validation, cleaned = cleaning_dat[[i]], ...)
+    if ('se' %in% actual_diag) fail_point_list[[length(fail_point_list)+1]] <- standard_errors(emulators[[i]], targets, validation, cleaned = cleaning_dat[[i]], ...)
     if ('re' %in% actual_diag) fail_point_list[[length(fail_point_list)+1]] <- residual_diag(emulators[[i]], ...)
   }
   par(op)

@@ -240,6 +240,7 @@ likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_
 #' @param beta.var Should regression coefficient uncertainty be included?
 #' @param adjusted Are the raw emulators wanted, or Bayes Linear updated ones?
 #' @param discrepancies Any internal or external discrepancies in the model.
+#' @param has.hierarchy For hierarchical emulators, this will be TRUE.
 #'
 #' @return A list of \code{\link{Emulator}} objects.
 #' @export
@@ -287,7 +288,8 @@ emulator_from_data <- function(input_data, output_names, ranges,
                                input_names = names(ranges), beta, u,
                                c_lengths, funcs, deltas, ev,
                                quadratic = TRUE, beta.var = FALSE,
-                               adjusted = TRUE, discrepancies = NULL) {
+                               adjusted = TRUE, discrepancies = NULL,
+                               has.hierarchy = FALSE) {
   model_beta_mus <- model_u_sigmas <- model_u_corrs <- NULL
   if (missing(ranges)) {
     if (is.null(input_names)) stop("Input ranges or names of inputs must be provided.")
@@ -357,13 +359,21 @@ emulator_from_data <- function(input_data, output_names, ranges,
   if (!is.null(discrepancies)) {
     if (class(discrepancies) == "numeric") discrepancies <- purrr::map(discrepancies, ~list(internal = ., external = 0))
   }
-  out_ems <- setNames(purrr::map(seq_along(model_us),
-                                 ~Emulator$new(basis_f = model_basis_funcs[[.]], beta = model_betas[[.]], u = model_us[[.]], ranges = ranges, model = tryCatch(models[[.]], error = function(e) NULL), discs = discrepancies[[.]])),
-  output_names)
+  if (!has.hierarchy) {
+    out_ems <- setNames(purrr::map(seq_along(model_us),
+                                 ~Emulator$new(basis_f = model_basis_funcs[[.]], beta = model_betas[[.]],
+                                               u = model_us[[.]], ranges = ranges, model = tryCatch(models[[.]], error = function(e) NULL),
+                                               discs = discrepancies[[.]])), output_names)
+  } else {
+    out_ems <- setNames(purrr::map(seq_along(model_us),
+                                   ~HierarchicalEmulator$new(basis_f = model_basis_funcs[[.]], beta = model_betas[[.]],
+                                                 u = model_us[[.]], ranges = ranges, model = tryCatch(models[[.]], error = function(e) NULL),
+                                                 discs = discrepancies[[.]])), output_names)
+  }
   if (!missing(ev)) {
     ev_deltas <- ev/purrr::map_dbl(out_ems, ~mean(apply(data[,names(ranges)], 1, .$u_sigma)))
     ev_deltas <- purrr::map_dbl(ev_deltas, ~min(1/3, .))
-    return(emulator_from_data(input_data, output_names, ranges, input_names, beta, u, purrr::map_dbl(out_ems, ~.$corr$hyper_p$theta), funcs, ev_deltas, quadratic = quadratic, beta.var = beta.var, discrepancies = discrepancies))
+    return(emulator_from_data(input_data, output_names, ranges, input_names, beta, u, purrr::map_dbl(out_ems, ~.$corr$hyper_p$theta), funcs, ev_deltas, quadratic = quadratic, beta.var = beta.var, discrepancies = discrepancies, has.hierarchy = has.hierarchy))
   }
   if (!is.null(model_deltas)) {
     for (i in 1:length(model_deltas)) out_ems[[i]]$corr$nugget <- model_deltas[[i]]
@@ -398,9 +408,16 @@ emulator_from_data <- function(input_data, output_names, ranges,
 #' @param ... Optional parameters that can be passed to \code{link{emulator_from_data}}.
 #'
 #' @return A list of lists: one for the variance emulators and one for the function emulators.
+#'
+#' @examples
+#'  # A simple example using the BirthDeath dataset
+#'  v_ems <- variance_emulator_from_data(BirthDeath$training, c("Y"),
+#'   list(lambda = c(0, 0.08), mu = c(0.04, 0.13)), c_lengths = c(0.75))
+#'
 #' @export
 variance_emulator_from_data <- function(input_data, output_names, ranges, input_names = names(ranges), ...) {
-  data_by_point <- split(input_data, input_data[,input_names])
+  unique_point_combs <- unique(input_data[,input_names])
+  data_by_point <- purrr::map(1:nrow(unique_point_combs), function(j) input_data[purrr::map_lgl(1:nrow(input_data), function(i) all(input_data[i,input_names] == unique_point_combs[j,])),])
   data_by_point <- data_by_point[purrr::map_lgl(data_by_point, ~nrow(.)>0)]
   collected_stats <- do.call('rbind', lapply(data_by_point, function(x) {
     n_points <- nrow(x)
@@ -430,7 +447,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
     if (all(is_high_rep)) kurt_ave <- mean(collected_df[,paste0(i,'kurt')])
     else if (!any(is_high_rep)) kurt_ave <- 3
     else kurt_ave <- mean(collected_df[is_high_rep, paste0(i, 'kurt')])
-    if (all(is_high_rep) || !any(is_high_rep)) {
+    if (all(is_high_rep) || any(is_high_rep)) {
       var_df <- setNames(collected_df[is_high_rep, c(input_names, paste0(i, "var"))], c(input_names, i))
       npoints <- collected_df[is_high_rep, 'n']
       if (sum(is_high_rep) == 1) {
@@ -439,16 +456,16 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
         variance_em <- Emulator$new(basis_f = c(function(x) 1), beta = list(mu = c(point$var), sigma = c(0)), u = list(sigma = point$var^2, corr = temp_corr), ranges = ranges, out_var = i)
       }
       else {
-        variance_em <- emulator_from_data(var_df, i, ranges, quadratic = FALSE, adjusted = FALSE, ...)[[1]]
+        variance_em <- emulator_from_data(var_df, i, ranges, quadratic = FALSE, adjusted = FALSE, has.hierarchy = TRUE, ...)[[1]]
       }
     }
     else {
-      variance_em <- emulator_from_data(all_var, i, ranges, quadratic = FALSE, adjusted = FALSE, ...)[[1]]
+      variance_em <- emulator_from_data(all_var, i, ranges, quadratic = FALSE, adjusted = FALSE, has.hierarchy = TRUE, ...)[[1]]
     }
-    #var_mod <- (variance_em$get_exp(all_var)^2 + variance_em$get_cov(all_var))/all_n * (kurt_ave - 1 + 2/(all_n-1))
     var_mod <- function(x, n) (variance_em$get_exp(x)^2 + variance_em$get_cov(x))/n * (kurt_ave - 1 + 2/(n-1))
     variance_em$s_diag <- var_mod
     variance_em$samples <- all_n
+    variance_em$em_type <- "variance"
     if (all(is_high_rep) || !any(is_high_rep))
       v_em <- variance_em$adjust(all_var, i)
     else
@@ -456,10 +473,9 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
     variance_emulators <- c(variance_emulators, v_em)
   }
   variance_emulators <- setNames(variance_emulators, output_names)
-  #exp_mods <- purrr::map(variance_emulators, ~.$get_exp(collected_df[,input_names])/collected_df$n)
   exp_mods <- purrr::map(variance_emulators, ~function(x, n) .$get_exp(x)/n)
   exp_data <- setNames(collected_df[,c(input_names, paste0(output_names, 'mean'))], c(input_names, output_names))
-  exp_em <- emulator_from_data(exp_data, output_names, ranges, input_names, adjusted = FALSE, ...)
+  exp_em <- emulator_from_data(exp_data, output_names, ranges, input_names, adjusted = FALSE, has.hierarchy = TRUE, ...)
   for (i in 1:length(exp_em)) {
     exp_em[[i]]$s_diag <- exp_mods[[i]]
     exp_em[[i]]$samples <- collected_df$n

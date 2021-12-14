@@ -18,7 +18,8 @@ emulator_from_data(
   quadratic = TRUE,
   beta.var = FALSE,
   adjusted = TRUE,
-  discrepancies = NULL
+  discrepancies = NULL,
+  has.hierarchy = FALSE
 )
 }
 \arguments{
@@ -49,6 +50,8 @@ emulator_from_data(
 \item{adjusted}{Are the raw emulators wanted, or Bayes Linear updated ones?}
 
 \item{discrepancies}{Any internal or external discrepancies in the model.}
+
+\item{has.hierarchy}{For hierarchical emulators, this will be TRUE.}
 }
 \value{
 A list of \code{\link{Emulator}} objects.

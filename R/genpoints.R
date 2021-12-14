@@ -132,6 +132,10 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
       required_points <- 5*length(ranges)
       if (sum(point_imps <= cutoff) < required_points) {
         cutoff_current <- sort(point_imps)[required_points]
+        if (cutoff_current == 20) {
+          warning("Parameter space has no points below implausibility 20: terminating early.")
+          return(points[point_imps < 0, ])
+        }
         if (length(which_methods) == 1)
           return(points[nth_implausible(ems, points, z, cutoff = cutoff_current),])
         while(cutoff_current > cutoff) {
