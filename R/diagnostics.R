@@ -46,6 +46,7 @@ k_fold_measure <- function(em, target = NULL, k = 1, ...) {
         adjust_data <- train_data[-relev_pts,]
         adj_em <- relev_em$adjust(adjust_data, em$output_name)
         outp <- cbind(cbind(train_data[relev_pts,], adj_em$get_exp(train_data[relev_pts, names(em$ranges)])), adj_em$get_cov(train_data[relev_pts, names(em$ranges)]))
+        if ("Hierarchical" %in% class(em)) outp <- cbind(outp, purrr::map_dbl(relev_pts, ~em$s_diag(train_data[., names(em$ranges)], 1)))
         if (!is.null(target)) outp <- c(outp, adj_em$implausibility(train_data[relev_pts, names(em$ranges)], target))
         return(outp)
       })
@@ -57,13 +58,15 @@ k_fold_measure <- function(em, target = NULL, k = 1, ...) {
       adjust_data <- train_data[-x,]
       adj_em <- relev_em$adjust(adjust_data, em$output_name)
       outp <- c(train_data[x,], adj_em$get_exp(train_data[x,names(em$ranges)]), adj_em$get_cov(train_data[x,names(em$ranges)]))
+      if ("Hierarchical" %in% class(em)) outp <- c(outp, em$s_diag(train_data[x, names(em$ranges)], 1))
       if (!is.null(target)) outp <- c(outp, adj_em$implausibility(train_data[x, names(em$ranges)], target))
       return(outp)
     })
   }
-  if (!is.null(target)) nms <- c(names(em$ranges), em$output_name, "E", "V", "I")
-  else nms <- nms <- c(names(em$ranges), em$output_name, "E", "V")
-  out_df <- setNames(data.frame(apply(data.frame(do.call('rbind', loo_data)), 2, unlist)), nms)
+  res_names <- c(names(em$ranges), em$output_name, "E", "V")
+  if ("Hierarchical" %in% class(em)) res_names <- c(res_names, "Vest")
+  if (!is.null(target)) res_names <- c(res_names, "I")
+  out_df <- setNames(data.frame(apply(data.frame(do.call('rbind', loo_data)), 2, unlist)), res_names)
   return(out_df[order(as.numeric(row.names(out_df))),])
 }
 
@@ -183,16 +186,26 @@ residual_diag <- function(emulator, histogram = FALSE, ...) {
 #'
 standard_errors <- function(emulator, targets = NULL, validation = NULL, plt = TRUE, ...) {
   if ("Hierarchical" %in% class(emulator)) {
-    if (is.null(validation)) stop("LOO diagnostics not (yet) supported for hierarchical emulators.")
-    cleaned <- list(...)[['cleaned']]
-    if (!is.null(cleaned)) cleaned_data <- cleaned
-    else cleaned_data <- clean_data(validation, names(emulator$ranges), emulator$output_name, emulator$em_type == "variance")
-    input_points <- unique(validation[,names(emulator$ranges)])
-    em_exps <- emulator$get_exp(input_points)
-    em_vars <- emulator$get_cov(input_points)
-    output_points <- cleaned_data$mean
-    num <- em_exps - cleaned_data$mean
-    denom <- sqrt(em_vars + cleaned_data$var + emulator$disc$internal^2 + emulator$disc$external^2)
+    if (is.null(validation)) {
+      dat <- k_fold_measure(emulator, ...)
+      input_points <- dat[,names(emulator$ranges)]
+      output_points <- dat[,emulator$output_name]
+      em_exps <- dat[,"E"]
+      em_vars <- dat[,"V"]
+      point_vars <- dat[,"Vest"]
+    }
+    else {
+      cleaned <- list(...)[['cleaned']]
+      if (!is.null(cleaned)) cleaned_data <- cleaned
+      else cleaned_data <- clean_data(validation, names(emulator$ranges), emulator$output_name, emulator$em_type == "variance")
+      input_points <- unique(validation[,names(emulator$ranges)])
+      em_exps <- emulator$get_exp(input_points)
+      em_vars <- emulator$get_cov(input_points)
+      output_points <- cleaned_data$mean
+      point_vars <- cleaned_data$var
+    }
+    num <- em_exps - output_points
+    denom <- sqrt(em_vars + point_vars + emulator$disc$internal^2 + emulator$disc$external^2)
     errors <- num/denom
   }
   else {
@@ -260,15 +273,25 @@ standard_errors <- function(emulator, targets = NULL, validation = NULL, plt = T
 #' ## A data.frame containing one point.
 comparison_diag <- function(emulator, targets = NULL, validation = NULL, sd = 3, plt = T, ...) {
   if ("Hierarchical" %in% class(emulator)) {
-    if (is.null(validation)) stop("LOO diagnostics not (yet) supported for hierarchical emulators.")
-    cleaned <- list(...)[['cleaned']]
-    if (!is.null(cleaned)) cleaned_data <- cleaned
-    else cleaned_data <- clean_data(validation, names(emulator$ranges), emulator$output_name, emulator$em_type == "variance")
-    input_points <- unique(validation[,names(emulator$ranges)])
-    emulator_exp <- emulator$get_exp(input_points)
-    em_vars <- emulator$get_cov(input_points)
-    emulator_unc <- sd * sqrt(em_vars + cleaned_data$var + emulator$disc$internal^2 + emulator$disc$external^2)
-    output_points <- cleaned_data$mean
+    if (is.null(validation)) {
+      dat <- k_fold_measure(emulator, ...)
+      input_points <- dat[,names(emulator$ranges)]
+      output_points <- dat[,emulator$output_name]
+      emulator_exp <- dat[,"E"]
+      em_vars <- dat[,"V"]
+      point_vars <- dat[,"Vest"]
+    }
+    else {
+      cleaned <- list(...)[['cleaned']]
+      if (!is.null(cleaned)) cleaned_data <- cleaned
+      else cleaned_data <- clean_data(validation, names(emulator$ranges), emulator$output_name, emulator$em_type == "variance")
+      input_points <- unique(validation[,names(emulator$ranges)])
+      emulator_exp <- emulator$get_exp(input_points)
+      em_vars <- emulator$get_cov(input_points)
+      point_vars <- cleaned_data$var
+      output_points <- cleaned_data$mean
+    }
+    emulator_unc <- sd * sqrt(em_vars + point_vars + emulator$disc$internal^2 + emulator$disc$external^2)
   }
   else {
     if (is.null(validation)) {
@@ -343,12 +366,19 @@ comparison_diag <- function(emulator, targets = NULL, validation = NULL, sd = 3,
 classification_diag <- function(emulator, targets, validation = NULL, cutoff = 3, plt = T, ...) {
   this_target <- targets[[emulator$output_name]]
   if ("Hierarchical" %in% class(emulator)) {
-    if (is.null(validation)) stop("LOO diagnostics not (yet) supported for hierarchical emulators.")
-    input_points <- unique(validation[,names(emulator$ranges)])
-    cleaned <- list(...)[['cleaned']]
-    if (!is.null(cleaned)) output_points <- cleaned$mean
-    else output_points <- clean_data(validation, names(emulator$ranges), emulator$output_name, emulator$em_type == "validation")$mean
-    em_imp <- emulator$implausibility(input_points, this_target)
+    if (is.null(validation)) {
+      dat <- k_fold_measure(emulator, this_target, ...)
+      input_points <- dat[,names(emulator$ranges)]
+      output_points <- dat[,emulator$output_name]
+      em_imp <- dat[,"I"]
+    }
+    else {
+      input_points <- unique(validation[,names(emulator$ranges)])
+      cleaned <- list(...)[['cleaned']]
+      if (!is.null(cleaned)) output_points <- cleaned$mean
+      else output_points <- clean_data(validation, names(emulator$ranges), emulator$output_name, emulator$em_type == "validation")$mean
+      em_imp <- emulator$implausibility(input_points, this_target)
+    }
   }
   else {
     if (is.null(validation)) {
@@ -431,14 +461,14 @@ classification_diag <- function(emulator, targets, validation = NULL, cutoff = 3
 validation_diagnostics <- function(emulators, targets = NULL, validation = NULL, which_diag = c('se', 'cd', 'ce'), ...) {
   if ("Emulator" %in% class(emulators))
     emulators <- setNames(list(emulators), emulators$output_name)
-  if (is.null(validation) && any(purrr::map_lgl(emulators, ~"Hierarchical" %in% class(.)))) {
-    stop("LOO diagnostics not (yet) supported for hierarchical emulators.")
+  if (!is.null(validation)) {
+    cleaning_dat <- purrr::map(emulators, function(x) {
+      if ("Hierarchical" %in% class(x)) valid_dat <- clean_data(validation, names(x$ranges), x$output_name, x$em_type == "validation")
+      else valid_dat <- NULL
+      valid_dat
+    })
   }
-  cleaning_dat <- purrr::map(emulators, function(x) {
-    if ("Hierarchical" %in% class(x)) valid_dat <- clean_data(validation, names(x$ranges), x$output_name, x$em_type == "validation")
-    else valid_dat <- NULL
-    valid_dat
-  })
+  else cleaning_dat <- NULL
   fail_point_list <- list()
   if (length(which_diag) == 1 && which_diag == 'all') actual_diag <- c('se', 'cd', 'ce', 're')
   else {

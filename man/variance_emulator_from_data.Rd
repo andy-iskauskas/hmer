@@ -9,6 +9,8 @@ variance_emulator_from_data(
   output_names,
   ranges,
   input_names = names(ranges),
+  bimodal_cut = NULL,
+  bimodal_region = NULL,
   ...
 )
 }
@@ -20,6 +22,10 @@ variance_emulator_from_data(
 \item{ranges}{A named list of parameter ranges}
 
 \item{input_names}{The names of the parameters (if \code{ranges} is not provided).}
+
+\item{bimodal_cut}{The cutoff values for bimodality filtering}
+
+\item{bimodal_region}{Whether to keep points above (1) or below (-1) the cuts.}
 
 \item{...}{Optional parameters that can be passed to \code{link{emulator_from_data}}.}
 }
@@ -34,7 +40,14 @@ the requisite two-stage Bayes Linear update.
 }
 \details{
 All observations are required (including replicates at points) - this function collects
-them into the required chunks and calculates the summary statistics as required.
+them into the required chunks and calculates the summary statistics as required. If bimodality
+is suspected in the data, and in particular in a situation where the bimodality is one
+of epidemic die out vs explosion, cutoffs can be supplied for each output: two sets of
+parameters should be passed. The \code{bimodal_cut} gives a feasible boundary defining the
+region of interest for each output; the \code{bimodal_region} determines whether the
+region of interest is above the cutoff point (1) or below the cutoff point (-1) for
+each output. These parameters should be passed as numeric vectors, and must have the
+same length as \code{output_names}.
 
 All other parameters passed to this function are equivalent to those in
 \code{\link{emulator_from_data}} - one notable absence is that by default, the returned

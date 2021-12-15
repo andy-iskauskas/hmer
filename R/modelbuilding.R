@@ -393,7 +393,14 @@ emulator_from_data <- function(input_data, output_names, ranges,
 #' the requisite two-stage Bayes Linear update.
 #'
 #' All observations are required (including replicates at points) - this function collects
-#' them into the required chunks and calculates the summary statistics as required.
+#' them into the required chunks and calculates the summary statistics as required. If bimodality
+#' is suspected in the data, and in particular in a situation where the bimodality is one
+#' of epidemic die out vs explosion, cutoffs can be supplied for each output: two sets of
+#' parameters should be passed. The \code{bimodal_cut} gives a feasible boundary defining the
+#' region of interest for each output; the \code{bimodal_region} determines whether the
+#' region of interest is above the cutoff point (1) or below the cutoff point (-1) for
+#' each output. These parameters should be passed as numeric vectors, and must have the
+#' same length as \code{output_names}.
 #'
 #' All other parameters passed to this function are equivalent to those in
 #' \code{\link{emulator_from_data}} - one notable absence is that by default, the returned
@@ -405,6 +412,8 @@ emulator_from_data <- function(input_data, output_names, ranges,
 #' @param output_names The observation names.
 #' @param ranges A named list of parameter ranges
 #' @param input_names The names of the parameters (if \code{ranges} is not provided).
+#' @param bimodal_cut The cutoff values for bimodality filtering
+#' @param bimodal_region Whether to keep points above (1) or below (-1) the cuts.
 #' @param ... Optional parameters that can be passed to \code{link{emulator_from_data}}.
 #'
 #' @return A list of lists: one for the variance emulators and one for the function emulators.
@@ -415,7 +424,16 @@ emulator_from_data <- function(input_data, output_names, ranges,
 #'   list(lambda = c(0, 0.08), mu = c(0.04, 0.13)), c_lengths = c(0.75))
 #'
 #' @export
-variance_emulator_from_data <- function(input_data, output_names, ranges, input_names = names(ranges), ...) {
+variance_emulator_from_data <- function(input_data, output_names, ranges, input_names = names(ranges), bimodal_cut = NULL, bimodal_region = NULL, ...) {
+  if (!is.null(bimodal_cut) && !is.null(bimodal_region) && length(bimodal_cut) == length(bimodal_region) && length(bimodal_cut) == length(output_names)) {
+    satisfies <- function(outputs) {
+      all(purrr::map_lgl(seq_along(outputs), function(i) {
+        if (bimodal_region[i] == 1) return(outputs[i] >= bimodal_cut[i])
+        return(outputs[i] <= bimodal_cut[i])
+      }))
+    }
+    input_data <- input_data[apply(input_data[,output_names], 1, satisfies),]
+  }
   unique_point_combs <- unique(input_data[,input_names])
   data_by_point <- purrr::map(1:nrow(unique_point_combs), function(j) input_data[purrr::map_lgl(1:nrow(input_data), function(i) all(input_data[i,input_names] == unique_point_combs[j,])),])
   data_by_point <- data_by_point[purrr::map_lgl(data_by_point, ~nrow(.)>0)]
@@ -433,23 +451,27 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
     }
     vofv <- vars^2 * (kurts - 1 + 2/(n_points-1))/n_points
     kurt_relevant <- purrr::map_dbl(seq_along(kurts), function(x) {
-        if((vofv/vars)[x] <= 1) kurts[x] else NA
+        if(!is.nan(kurts[x]) && (vofv/vars)[x] <= 1) kurts[x] else NA
       })
     return(c(x[1, input_names], means, vars, kurt_relevant, n_points, use.names = FALSE))
   }))
   collected_df <- setNames(data.frame(collected_stats), c(input_names, paste0(output_names, "mean"), paste0(output_names, "var"), paste0(output_names, "kurt"), "n"))
   collected_df <- data.frame(apply(collected_df, 2, unlist))
+  if (length(output_names) == 1)
+    collected_df_var <- collected_df[!is.na(collected_df[,paste0(output_names, "var")]),]
+  else
+    collected_df_var <- collected_df[apply(collected_df[,paste0(output_names, "var")], 1, function(a) !any(is.na(a))),]
   variance_emulators <- list()
   for (i in output_names) {
-    is_high_rep <- !is.na(collected_df[,paste0(i,"kurt")])
-    all_var <- setNames(collected_df[,c(input_names, paste0(i, 'var'))], c(input_names, i))
-    all_n <- collected_df$n
-    if (all(is_high_rep)) kurt_ave <- mean(collected_df[,paste0(i,'kurt')])
+    is_high_rep <- !is.na(collected_df_var[,paste0(i,"kurt")])
+    all_var <- setNames(collected_df_var[,c(input_names, paste0(i, 'var'))], c(input_names, i))
+    all_n <- collected_df_var$n
+    if (all(is_high_rep)) kurt_ave <- mean(collected_df_var[,paste0(i,'kurt')])
     else if (!any(is_high_rep)) kurt_ave <- 3
-    else kurt_ave <- mean(collected_df[is_high_rep, paste0(i, 'kurt')])
+    else kurt_ave <- mean(collected_df_var[is_high_rep, paste0(i, 'kurt')])
     if (all(is_high_rep) || any(is_high_rep)) {
-      var_df <- setNames(collected_df[is_high_rep, c(input_names, paste0(i, "var"))], c(input_names, i))
-      npoints <- collected_df[is_high_rep, 'n']
+      var_df <- setNames(collected_df_var[is_high_rep, c(input_names, paste0(i, "var"))], c(input_names, i))
+      npoints <- collected_df_var[is_high_rep, 'n']
       if (sum(is_high_rep) == 1) {
         point <- all_var[is_high_rep,]
         temp_corr <- Correlator$new(hp = list(theta = 0.5))
