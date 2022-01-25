@@ -12,6 +12,8 @@ wave_values(
   restrict = FALSE,
   p_size = 1.5,
   l_wid = 1.5,
+  zero_in = TRUE,
+  wave_numbers = ifelse(zero_in, 0, 1):(length(waves) - ifelse(zero_in, 1, 0)),
   ...
 )
 }
@@ -30,6 +32,10 @@ wave_values(
 
 \item{l_wid}{The width of the lines that create the target boxes.}
 
+\item{zero_in}{Is a wave 0 included in the waves list?}
+
+\item{wave_numbers}{Which waves to plot.}
+
 \item{...}{Optional parameters (not to be used directly)}
 }
 \value{
@@ -42,6 +48,9 @@ Given multiple waves of points, produces pairs plots of the outputs.
 This function operates in a similar fashion to \code{\link{wave_points}} - the main
 difference is that the output values are plotted. Consequently, the set of targets is required
 to overlay the region of interest onto the plot.
+
+To ensure that the wave numbers provided in the legend match, one should provide waves
+as a list of data.frames with the earliest wave at the start of the list.
 }
 \examples{
  wave_values(GillespieMultiWaveData, sample_emulators$targets, surround = TRUE, p_size = 1)

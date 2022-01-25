@@ -4,7 +4,15 @@
 \alias{wave_points}
 \title{Multiple Wave Point Plotting}
 \usage{
-wave_points(waves, input_names, surround = FALSE, p_size = 1.5, ...)
+wave_points(
+  waves,
+  input_names,
+  surround = FALSE,
+  p_size = 1.5,
+  zero_in = TRUE,
+  wave_numbers = ifelse(zero_in, 0, 1):(length(waves) - ifelse(zero_in, 1, 0)),
+  ...
+)
 }
 \arguments{
 \item{waves}{The list of data.frames, one for each set of points at that wave.}
@@ -14,6 +22,10 @@ wave_points(waves, input_names, surround = FALSE, p_size = 1.5, ...)
 \item{surround}{If true, points are surrounded by black boundaries.}
 
 \item{p_size}{The size of the points. Smaller values are better for high-dimensional spaces.}
+
+\item{zero_in}{Is a wave 0 included in the waves list?}
+
+\item{wave_numbers}{Which waves to plot}
 
 \item{...}{Optional parameters (not to be used directly)}
 }

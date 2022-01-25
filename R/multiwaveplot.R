@@ -12,6 +12,8 @@
 #' @param input_names The input names to be plotted.
 #' @param surround If true, points are surrounded by black boundaries.
 #' @param p_size The size of the points. Smaller values are better for high-dimensional spaces.
+#' @param zero_in Is a wave 0 included in the waves list?
+#' @param wave_numbers Which waves to plot
 #' @param ... Optional parameters (not to be used directly)
 #'
 #' @return A ggplot object
@@ -20,11 +22,12 @@
 #' @examples
 #'  wave_points(GillespieMultiWaveData, c('aSI', 'aIR', 'aSR'))
 #'  wave_points(GillespieMultiWaveData, c('aSI', 'aIR', 'aSR'), TRUE, 0.8)
-wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5, ...) {
+wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5, zero_in = TRUE, wave_numbers = ifelse(zero_in, 0, 1):(length(waves)-ifelse(zero_in, 1, 0)), ...) {
   wave <- NULL
   out_list <- list()
-  for (i in 0:(length(waves)-1)) {
-    out_list[[i+1]] <- setNames(cbind(waves[[i+1]][,input_names], rep(i, nrow(waves[[i+1]]))), c(input_names, 'wave'))
+  for (i in ifelse(zero_in, 0, 1):(length(waves)-ifelse(zero_in, 1, 0))) {
+    if (i %in% wave_numbers)
+      out_list[[i+1]] <- setNames(cbind(waves[[i+1]][,input_names], rep(i, nrow(waves[[i+1]]))), c(input_names, 'wave'))
   }
   total_data <- do.call('rbind', out_list)
   total_data$wave <- factor(total_data$wave)
@@ -34,7 +37,7 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5, ...)
     if(surround) g <- g + geom_point(cex = p_size, pch = 1, colour = 'black')
     return(g)
   }
-  pal <- viridis::viridis(length(waves), option = "D", direction = -1)
+  pal <- viridis::viridis(max(length(waves), max(wave_numbers)), option = "D", direction = -1)[wave_numbers+1]
   g <- ggpairs(total_data, columns = 1:length(input_names), aes(colour = wave),
           lower = list(continuous = plotfun),
           upper = 'blank', title = "Wave Points Location", progress = FALSE, legend = 1) +
@@ -52,6 +55,9 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5, ...)
 #' difference is that the output values are plotted. Consequently, the set of targets is required
 #' to overlay the region of interest onto the plot.
 #'
+#' To ensure that the wave numbers provided in the legend match, one should provide waves
+#' as a list of data.frames with the earliest wave at the start of the list.
+#'
 #' @importFrom GGally ggpairs ggally_densityDiag
 #'
 #' @param waves The list of data.frames, one for each set of outputs at that wave.
@@ -61,6 +67,8 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5, ...)
 #' @param restrict Should the plotting automatically restrict to failing target windows?
 #' @param p_size As in \code{\link{wave_points}}.
 #' @param l_wid The width of the lines that create the target boxes.
+#' @param zero_in Is a wave 0 included in the waves list?
+#' @param wave_numbers Which waves to plot.
 #' @param ... Optional parameters (not to be used directly)
 #'
 #' @return A ggplot object.
@@ -69,14 +77,15 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5, ...)
 #' @examples
 #'  wave_values(GillespieMultiWaveData, sample_emulators$targets, surround = TRUE, p_size = 1)
 #'  wave_values(GillespieMultiWaveData, sample_emulators$targets, c('nS', 'nI'), l_wid = 0.8)
-wave_values <- function(waves, targets, output_names = names(targets), surround = FALSE, restrict = FALSE, p_size = 1.5, l_wid = 1.5, ...) {
+wave_values <- function(waves, targets, output_names = names(targets), surround = FALSE, restrict = FALSE, p_size = 1.5, l_wid = 1.5, zero_in = TRUE, wave_numbers = ifelse(zero_in, 0, 1):(length(waves)-ifelse(zero_in, 1, 0)), ...) {
   for (i in 1:length(targets)) {
     if (!is.atomic(targets[[i]])) targets[[i]] <- c(targets[[i]]$val - 3*targets[[i]]$sigma, targets[[i]]$val + 3*targets[[i]]$sigma)
   }
   wave <- NULL
   out_list <- list()
-  for (i in 0:(length(waves)-1)) {
-    out_list[[i+1]] <- setNames(cbind(waves[[i+1]][,output_names], rep(i, nrow(waves[[i+1]]))), c(output_names, 'wave'))
+  for (i in ifelse(zero_in, 0, 1):(length(waves)-ifelse(zero_in, 1, 0))) {
+    if (i %in% wave_numbers)
+      out_list[[i+1]] <- setNames(cbind(waves[[i+1]][,output_names], rep(i, nrow(waves[[i+1]]))), c(output_names, 'wave'))
   }
   total_data <- do.call('rbind', out_list)
   total_data$wave <- factor(total_data$wave)
@@ -100,7 +109,7 @@ wave_values <- function(waves, targets, output_names = names(targets), surround 
       output_names <- names(targets)
     }
   }
-  pal <- viridis::viridis(length(waves), option = "D", direction = -1)
+  pal <- viridis::viridis(max(length(waves), max(wave_numbers)), option = "D", direction = -1)[wave_numbers+1]
   lfun <- function(data, mapping, targets, zoom = F) {
     xname <- rlang::quo_get_expr(mapping$x)
     yname <- rlang::quo_get_expr(mapping$y)
@@ -158,6 +167,8 @@ wave_values <- function(waves, targets, output_names = names(targets), surround 
 #' @param p_size Control for the point size on the plots: smaller is better for many plots.
 #' @param l_wid Control for line width of superimposed targets.
 #' @param normalize If true, plotting is done with target bounds equal size.
+#' @param zero_in Is a wave 0 included in the waves list?
+#' @param wave_numbers Which waves to plot
 #' @param ... Optional parameters (not to be used directly)
 #'
 #' @return A grid of ggplot objects.
@@ -167,16 +178,18 @@ wave_values <- function(waves, targets, output_names = names(targets), surround 
 #'  wave_dependencies(GillespieMultiWaveData, sample_emulators$targets, l_wid = 0.8, p_size = 0.8)
 #'  wave_dependencies(GillespieMultiWaveData, sample_emulators$targets, c('nS', 'nI'), c('aIR', 'aSI'))
 #'
-wave_dependencies <- function(waves, targets, output_names = names(targets), input_names = names(waves[[1]])[!names(waves[[1]]) %in% names(targets)], p_size = 1.5, l_wid = 1.5, normalize = FALSE, ...) {
+wave_dependencies <- function(waves, targets, output_names = names(targets), input_names = names(waves[[1]])[!names(waves[[1]]) %in% names(targets)], p_size = 1.5, l_wid = 1.5, normalize = FALSE, zero_in = TRUE, wave_numbers = ifelse(zero_in, 0, 1):(length(waves)-ifelse(zero_in, 1, 0)), ...) {
   input_names <- input_names
   for (i in 1:length(targets)) {
     if (!is.atomic(targets[[i]])) targets[[i]] <- c(targets[[i]]$val - 3*targets[[i]]$sigma, targets[[i]]$val + 3*targets[[i]]$sigma)
   }
   wave <- NULL
-  for (i in 0:(length(waves)-1)) waves[[i+1]]$wave <- i
-  total_data <- do.call('rbind', waves)
+  for (i in ifelse(zero_in, 0, 1):(length(waves)-ifelse(zero_in, 1, 0))) {
+    if (i %in% wave_numbers) waves[[i+1]]$wave <- i
+  }
+  total_data <- do.call('rbind', waves[wave_numbers+1])
   total_data$wave <- factor(total_data$wave)
-  pal <- viridis::viridis(length(waves), option = "D", direction = -1)
+  pal <- viridis::viridis(max(length(waves), max(wave_numbers)), option = "D", direction = -1)[wave_numbers+1]
   plot_list <- list()
   for (i in 1:length(output_names)) {
     for (j in 1:length(input_names)) {
@@ -308,10 +321,12 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_
 #' @export
 #'
 #' @examples
+#' \donttest{
 #'  diagnostic_wrap(GillespieMultiWaveData, sample_emulators$targets)
 #'  diagnostic_wrap(GillespieMultiWaveData, sample_emulators$targets,
 #'   input_names = c('aSI', 'aIR'), output_names = c('nI', 'nR'),
 #'   p_size = 0.8, l_wid = 0.8, wave_numbers = 1:3, surround = TRUE)
+#'   }
 diagnostic_wrap <- function(waves, targets, output_names = names(targets), input_names = names(waves[[1]])[!names(waves[[1]]) %in% names(targets)], directory = NULL, s.heights = rep(1000, 4), s.widths = s.heights, include.norm = TRUE, include.log = TRUE, ...) {
   s.widths[1] <- ceiling(length(output_names)/10)*1000
   if (is.null(directory) || !file.exists(sub("(.*)/[^/]*$", "\\1", directory))) {

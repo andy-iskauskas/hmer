@@ -12,6 +12,8 @@ wave_dependencies(
   p_size = 1.5,
   l_wid = 1.5,
   normalize = FALSE,
+  zero_in = TRUE,
+  wave_numbers = ifelse(zero_in, 0, 1):(length(waves) - ifelse(zero_in, 1, 0)),
   ...
 )
 }
@@ -29,6 +31,10 @@ wave_dependencies(
 \item{l_wid}{Control for line width of superimposed targets.}
 
 \item{normalize}{If true, plotting is done with target bounds equal size.}
+
+\item{zero_in}{Is a wave 0 included in the waves list?}
+
+\item{wave_numbers}{Which waves to plot}
 
 \item{...}{Optional parameters (not to be used directly)}
 }
