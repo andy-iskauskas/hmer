@@ -393,14 +393,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
 #' the requisite two-stage Bayes Linear update.
 #'
 #' All observations are required (including replicates at points) - this function collects
-#' them into the required chunks and calculates the summary statistics as required. If bimodality
-#' is suspected in the data, and in particular in a situation where the bimodality is one
-#' of epidemic die out vs explosion, cutoffs can be supplied for each output: two sets of
-#' parameters should be passed. The \code{bimodal_cut} gives a feasible boundary defining the
-#' region of interest for each output; the \code{bimodal_region} determines whether the
-#' region of interest is above the cutoff point (1) or below the cutoff point (-1) for
-#' each output. These parameters should be passed as numeric vectors, and must have the
-#' same length as \code{output_names}.
+#' them into the required chunks and calculates the summary statistics as required.
 #'
 #' All other parameters passed to this function are equivalent to those in
 #' \code{\link{emulator_from_data}} - one notable absence is that by default, the returned
@@ -412,8 +405,6 @@ emulator_from_data <- function(input_data, output_names, ranges,
 #' @param output_names The observation names.
 #' @param ranges A named list of parameter ranges
 #' @param input_names The names of the parameters (if \code{ranges} is not provided).
-#' @param bimodal_cut The cutoff values for bimodality filtering
-#' @param bimodal_region Whether to keep points above (1) or below (-1) the cuts.
 #' @param ... Optional parameters that can be passed to \code{link{emulator_from_data}}.
 #'
 #' @return A list of lists: one for the variance emulators and one for the function emulators.
@@ -424,30 +415,26 @@ emulator_from_data <- function(input_data, output_names, ranges,
 #'   list(lambda = c(0, 0.08), mu = c(0.04, 0.13)), c_lengths = c(0.75))
 #'
 #' @export
-variance_emulator_from_data <- function(input_data, output_names, ranges, input_names = names(ranges), bimodal_cut = NULL, bimodal_region = NULL, ...) {
-  if (!is.null(bimodal_cut) && !is.null(bimodal_region) && length(bimodal_cut) == length(bimodal_region) && length(bimodal_cut) == length(output_names)) {
-    satisfies <- function(outputs) {
-      all(purrr::map_lgl(seq_along(outputs), function(i) {
-        if (bimodal_region[i] == 1) return(outputs[i] >= bimodal_cut[i])
-        return(outputs[i] <= bimodal_cut[i])
-      }))
-    }
-    input_data <- input_data[apply(input_data[,output_names], 1, satisfies),]
-  }
-  unique_point_combs <- unique(input_data[,input_names])
-  data_by_point <- purrr::map(1:nrow(unique_point_combs), function(j) input_data[purrr::map_lgl(1:nrow(input_data), function(i) all(input_data[i,input_names] == unique_point_combs[j,])),])
-  data_by_point <- data_by_point[purrr::map_lgl(data_by_point, ~nrow(.)>0)]
+variance_emulator_from_data <- function(input_data, output_names, ranges, input_names = names(ranges), ...) {
+  # unique_point_combs <- unique(input_data[,input_names])
+  # data_by_point <- purrr::map(1:nrow(unique_point_combs), function(j) input_data[purrr::map_lgl(1:nrow(input_data), function(i) all(input_data[i,input_names] == unique_point_combs[j,])),])
+  unique_points <- unique(input_data[, input_names])
+  uids <- apply(unique_points, 1, hash)
+  data_by_point <- purrr::map(uids, function(x) {
+    input_data[apply(input_data[,names(ranges)], 1, hash) == x,]
+  })
+  data_by_point <- data_by_point[purrr::map_lgl(data_by_point, ~nrow(.)>1)]
   collected_stats <- do.call('rbind', lapply(data_by_point, function(x) {
     n_points <- nrow(x)
     if (length(output_names) == 1) {
       means <- mean(x[,output_names])
       vars <- var(x[,output_names])
-      kurts <- moments::kurtosis(x[,output_names])
+      kurts <- kurtosis(x[,output_names])
     }
     else {
       means <- apply(x[,output_names], 2, mean)
       vars <- apply(x[,output_names], 2, var)
-      kurts <- apply(x[,output_names], 2, moments::kurtosis)
+      kurts <- apply(x[,output_names], 2, kurtosis)
     }
     vofv <- vars^2 * (kurts - 1 + 2/(n_points-1))/n_points
     kurt_relevant <- purrr::map_dbl(seq_along(kurts), function(x) {
@@ -475,7 +462,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
       if (sum(is_high_rep) == 1) {
         point <- all_var[is_high_rep,]
         temp_corr <- Correlator$new(hp = list(theta = 0.5))
-        variance_em <- Emulator$new(basis_f = c(function(x) 1), beta = list(mu = c(point$var), sigma = c(0)), u = list(sigma = point$var^2, corr = temp_corr), ranges = ranges, out_var = i)
+        variance_em <- HierarchicalEmulator$new(basis_f = c(function(x) 1), beta = list(mu = c(point[1,i]), sigma = matrix(0, nrow = 1, ncol = 1)), u = list(sigma = point[1,i]^2, corr = temp_corr), ranges = ranges, out_name = i)
       }
       else {
         variance_em <- emulator_from_data(var_df, i, ranges, quadratic = FALSE, adjusted = FALSE, has.hierarchy = TRUE, ...)[[1]]
@@ -488,7 +475,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
     variance_em$s_diag <- var_mod
     variance_em$samples <- all_n
     variance_em$em_type <- "variance"
-    if (all(is_high_rep) || !any(is_high_rep))
+    if (all(is_high_rep) || !any(is_high_rep) || sum(!is_high_rep) == 1)
       v_em <- variance_em$adjust(all_var, i)
     else
       v_em <- variance_em$adjust(setNames(collected_df[!is_high_rep, c(input_names, paste0(i, 'var'))], c(input_names, i)), i)
@@ -504,4 +491,127 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
   }
   expectation_emulators <- setNames(purrr::map(seq_along(exp_em), ~exp_em[[.]]$adjust(exp_data, output_names[[.]])), output_names)
   return(list(variance = variance_emulators, expectation = expectation_emulators))
+}
+
+#' Bimodal Emulation
+#'
+#' Performs emulation of bimodal outputs and/or systems.
+#'
+#' In many stochastic systems, particularly disease models, the outputs exhibit bimodality - a
+#' familiar example is where a disease either takes off or dies out. In these cases, it is not
+#' sensible to emulate the outputs based on all realisations, and instead we should emulate each
+#' mode separately.
+#'
+#' This function first tries to identify bimodality. If detected, it determines which of the
+#' outputs in the data exhibits the bimodality: to these two separate emulators are trained, one
+#' to each mode. The emulators are provided with any data that is relevant to their training; for
+#' example, bimodality can exist in some regions of parameter space but not others - points where
+#' bimodality is present have their realisations allocated between the two modes while points
+#' where no bimodality exists have their realisations provided to both modes. Targets that do not
+#' exhibit bimodality are trained as a normal stochastic output: that is, using the default of
+#' \code{\link{variance_emulator_from_data}}.
+#'
+#' The function also estimates the proportion of realisations in each mode for the set of outputs.
+#' This value is also emulated as a deterministic emulator and included in the output.
+#'
+#' The output of the function is a list, containing three objects: \code{mode1}, \code{mode2}, and
+#' \code{prop}. The first two objects havethe form produced by \code{variance_emulator_from_data}
+#' while \code{prop} has the form of an \code{emulator_from_data} output.
+#'
+#' @importFrom rlang hash
+#' @importFrom mclust Mclust mclustBIC emControl
+#'
+#' @param data The data to train emulators on (as in variance_emulator_from_data)
+#' @param output_names The names of the outputs to emulate
+#' @param ranges The parameter ranges
+#' @param input_names The names of the parameters (by default inferred from \code{ranges})
+#' @param ... Any other parameters to pass to emulator training
+#'
+#' @return A list \code{(mode1, mode2, prop)} of emulator lists and objects.
+#' @export
+#'
+bimodal_emulator_from_data <- function(data, output_names, ranges, input_names = names(ranges), ...) {
+  unique_points <- unique(data[,input_names])
+  uids <- apply(unique_points, 1, hash)
+  param_sets <- purrr::map(uids, function(x) {
+    data[apply(data[,input_names], 1, hash) == x,]
+  })
+  print("Separated dataset by unique points.")
+  proportion <- purrr::map_dbl(param_sets, function(x) {
+    prop_clust <- Mclust(x[, output_names], G = 1:2, verbose = FALSE, control = emControl(tol = 1e-3))$classification
+    return(sum(prop_clust ==1)/length(prop_clust))
+  })
+  prop_df <- setNames(data.frame(cbind(unique_points, proportion)), c(names(unique_points), 'prop'))
+  print("Training emulator to proportion in modes.")
+  prop_em <- emulator_from_data(prop_df, c('prop'), ranges, ...)
+  print("Performing clustering to identify modes.")
+  has_bimodality <- setNames(data.frame(do.call('rbind', purrr::map(param_sets, function(x) {
+    purrr::map_lgl(output_names, function(y) {
+      if (length(unique(x[,y])) == 1) return(FALSE)
+      return(Mclust(x[,y], G = 1:2, verbose = FALSE)$G == 2)
+    })
+  }))), output_names)
+  is_bimodal_target <- apply(has_bimodality, 2, function(x) sum(x)/length(x) >= 0.1)
+  if (!any(is_bimodal_target)) return(variance_emulator_from_data(data, output_names, ranges, ...))
+  print("Training to unimodal targets.")
+  non_bimodal <- variance_emulator_from_data(data, output_names[!is_bimodal_target], ranges, ...)
+  print("Training to bimodal targets.")
+  bimodal <- purrr::map(output_names[is_bimodal_target], function(x) {
+    c1_data <- list()
+    c2_data <- list()
+    param_bimodal <- has_bimodality[,x]
+    for (i in 1:length(param_bimodal)) {
+      if (!param_bimodal[[i]]) {
+        c1_data[[length(c1_data)+1]] <- param_sets[[i]]
+        c2_data[[length(c2_data)+1]] <- param_sets[[i]]
+      }
+      else {
+        this_clust <- Mclust(param_sets[[i]][,x], G = 1:2, verbose = FALSE)$classification
+        c1_data[[length(c1_data)+1]] <- param_sets[[i]][this_clust == 1,]
+        c2_data[[length(c2_data)+1]] <- param_sets[[i]][this_clust == 2,]
+      }
+    }
+    mode1_dat <- do.call('rbind', c1_data)
+    mode2_dat <- do.call('rbind', c2_data)
+    m1em <- tryCatch(
+      variance_emulator_from_data(mode1_dat, x, ranges, ...),
+      error = function(e) {
+        print(paste("Problem training mode 1 emulator for target", x))
+        print(e)
+        return(list(expectation = NA, variance = NA))
+      }
+    )
+    m2em <- tryCatch(
+      variance_emulator_from_data(mode2_dat, x, ranges, ...),
+      error = function(e) {
+        print(paste("Problem training mode 2 emulator for target", x))
+        print(e)
+        return(list(expectation = NA, variance = NA))
+      }
+    )
+    return(list(m1 = m1em, m2 = m2em))
+  })
+  bimodals <- setNames(bimodal, output_names[is_bimodal_target])
+  print("Trained emulators. Collating.")
+  m1exps <- m2exps <- m1vars <- m2vars <- list()
+  for (i in output_names) {
+    if (i %in% names(non_bimodal$expectation)) {
+      m1exps <- c(m1exps, non_bimodal$expectation[[i]])
+      m2exps <- c(m2exps, non_bimodal$expectation[[i]])
+      m1vars <- c(m1vars, non_bimodal$variance[[i]])
+      m2vars <- c(m2vars, non_bimodal$variance[[i]])
+    }
+    else {
+      m1exps <- c(m1exps, bimodals[[i]]$m1$expectation)
+      m2exps <- c(m2exps, bimodals[[i]]$m2$expectation)
+      m1vars <- c(m1vars, bimodals[[i]]$m1$variance)
+      m2vars <- c(m2vars, bimodals[[i]]$m2$variance)
+    }
+  }
+  names(m1exps) <- names(m1vars) <- names(m2exps) <- names(m2vars) <- output_names
+  return(list(
+    mode1 = list(expectation = m1exps, variance = m1vars),
+    mode2 = list(expectation = m2exps, variance = m2vars),
+    prop = prop_em[[1]]
+  ))
 }

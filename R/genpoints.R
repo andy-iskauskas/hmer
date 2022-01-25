@@ -299,7 +299,7 @@ lhs_gen_cluster <- function(ems, n_points, z, cutoff = 3, nth = 1, previous_ems 
   if ("Emulator" %in% class(ems)) return(lhs_gen(ems, n_points, z, cutoff, nth))
   ranges <- ems[[1]]$ranges
   which_active <- setNames(data.frame(do.call('rbind', purrr::map(ems, ~.$active_vars))), names(ranges))
-  cluster_id <- cluster::fanny(cluster::daisy(which_active, warnType = FALSE), k = 2)$clustering
+  cluster_id <- Mclust(which_active, G = 1:2, verbose = FALSE)$classification
   c1 <- ems[cluster_id == 1]
   c2 <- ems[cluster_id == 2]
   p1 <- unique(do.call(c, purrr::map(c1, ~names(ranges)[.$active_vars])))

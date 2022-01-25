@@ -59,6 +59,7 @@ behaviour_plot <- function(ems, points) {
 #' \code{intervals}, and a plot is returned showing the relevant data.
 #'
 #' @import ggplot2
+#' @import tidyr
 #' @importFrom stats setNames
 #' @importFrom viridis scale_colour_viridis
 #'
@@ -78,7 +79,7 @@ behaviour_plot <- function(ems, points) {
 # space_removed(sample_emulators$ems$nS, sample_emulators$targets,
 #  ppd = 5, u_mod = seq(0.75, 1.25, by = 0.25), intervals = seq(2, 6, by = 0.1))
 space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1), intervals = seq(0, 10, length.out = 200), modified = 'obs', maxpoints = NULL) {
-  value <- variable <- NULL
+  value <- name <- NULL
   if ("Emulator" %in% class(ems))
     ems <- setNames(list(ems), ems$output_name)
   ranges <- ems[[1]]$ranges
@@ -126,10 +127,10 @@ space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1
   }
   df <- setNames(data.frame(imp_array), u_mod)
   df$cutoff <- intervals
-  df_melt <- reshape2::melt(df, id.vars = 'cutoff')
+  df_pivot <- pivot_longer(df, cols = !c('cutoff'))
   title <- switch(modified, 'obs' = "observational error", 'disc' = 'structural discrepancy', 'var' = 'variance inflation', 'hp' = 'hyperparameter inflation')
   subtitle <- switch(modified, 'obs' = "% Observational\nError", 'disc' = '% Structural\nDiscrepancy', 'var' = '% Variance\nInflation', 'hp' = '% Hyperparameter\nInflation')
-  g <- ggplot(data = df_melt, aes(x = cutoff, y = value, group = variable, colour = variable)) +
+  g <- ggplot(data = df_pivot, aes(x = cutoff, y = value, group = name, colour = name)) +
     geom_line(lwd = 1.5) +
     viridis::scale_color_viridis(discrete = TRUE, option = 'cividis', labels = function(b) {paste0(round(as.numeric(b)*100, 0), "%")}) +
     scale_x_continuous("Implausibility cut-off", labels = function(b) round(b, 1)) +
@@ -225,7 +226,7 @@ validation_pairs <- function(ems, points, targets, ranges, nth = 1, cb = FALSE) 
 #' if a legend should be provided with the plot (for large numbers of emulators, it is
 #' advisable to set this to \code{FALSE}).
 #'
-#' @importFrom ggplot2 geom_col
+#' @import ggplot2
 #'
 #' @param ems The Emulator object(s) to be analyzed.
 #' @param line_plot Should a line plot be produced?
@@ -262,10 +263,16 @@ effect_strength <- function(ems, line_plot = FALSE, labels = TRUE, quadratic = T
   {
     quadratic_effect_strength <- setNames(data.frame(do.call('rbind', purrr::map(ems, get_effect_strength, TRUE))), names(ranges))
     complete_set <- list(linear = linear_effect_strength, quadratic = quadratic_effect_strength)
-    quad.mat <- reshape2::melt(as.matrix(quadratic_effect_strength))
+    quad.mat <- pivot_longer(quadratic_effect_strength, cols = everything(), names_to = "Var2")
+    quad.mat$Var1 <- rep(row.names(quadratic_effect_strength), each = length(quadratic_effect_strength))
+    quad.mat$Var1 <- factor(quad.mat$Var1, levels = purrr::map_chr(ems, ~.$output_name))
+    quad.mat$Var2 <- factor(quad.mat$Var2, levels = names(ranges))
   }
   else complete_set <- linear_effect_strength
-  lin.mat <- reshape2::melt(as.matrix(linear_effect_strength))
+  lin.mat <- pivot_longer(linear_effect_strength, cols = everything(), names_to = "Var2")
+  lin.mat$Var1 <- rep(row.names(linear_effect_strength), each = length(linear_effect_strength))
+  lin.mat$Var1 <- factor(lin.mat$Var1, levels = purrr::map_chr(ems, ~.$output_name))
+  lin.mat$Var2 <- factor(lin.mat$Var2, levels = names(ranges))
   Var1 <- Var2 <- value <- NULL
   if (xvar) {
     if (line_plot) {

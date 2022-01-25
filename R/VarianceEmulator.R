@@ -192,6 +192,7 @@ HierarchicalEmulator <- R6::R6Class(
       disc_quad <- sum(purrr::map_dbl(self$disc, ~.^2))
       if (!is.numeric(z) && !is.null(z$val)) {
         imp_var <- self$get_cov(x) + z$sigma^2 + disc_quad + self$s_diag(x, 1)
+        #imp_var[imp_var < 0] <- 1e6
         imp <- sqrt((z$val - self$get_exp(x))^2/imp_var)
       }
       else {

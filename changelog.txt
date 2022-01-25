@@ -1,4 +1,6 @@
 Changelog (Release Branch)
+25/01/2022 - v0.9.7. Introducing bimodal emulation; fixes to a number of functions and reduction in package dependencies in the package overall.
+
 14/12/2021 - v0.9.6. Major changes to behaviour and handling of hierarchical emulators; support for diagnostics and implausibility of said emulators; separation of hierarchical emulators from 'standard' ones via a new R6 class.
 
 11/11/2021 - v0.9.5. Minor improvements and fixes, mainly to sampling methods. The option to search for 'good' points is now present in generate_new_runs.

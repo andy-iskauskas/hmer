@@ -12,6 +12,7 @@
 #' @param boots The number of samples for bootstrapping (if required)
 #'
 #' @importFrom stats sd
+#' @importFrom rlang hash
 #'
 #' @keywords internal
 #' @noRd
@@ -19,8 +20,10 @@
 #' @return A data.frame consisting of the summary stats (mean, sd, n)
 clean_data <- function(data, in_names, out_name, is.variance = FALSE, boots = 1000) {
   unique_points <- unique(data[,in_names])
-  summary_stats <- purrr::map(1:nrow(unique_points), function(i) {
-    relev <- data[purrr::map_lgl(1:nrow(data), ~all(data[.,in_names] == unique_points[i,])),out_name]
+  uids <- apply(unique_points, 1, hash)
+  summary_stats <- purrr::map(uids, function(i) {
+    #relev <- data[purrr::map_lgl(1:nrow(data), ~all(data[.,in_names] == unique_points[i,])),out_name]
+    relev <- data[apply(data[,in_names], 1, hash) == i, out_name]
     if (!is.variance)
       return(c(mean(relev), sd(relev)^2/length(relev), length(relev)))
     var_mean <- sd(relev)^2

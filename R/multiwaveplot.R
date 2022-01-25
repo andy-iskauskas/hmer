@@ -241,7 +241,7 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_
   for (i in 1:length(z)) {
     if (!is.atomic(z[[i]])) z[[i]] <- c(z[[i]]$val - 3*z[[i]]$sigma, z[[i]]$val + 3*z[[i]]$sigma)
   }
-  variable <- value <- run <- wave <- val <- sigma <- NULL
+  name <- value <- run <- wave <- val <- sigma <- NULL
   output_names <- names(z)
   sim_runs <- do.call('rbind', purrr::map(wave_numbers, ~data.frame(wave_points[[.+ifelse(zero_in, 1, 0)]][,output_names], wave = .)))
   sim_runs$run <- 1:length(sim_runs[,1])
@@ -259,17 +259,17 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_
       z[[i]] <- log(z[[i]])
     }
   }
-  melted <- reshape2::melt(sim_runs, id.vars = c('run', 'wave'))
-  melted$wave = as.factor(melted$wave)
+  pivoted <- pivot_longer(sim_runs, cols = !c('run', 'wave'))
+  pivoted$wave = as.factor(pivoted$wave)
   if (is.null(palette))
-    pal <- viridisLite::viridis(length(wave_points), option = 'plasma', direction = -1)
+    pal <- viridis::viridis(length(wave_points), option = 'plasma', direction = -1)
   else pal <- palette
   pal <- pal[seq_along(pal) %in% (wave_numbers+ifelse(zero_in, 1, 0))]
-  obs <- data.frame(variable = names(z), min = purrr::map_dbl(z, ~.[1]), max = purrr::map_dbl(z, ~.[2]))
-  g <- ggplot(data = melted, aes(x = variable, y = value)) +
+  obs <- data.frame(name = names(z), min = purrr::map_dbl(z, ~.[1]), max = purrr::map_dbl(z, ~.[2]))
+  g <- ggplot(data = pivoted, aes(x = name, y = value)) +
     geom_line(aes(group = run, colour = wave)) +
     scale_colour_manual(values = pal) +
-    geom_point(data = obs, aes(x = variable, y = (min+max)/2)) +
+    geom_point(data = obs, aes(x = name, y = (min+max)/2)) +
     geom_errorbar(data = obs, aes(y = (min+max)/2, ymax = max, ymin = min), width = 0.1, size = 1.25, colour = barcol) +
     labs(title = paste0("Simulator evaluations at wave points", (if (normalize) ": normalised" else (if (logscale) ": log-scale" else "")))) +
     theme_minimal() +
@@ -370,7 +370,6 @@ diagnostic_wrap <- function(waves, targets, output_names = names(targets), input
 #' wave, and for each output.
 #'
 #' @import ggplot2
-#' @importFrom patchwork wrap_plots plot_spacer
 #' @importFrom purrr %>%
 #' @importFrom viridis scale_fill_viridis
 #'
@@ -400,7 +399,7 @@ wave_variance <- function(waves, output_names, plot_dirs = names(waves[[1]][[1]]
     }
   }
   if (length(plot_dirs) != 2) stop("Two input directions must be specified.")
-  variable <- value <- NULL
+  name <- value <- NULL
   main_ranges <- waves[[1]][[output_names[1]]]$ranges
   grid_ranges <- setNames(data.frame(purrr::map(names(main_ranges), function(x) {
     if (x %in% plot_dirs) main_ranges[[x]]
@@ -417,17 +416,17 @@ wave_variance <- function(waves, output_names, plot_dirs = names(waves[[1]][[1]]
     if (!sd) x[[.]]$get_cov(on_grid)
     else sqrt(x[[.]]$get_cov(on_grid))
   }))), c(names(main_ranges), wave_numbers)))
-  melted_frames <- setNames(purrr::map(output, ~reshape2::melt(., id.vars = names(main_ranges))), output_names)
-  for (i in 1:length(melted_frames)) melted_frames[[i]]$output <- output_names[i]
-  for (i in 1:ceiling(length(melted_frames)/concurrent_plots)) {
-    current_end <- min(concurrent_plots*i, length(melted_frames))
-    dat <- melted_frames[(concurrent_plots*(i-1)+1):current_end]
+  pivot_frames <- setNames(purrr::map(output, ~data.frame(pivot_longer(., cols = !names(main_ranges)))), output_names)
+  for (i in 1:length(pivot_frames)) pivot_frames[[i]]$output <- output_names[i]
+  for (i in 1:ceiling(length(pivot_frames)/concurrent_plots)) {
+    current_end <- min(concurrent_plots*i, length(pivot_frames))
+    dat <- pivot_frames[(concurrent_plots*(i-1)+1):current_end]
     dat <- do.call('rbind', dat)
     plot_bins <- round(seq(0, max(dat$value), length.out = 25))
-    g <- ggplot(data = dat, aes(x = dat[,plot_dirs[1]], y = dat[,plot_dirs[2]], group = variable)) +
+    g <- ggplot(data = dat, aes(x = dat[,plot_dirs[1]], y = dat[,plot_dirs[2]], group = name)) +
       geom_contour_filled(aes(z = value), colour = 'black', breaks = plot_bins) +
       scale_fill_viridis(discrete = TRUE, option = 'plasma', labels = plot_bins, name = ifelse(sd, 'SD[f(x)]', 'Var[f(x)]')) +
-      facet_grid(rows = vars(variable), cols = vars(output), labeller = labeller(variable = function(x) paste("Wave", x))) +
+      facet_grid(rows = vars(name), cols = vars(output), labeller = labeller(name = function(x) paste("Wave", x))) +
       labs(title = paste(ifelse(sd, "Standard Deviation", "Variance"), 'across waves'), x = plot_dirs[1], y = plot_dirs[2]) +
       theme_minimal()
     print(g)
