@@ -9,7 +9,7 @@ Description: A set of objects and functions for Bayes Linear emulation and histo
   for details of the functions in this package, consult the manual or help files (eg ?Emulator).
 Suggests: knitr, rmarkdown, SimInf
 VignetteBuilder: knitr
-Depends: R (>= 4.0.0)
+Depends: R (>= 4.1.0)
 Imports:
   purrr,
   stringr,
