@@ -14,6 +14,8 @@ wave_values(
   l_wid = 1.5,
   zero_in = TRUE,
   wave_numbers = ifelse(zero_in, 0, 1):(length(waves) - ifelse(zero_in, 1, 0)),
+  which_wave = ifelse(zero_in, 0, 1),
+  upper_scale = 1,
   ...
 )
 }
@@ -36,6 +38,10 @@ wave_values(
 
 \item{wave_numbers}{Which waves to plot.}
 
+\item{which_wave}{Scaling for lower plots (see description)}
+
+\item{upper_scale}{Scaling for upper plots (ibid)}
+
 \item{...}{Optional parameters (not to be used directly)}
 }
 \value{
@@ -51,8 +57,21 @@ to overlay the region of interest onto the plot.
 
 To ensure that the wave numbers provided in the legend match, one should provide waves
 as a list of data.frames with the earliest wave at the start of the list.
+
+The parameters \code{which_wave} and \code{upper_scale} control the level of 'zoom' on
+each of the lower-triangular and upper-triangular plots, respectively. For the lower
+plots, \code{which_wave} determines which of the provided waves is to be used to determine
+the output ranges to plot with respect to: generally, higher \code{which_wave} values
+result in a more zoomed-in plot. For the upper plots, \code{upper_scale} determines the
+plot window via a multiple of the target bounds: higher values result in a more zoomed-out
+plot. If not provided, these default to \code{which_wave=0} (or 1 if no wave 0 is given)
+and \code{upper_scale = 1}. If the value provided to \code{which_wave} does not correspond
+to a provided wave (or one explicitly not included in \code{wave_numbers}), it defaults to
+the closest available wave to the value of \code{which_wave}.
 }
 \examples{
  wave_values(GillespieMultiWaveData, sample_emulators$targets, surround = TRUE, p_size = 1)
  wave_values(GillespieMultiWaveData, sample_emulators$targets, c('nS', 'nI'), l_wid = 0.8)
+ wave_values(GillespieMultiWaveData, sample_emulators$targets, l_wid = 0.8,
+  wave_numbers = c(0, 1, 3), which_wave = 2, upper_scale =  1.5)
 }

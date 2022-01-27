@@ -59,6 +59,6 @@ or \code{directory = "Plots/unique-identifier"} in the second event.
  diagnostic_wrap(GillespieMultiWaveData, sample_emulators$targets)
  diagnostic_wrap(GillespieMultiWaveData, sample_emulators$targets,
   input_names = c('aSI', 'aIR'), output_names = c('nI', 'nR'),
-  p_size = 0.8, l_wid = 0.8, wave_numbers = 1:3, surround = TRUE)
+  p_size = 0.8, l_wid = 0.8, wave_numbers = 1:3, zero_in = FALSE, surround = TRUE)
   }
 }

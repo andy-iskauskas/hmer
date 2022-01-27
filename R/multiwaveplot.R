@@ -58,6 +58,17 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5, zero
 #' To ensure that the wave numbers provided in the legend match, one should provide waves
 #' as a list of data.frames with the earliest wave at the start of the list.
 #'
+#' The parameters \code{which_wave} and \code{upper_scale} control the level of 'zoom' on
+#' each of the lower-triangular and upper-triangular plots, respectively. For the lower
+#' plots, \code{which_wave} determines which of the provided waves is to be used to determine
+#' the output ranges to plot with respect to: generally, higher \code{which_wave} values
+#' result in a more zoomed-in plot. For the upper plots, \code{upper_scale} determines the
+#' plot window via a multiple of the target bounds: higher values result in a more zoomed-out
+#' plot. If not provided, these default to \code{which_wave=0} (or 1 if no wave 0 is given)
+#' and \code{upper_scale = 1}. If the value provided to \code{which_wave} does not correspond
+#' to a provided wave (or one explicitly not included in \code{wave_numbers}), it defaults to
+#' the closest available wave to the value of \code{which_wave}.
+#'
 #' @importFrom GGally ggpairs ggally_densityDiag
 #'
 #' @param waves The list of data.frames, one for each set of outputs at that wave.
@@ -69,6 +80,8 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5, zero
 #' @param l_wid The width of the lines that create the target boxes.
 #' @param zero_in Is a wave 0 included in the waves list?
 #' @param wave_numbers Which waves to plot.
+#' @param which_wave Scaling for lower plots (see description)
+#' @param upper_scale Scaling for upper plots (ibid)
 #' @param ... Optional parameters (not to be used directly)
 #'
 #' @return A ggplot object.
@@ -77,7 +90,13 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5, zero
 #' @examples
 #'  wave_values(GillespieMultiWaveData, sample_emulators$targets, surround = TRUE, p_size = 1)
 #'  wave_values(GillespieMultiWaveData, sample_emulators$targets, c('nS', 'nI'), l_wid = 0.8)
-wave_values <- function(waves, targets, output_names = names(targets), surround = FALSE, restrict = FALSE, p_size = 1.5, l_wid = 1.5, zero_in = TRUE, wave_numbers = ifelse(zero_in, 0, 1):(length(waves)-ifelse(zero_in, 1, 0)), ...) {
+#'  wave_values(GillespieMultiWaveData, sample_emulators$targets, l_wid = 0.8,
+#'   wave_numbers = c(0, 1, 3), which_wave = 2, upper_scale =  1.5)
+wave_values <- function(waves, targets, output_names = names(targets), surround = FALSE, restrict = FALSE, p_size = 1.5, l_wid = 1.5, zero_in = TRUE,
+                        wave_numbers = ifelse(zero_in, 0, 1):(length(waves)-ifelse(zero_in, 1, 0)), which_wave = ifelse(zero_in, 0, 1), upper_scale = 1, ...) {
+  if (!which_wave %in% wave_numbers) {
+    which_wave <- wave_numbers[which.min(abs(wave_numbers - which_wave))]
+  }
   for (i in 1:length(targets)) {
     if (!is.atomic(targets[[i]])) targets[[i]] <- c(targets[[i]]$val - 3*targets[[i]]$sigma, targets[[i]]$val + 3*targets[[i]]$sigma)
   }
@@ -89,6 +108,7 @@ wave_values <- function(waves, targets, output_names = names(targets), surround 
   }
   total_data <- do.call('rbind', out_list)
   total_data$wave <- factor(total_data$wave)
+  output_ranges <- purrr::map(output_names, ~range(subset(total_data, wave == which_wave)[,.])) |> setNames(output_names)
   if (restrict) {
     targets_grid <- expand.grid(names(targets), names(targets), stringsAsFactors = FALSE)
     targets_grid <- targets_grid[targets_grid$Var1 != targets_grid$Var2,]
@@ -118,11 +138,14 @@ wave_values <- function(waves, targets, output_names = names(targets), surround 
       scale_colour_manual(values = pal) +
       theme_bw()
     if (surround) g <- g + geom_point(cex = p_size, pch = 1, colour = 'black')
-      g <- g + geom_rect(xmin = targets[[xname]][1], xmax = targets[[xname]][2], ymin = targets[[yname]][1], ymax = targets[[yname]][2], colour = 'red', fill = NA, lwd = l_wid)
+    g <- g + geom_rect(xmin = targets[[xname]][1], xmax = targets[[xname]][2], ymin = targets[[yname]][1], ymax = targets[[yname]][2], colour = 'red', fill = NA, lwd = l_wid)
     if (zoom) {
-      xrange <- (targets[[xname]][2]-targets[[xname]][1])/2
-      yrange <- (targets[[yname]][2]-targets[[yname]][1])/2
+      xrange <- upper_scale*(targets[[xname]][2]-targets[[xname]][1])/2
+      yrange <- upper_scale*(targets[[yname]][2]-targets[[yname]][1])/2
       g <- g + coord_cartesian(xlim = c(targets[[xname]][1] - xrange, targets[[xname]][2] + xrange), ylim = c(targets[[yname]][1] - yrange, targets[[yname]][2] + yrange)) + theme_void()
+    }
+    else {
+      g <- g + coord_cartesian(xlim = output_ranges[[xname]], ylim = output_ranges[[yname]])
     }
     return(g)
   }
@@ -325,7 +348,7 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_
 #'  diagnostic_wrap(GillespieMultiWaveData, sample_emulators$targets)
 #'  diagnostic_wrap(GillespieMultiWaveData, sample_emulators$targets,
 #'   input_names = c('aSI', 'aIR'), output_names = c('nI', 'nR'),
-#'   p_size = 0.8, l_wid = 0.8, wave_numbers = 1:3, surround = TRUE)
+#'   p_size = 0.8, l_wid = 0.8, wave_numbers = 1:3, zero_in = FALSE, surround = TRUE)
 #'   }
 diagnostic_wrap <- function(waves, targets, output_names = names(targets), input_names = names(waves[[1]])[!names(waves[[1]]) %in% names(targets)], directory = NULL, s.heights = rep(1000, 4), s.widths = s.heights, include.norm = TRUE, include.log = TRUE, ...) {
   s.widths[1] <- ceiling(length(output_names)/10)*1000

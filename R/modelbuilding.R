@@ -471,7 +471,10 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
     else {
       variance_em <- emulator_from_data(all_var, i, ranges, quadratic = FALSE, adjusted = FALSE, has.hierarchy = TRUE, ...)[[1]]
     }
-    var_mod <- function(x, n) (variance_em$get_exp(x)^2 + variance_em$get_cov(x))/n * (kurt_ave - 1 + 2/(n-1))
+    var_mod <- function(x, n) {
+      if (n > 1) return(variance_em$get_exp(x)^2 + variance_em$get_cov(x))/n * (kurt_ave - 1 + 2/(n-1))
+      return(0)
+    }
     variance_em$s_diag <- var_mod
     variance_em$samples <- all_n
     variance_em$em_type <- "variance"
