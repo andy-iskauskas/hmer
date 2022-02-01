@@ -80,7 +80,7 @@ Emulator <- R6::R6Class(
         private$beta_u_cov_modifier <- self$beta_sigma %*% t(private$design_matrix) %*% private$data_corrs
       }
     },
-    get_exp = function(x) {
+    get_exp = function(x, include_c = TRUE) {
       x <- x[, names(self$ranges)[names(self$ranges) %in% names(x)]]
       x <- eval_funcs(scale_input, x, self$ranges)
       g <- t(apply(x, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y)))
@@ -104,10 +104,15 @@ Emulator <- R6::R6Class(
             u_part <- u_part + (bu %*% t(private$design_matrix) + sweep(sweep(c_data, 2, apply(self$in_data, 1, self$u_sigma), "*"), 1, apply(x, 1, self$u_sigma), "*")) %*% private$u_exp_modifier
         }
       }
-      if (length(self$beta_mu) == 1) return(c(beta_part + u_part))
-      return(beta_part + u_part)
+      if (length(self$beta_mu) == 1) {
+        if (include_c) return(c(beta_part + u_part))
+        return(c(beta_part))
+      }
+      if (include_c)
+        return(beta_part + u_part)
+      return(beta_part)
     },
-    get_cov = function(x, xp = NULL, full = FALSE) {
+    get_cov = function(x, xp = NULL, full = FALSE, include_c = TRUE) {
       x <- eval_funcs(scale_input, x[, names(self$ranges)[names(self$ranges) %in% names(x)]], self$ranges)
       g_x <- apply(x, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y))
       x <- data.matrix(x)
@@ -191,7 +196,10 @@ Emulator <- R6::R6Class(
         else bupart <- purrr::map_dbl(point_seq, ~t(purrr::map_dbl(self$basis_f, purrr::exec, x[.,])) %*% bupart_xp[,.] + t(bupart_x[,.] %*% purrr::map_dbl(self$basis_f, purrr::exec, xp[.,])))
       }
       ## I don't like this, but there's a lot of rounding error going on
-      result <- round(beta_part + u_part + bupart, 10)
+      if (include_c)
+        result <- round(beta_part + u_part + bupart, 10)
+      else
+        result <- round(beta_part, 10)
       result[result < 0] <- 1e-6
       return(result)
     },
@@ -358,6 +366,7 @@ Emulator <- R6::R6Class(
       return(round(beta_part + u_part + bupart, 10))
     },
     implausibility = function(x, z, cutoff = NULL) {
+      if (is.null(nrow(x))) x <- setNames(data.frame(matrix(x, ncol = 1)), names(self$ranges))
       if (nrow(x) > 1000) {
         k <- ceiling(nrow(x)/1000)
         m <- ceiling(nrow(x)/k)
