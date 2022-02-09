@@ -99,7 +99,7 @@ k_fold_measure <- function(em, target = NULL, k = 1, ...) {
 #'
 #' @examples
 #'  summary_diag(sample_emulators$ems$nR, GillespieValidation)
-summary_diag <- function(emulator, validation, verbose = FALSE) {
+summary_diag <- function(emulator, validation, verbose = interactive()) {
   points <- validation[,names(emulator$ranges)]
   outputs <- validation[,emulator$output_name]
   m <- nrow(validation)

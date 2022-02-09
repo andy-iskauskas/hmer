@@ -9,7 +9,8 @@ effect_strength(
   line_plot = FALSE,
   labels = TRUE,
   quadratic = TRUE,
-  xvar = TRUE
+  xvar = TRUE,
+  grid.plot = FALSE
 )
 }
 \arguments{
@@ -22,6 +23,8 @@ effect_strength(
 \item{quadratic}{Whether or not quadratic effect strength should be calculated.}
 
 \item{xvar}{Should the inputs be used on the x-axis?}
+
+\item{grid.plot}{Should the effect strengths be plotted as a grid?}
 }
 \value{
 A list of data.frames: the first is the linear strength, and the second quadratic.

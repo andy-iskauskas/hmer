@@ -88,6 +88,10 @@ directional_deriv <- function(em, x, v, sd = NULL, ...) {
 directional_proposal <- function(ems, x, targets, accept = 2, hstart = 1e-04, hcutoff = 1e-09, iteration.measure = 'exp', iteration.steps = 100, nv = 500) {
   if (length(x) > length(ems[[1]]$ranges))
     x <- x[,names(ems[[1]]$ranges)]
+  if (any(!names(targets) %in% purrr::map_chr(ems, ~.$output_name))) {
+    warning("Not all targets have a corresponding emulator. Restricting to only emulated outputs.")
+    targets <- targets[names(targets) %in% purrr::map_chr(ems, ~.$output_name)]
+  }
   point_implaus <- purrr::map_dbl(seq_along(ems), ~ems[[.]]$implausibility(x, z = targets[[.]]))
   x_predict <- purrr::map_dbl(ems, ~.$get_exp(x))
   is_bigger <- purrr::map_lgl(seq_along(targets), function(y) {

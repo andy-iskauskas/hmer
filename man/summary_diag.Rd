@@ -4,7 +4,7 @@
 \alias{summary_diag}
 \title{Summary Statistics for Emulators}
 \usage{
-summary_diag(emulator, validation, verbose = FALSE)
+summary_diag(emulator, validation, verbose = interactive())
 }
 \arguments{
 \item{emulator}{The emulator to test}

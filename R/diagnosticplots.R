@@ -233,6 +233,7 @@ validation_pairs <- function(ems, points, targets, ranges, nth = 1, cb = FALSE) 
 #' @param labels Whether or not the legend should be included.
 #' @param quadratic Whether or not quadratic effect strength should be calculated.
 #' @param xvar Should the inputs be used on the x-axis?
+#' @param grid.plot Should the effect strengths be plotted as a grid?
 #'
 #' @return A list of data.frames: the first is the linear strength, and the second quadratic.
 #'
@@ -241,7 +242,7 @@ validation_pairs <- function(ems, points, targets, ranges, nth = 1, cb = FALSE) 
 #' @examples
 #'  effect <- effect_strength(sample_emulators$ems)
 #'  effect_line <- effect_strength(sample_emulators$ems, line_plot = TRUE)
-effect_strength <- function(ems, line_plot = FALSE, labels = TRUE, quadratic = TRUE, xvar = TRUE) {
+effect_strength <- function(ems, line_plot = FALSE, labels = TRUE, quadratic = TRUE, xvar = TRUE, grid.plot = FALSE) {
   get_effect_strength <- function(em, quad = FALSE) {
     es <- c()
     for (i in 1:length(em$ranges)) {
@@ -274,7 +275,21 @@ effect_strength <- function(ems, line_plot = FALSE, labels = TRUE, quadratic = T
   lin.mat$Var1 <- factor(lin.mat$Var1, levels = purrr::map_chr(ems, ~.$output_name))
   lin.mat$Var2 <- factor(lin.mat$Var2, levels = names(ranges))
   Var1 <- Var2 <- value <- NULL
-  if (xvar) {
+  if (grid.plot) {
+    g <- ggplot(data = lin.mat, aes(x = Var2, y = Var1, fill = value)) +
+      geom_tile(colour = 'black') +
+      scale_fill_gradient2(low = 'red', mid = 'white', high = 'blue', midpoint = 0, name = "Strength") +
+      labs(title = "Linear Effect Strength", x = "Parameter", y = "Output")
+    print(g)
+    if (quadratic) {
+      g <- ggplot(data = quad.mat, aes(x = Var2, y = Var1, fill = value)) +
+        geom_tile(colour = 'black') +
+        scale_fill_gradient2(low = 'red', mid = 'white', high = 'blue', midpoint = 0, name = "Strength") +
+        labs(title = "Quadratic Effect Strength", x = "Parameter", y = "Output")
+      print(g)
+    }
+  }
+  else if (xvar) {
     if (line_plot) {
       g <- ggplot(data = lin.mat, aes(x = Var2, y = value, group = Var1, colour = Var1)) +
           geom_line(lwd = 1.2) +

@@ -12,7 +12,7 @@ generate_new_runs(
   cutoff = 3,
   nth = 1,
   plausible_set,
-  verbose = FALSE,
+  verbose = interactive(),
   cluster = FALSE,
   resample = 1,
   seek = 0,

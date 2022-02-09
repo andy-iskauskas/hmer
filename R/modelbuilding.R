@@ -35,7 +35,7 @@ convertRanges <- function(object) {
 #' on the value of \code{add} - if \code{add = FALSE} and there are not enough degrees
 #' of freedom to accommodate all possible terms, a warning will be given.
 #'
-#' @importFrom stats lm step setNames as.formula
+#' @importFrom stats lm step setNames as.formula anova
 #'
 #' @param data A \code{data.frame} containing the input and output values
 #' @param ranges A named list consisting of the input parameter ranges
@@ -78,12 +78,21 @@ get_coefficient_model <- function(data, ranges, output_name, add = FALSE, order 
   if (add) {
     model <- step(lm(formula = lower_form, data = data),
                   scope = list(lower = lower_form, upper = upper_form),
-                  direction = "forward", trace = 0, k = log(nrow(data)))
+                  direction = "both", trace = 0, k = log(nrow(data)))
   }
   else {
     model <- step(lm(formula = upper_form, data = data),
                   scope = list(lower = lower_form, upper = upper_form),
                   direction = "backward", trace = 0, k = log(nrow(data)))
+  }
+  if (order == 2) {
+    mod_coeffs <- summary(model)$coefficients[-1,]
+    mod_anv <- anova(model)
+    tot_sos <- sum(mod_anv$`Sum Sq`)
+    quad_sos <- mod_anv[!row.names(mod_anv) %in% c(names(ranges), "Residuals"), "Sum Sq"]/tot_sos
+    quad_names <- row.names(mod_coeffs)[!row.names(mod_coeffs) %in% names(ranges)]
+    quad_remove <- quad_names[quad_sos < 0.01]
+    model <- lm(data = data, formula = as.formula(paste(output_name, "~", paste0(row.names(mod_coeffs)[!row.names(mod_coeffs) %in% quad_remove], collapse = "+"))))
   }
   return(model)
 }
@@ -175,12 +184,13 @@ likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_
     }
     else
       initial_params <- c(best_initial, if (delta == 0) 1e-10 else delta, use.names = F)
-    best_params <- tryCatch(
-      nmkb(initial_params, func_to_opt, lower = c(purrr::map_dbl(hp_range, ~.[[1]]-1e-6), if(is.null(delta)) 0 else max(0, delta - 1e-6), use.names = F), upper = c(purrr::map_dbl(hp_range, ~.[[2]]+1e-6), if(is.null(delta)) 0.1 else delta + 1e-6, use.names = F), control = list(maximize = TRUE))$par,
-      error = function(e) {
-        return(initial_params)
-      }
-    )
+    best_params <- initial_params
+    # best_params <- tryCatch(
+    #   nmkb(initial_params, func_to_opt, lower = c(purrr::map_dbl(hp_range, ~.[[1]]-1e-6), if(is.null(delta)) 0 else max(0, delta - 1e-6), use.names = F), upper = c(purrr::map_dbl(hp_range, ~.[[2]]+1e-6), if(is.null(delta)) 0.1 else delta + 1e-6, use.names = F), control = list(maximize = TRUE))$par,
+    #   error = function(e) {
+    #     return(initial_params)
+    #   }
+    # )
     best_hp <- best_params[-length(best_params)]
     best_delta <- min(best_params[length(best_params)], 0.05)
   }
@@ -241,6 +251,7 @@ likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_
 #' @param adjusted Are the raw emulators wanted, or Bayes Linear updated ones?
 #' @param discrepancies Any internal or external discrepancies in the model.
 #' @param has.hierarchy For hierarchical emulators, this will be TRUE.
+#' @param verbose Should status updates be printed?
 #'
 #' @return A list of \code{\link{Emulator}} objects.
 #' @export
@@ -289,7 +300,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
                                c_lengths, funcs, deltas, ev,
                                quadratic = TRUE, beta.var = FALSE,
                                adjusted = TRUE, discrepancies = NULL,
-                               has.hierarchy = FALSE) {
+                               has.hierarchy = FALSE, verbose = interactive()) {
   model_beta_mus <- model_u_sigmas <- model_u_corrs <- NULL
   if (missing(ranges)) {
     if (is.null(input_names)) stop("Input ranges or names of inputs must be provided.")
@@ -303,6 +314,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
   data <- setNames(cbind(eval_funcs(scale_input, input_data[,names(ranges)], ranges), input_data[,output_names]), c(names(ranges), output_names))
   if (!"data.frame" %in% class(data)) data <- setNames(data.frame(data), c(names(ranges), output_names))
   if (missing(funcs)) {
+    if (verbose) print("Fitting regression surfaces...")
     if (quadratic) {
       does_add <- (choose(length(input_names)+2, length(input_names)) > nrow(data))
       models <- purrr::map(output_names, ~get_coefficient_model(data, ranges, ., add = does_add))
@@ -346,6 +358,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
     model_u_sigmas <- purrr::map(u, ~.$sigma)
     model_u_corrs <- purrr::map(u, ~.$corr)
   }
+  if (verbose) print("Building correlation structures..")
   if (any(is.null(model_beta_mus) || is.null(model_u_sigmas) || is.null(model_u_corrs))) {
     if (missing(c_lengths)) theta_ranges <- purrr::map(model_basis_funcs, ~list(theta = c(1/3, ifelse(quadratic, 1, 2))))
     else theta_ranges <- c_lengths
@@ -359,6 +372,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
   if (!is.null(discrepancies)) {
     if (class(discrepancies) == "numeric") discrepancies <- purrr::map(discrepancies, ~list(internal = ., external = 0))
   }
+  if (verbose) print("Creating emulators...")
   if (!has.hierarchy) {
     out_ems <- setNames(purrr::map(seq_along(model_us),
                                  ~Emulator$new(basis_f = model_basis_funcs[[.]], beta = model_betas[[.]],
@@ -380,6 +394,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
   }
   for (i in 1:length(out_ems)) out_ems[[i]]$output_name <- output_names[[i]]
   if (adjusted) {
+    if (verbose) print("Performing Bayes linear adjustment...")
     out_ems <- purrr::map(out_ems, ~.$adjust(input_data, .$output_name))
   }
   return(out_ems)

@@ -19,7 +19,8 @@ emulator_from_data(
   beta.var = FALSE,
   adjusted = TRUE,
   discrepancies = NULL,
-  has.hierarchy = FALSE
+  has.hierarchy = FALSE,
+  verbose = interactive()
 )
 }
 \arguments{
@@ -52,6 +53,8 @@ emulator_from_data(
 \item{discrepancies}{Any internal or external discrepancies in the model.}
 
 \item{has.hierarchy}{For hierarchical emulators, this will be TRUE.}
+
+\item{verbose}{Should status updates be printed?}
 }
 \value{
 A list of \code{\link{Emulator}} objects.

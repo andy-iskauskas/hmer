@@ -95,7 +95,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #'  pts_no_importance <- generate_new_runs(sample_emulators$ems, 100, sample_emulators$targets,
 #'   method = c('line'))
 #' }
-generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'importance'), cutoff = 3, nth = 1, plausible_set, verbose = FALSE, cluster = FALSE, resample = 1, seek = 0, ...) {
+generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'importance'), cutoff = 3, nth = 1, plausible_set, verbose = interactive(), cluster = FALSE, resample = 1, seek = 0, ...) {
   ranges <- if ("Emulator" %in% class(ems)) ems$ranges else ems[[1]]$ranges
   if (n_points < 10*length(ranges)) n_points <- 10*length(ranges)
   possible_methods <- c('lhs', 'line', 'importance', 'slice', 'optical')
@@ -128,11 +128,11 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
     }
     else {
       points <- eval_funcs(scale_input, setNames(data.frame(2 * (lhs::randomLHS(n_points * 10, length(ranges))-0.5)), names(ranges)), ranges, FALSE)
-      point_imps <- nth_implausible(ems, points, z)
+      point_imps <- nth_implausible(ems, points, z, max_imp = Inf)
       required_points <- 5*length(ranges)
       if (sum(point_imps <= cutoff) < required_points) {
         cutoff_current <- sort(point_imps)[required_points]
-        if (cutoff_current == 20) {
+        if (cutoff_current >= 20) {
           warning("Parameter space has no points below implausibility 20: terminating early.")
           return(points[point_imps < 0, ])
         }
@@ -146,7 +146,7 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
           }
           if (verbose) print(paste0("Proposing at implausibility I=", round(cutoff_current, 4)))
           points <- generate_new_runs(ems, n_points, z, method = which_methods[!which_methods %in% c('lhs')], cutoff = cutoff_current, nth = nth, plausible_set = plaus_points, verbose = verbose, resample = resample - 1, ...)
-          point_imps <- nth_implausible(ems, points, z)
+          point_imps <- nth_implausible(ems, points, z, max_imp = Inf)
           cutoff_temp <- max(cutoff, sort(point_imps)[required_points])
           if (cutoff_temp == cutoff_current) break
           cutoff_current <- cutoff_temp
@@ -259,7 +259,7 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
 }
 
 # LHS Sampling function
-lhs_gen <- function(ems, n_points, z, cutoff = 3, nth = 1, measure.method = 'V_optimal', n.runs = 100, verbose = TRUE, ...) {
+lhs_gen <- function(ems, n_points, z, cutoff = 3, nth = 1, measure.method = 'V_optimal', n.runs = 100, verbose = interactive(), ...) {
   ranges <- if("Emulator" %in% class(ems)) ems$ranges else ems[[1]]$ranges
   current_trace <- out_points <- NULL
   if (!measure.method %in% c('maximin', 'V_optimal')) {
@@ -295,7 +295,7 @@ lhs_gen <- function(ems, n_points, z, cutoff = 3, nth = 1, measure.method = 'V_o
   return(setNames(data.frame(out_points), names(ranges)))
 }
 
-lhs_gen_cluster <- function(ems, n_points, z, cutoff = 3, nth = 1, previous_ems = NULL, verbose = FALSE, ...) {
+lhs_gen_cluster <- function(ems, n_points, z, cutoff = 3, nth = 1, previous_ems = NULL, verbose = interactive(), ...) {
   if ("Emulator" %in% class(ems)) return(lhs_gen(ems, n_points, z, cutoff, nth))
   ranges <- ems[[1]]$ranges
   which_active <- setNames(data.frame(do.call('rbind', purrr::map(ems, ~.$active_vars))), names(ranges))
@@ -485,7 +485,7 @@ slice_gen <- function(ems, n_points, z, cutoff = 3, nth = 1, x1, ...) {
 }
 
 # Optical depth point generation
-op_depth_gen <- function(ems, n_points, z, n.runs = 100, cutoff = 3, nth = 1, plausible_set, verbose = TRUE, ...) {
+op_depth_gen <- function(ems, n_points, z, n.runs = 100, cutoff = 3, nth = 1, plausible_set, verbose = interactive(), ...) {
   ranges <- if ("Emulator" %in% class(ems)) ems$ranges else ems[[1]]$ranges
   get_depth <- function(p_set, v_name, nbins = 100) {
     output <- c()
