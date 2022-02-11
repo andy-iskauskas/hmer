@@ -62,7 +62,6 @@ Emulator <- R6::R6Class(
         self$out_data <- data[, !names(data) %in% names(self$ranges)]
       }
       if (!is.null(self$in_data)) {
-        temp_in <- eval_funcs(scale_input, self$in_data, self$ranges, FALSE)
         if (is.numeric(self$u_sigma))
           d_corr <- self$u_sigma^2 * apply(self$in_data, 1, function(y) apply(self$in_data, 1, self$corr$get_corr, y, self$active_vars))
         else
@@ -405,7 +404,6 @@ Emulator <- R6::R6Class(
       }
       else {
         G <- apply(this_data_in, 1, function(x) purrr::map_dbl(self$basis_f, purrr::exec, x))
-        temp_in <- eval_funcs(scale_input, this_data_in, self$ranges, FALSE)
         Ot <- apply(this_data_in, 1, function(x) apply(this_data_in, 1, self$corr$get_corr, x, self$active_vars))
         O <- tryCatch(
           chol2inv(chol(Ot)),

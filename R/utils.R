@@ -83,3 +83,45 @@ kurtosis <- function(x, na.rm = FALSE) {
   else if (is.data.frame(x)) sapply(x, kurtosis, na.rm = na.rm)
   else kurtosis(as.vector(x), na.rm = na.rm)
 }
+
+#' Truncation of t-distribution
+#'
+#' Produces moments of a truncated t-distribution
+#'
+#' For stochastic disease models, it can be useful to truncate the available
+#' output of an emulator. For example, if emulating the variance of a stochastic
+#' output it is possible for an emulator to predict a negative value of the variance.
+#' In this circumstance, we instead truncate by assuming a t-distribution over the
+#' predicted expectation and variance and calculating the expectation and variance of
+#' its truncated distribution to positive values.
+#'
+#' This function works for general truncations of data. The default behaviour is a
+#' truncation to non-negative values, using a t-distribution with 6 degrees of freedom
+#' (so that nu = 6, a = 0, b = Inf).
+#'
+#' @param e The original expectation
+#' @param v The original variance
+#' @param mu Should the modified expectation be returned? If FALSE, then variance is given.
+#' @param nu The number of degrees of freedom of the underlying t-distribution
+#' @param a The left truncation point
+#' @param b The right truncation point
+#'
+#' @importFrom stats pt
+#'
+#' @keywords internal
+#' @noRd
+#'
+#' @return Either the new expectation or the new variance.
+get_truncation <- function(e, v, mu = TRUE, nu = 6, a = 0, b = Inf) {
+  eff_v <- (nu-2)*v/nu
+  new_a <- (a-e)/sqrt(eff_v)
+  new_b <- (b-e)/sqrt(eff_v)
+  a0 <- pt(new_b, nu) - pt(new_a, nu)
+  kappa <- gamma((nu+1)/2)/(a0 * gamma(nu/2) * sqrt(nu*pi))
+  tauj <- function(j) (nu-2*j)/nu
+  m1 <- kappa*nu/(nu-1) * (((nu+new_a^2)/nu)^(-(nu-1)/2)-((nu+new_b^2)/nu)^(-(nu-1)/2))
+  if (mu) return (sqrt(eff_v)*m1+e)
+  m2 <- (nu-1)/tauj(1) * ((pt(new_b*sqrt(tauj(1)), nu-2)-pt(new_a*sqrt(tauj(1)), nu-2))/a0)-nu
+  new_v <- m2-m1^2
+  return(eff_v*new_v)
+}

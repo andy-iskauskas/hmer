@@ -44,7 +44,7 @@ HierarchicalEmulator <- R6::R6Class(
         self$out_data <- data[, !names(data) %in% names(self$ranges)]
       }
       if (!is.null(self$in_data)) {
-        temp_in <- eval_funcs(scale_input, self$in_data, self$ranges, FALSE)
+        temp_in <- eval_funcs(scale_input, data.frame(self$in_data), self$ranges, FALSE)
         sample_mod <- purrr::map_dbl(seq_along(1:nrow(temp_in)), ~self$s_diag(temp_in[.,], self$samples[.]))
         if (is.numeric(self$u_sigma))
           d_corr <- self$u_sigma^2 * apply(self$in_data, 1, function(y) apply(self$in_data, 1, self$corr$get_corr, y, self$active_vars)) + diag(sample_mod, nrow = nrow(self$in_data))
@@ -63,9 +63,8 @@ HierarchicalEmulator <- R6::R6Class(
         private$beta_u_cov_modifier <- self$beta_sigma %*% t(private$design_matrix) %*% private$data_corrs
       }
     },
-    get_exp = function(x, samps = NULL) {
-      x <- x[, names(self$ranges)[names(self$ranges) %in% names(x)]]
-      x <- eval_funcs(scale_input, x, self$ranges)
+    get_exp = function(x, samps = NULL, check_neg = TRUE) {
+      if (check_neg) x <- eval_funcs(scale_input, x[, names(self$ranges)[names(self$ranges) %in% names(x)]], self$ranges)
       g <- t(apply(x, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y)))
       x <- data.matrix(x)
       bu <- t(apply(x, 1, self$beta_u_cov))
@@ -87,11 +86,21 @@ HierarchicalEmulator <- R6::R6Class(
             u_part <- u_part + (bu %*% t(private$design_matrix) + sweep(sweep(c_data, 2, apply(self$in_data, 1, self$u_sigma), "*"), 1, apply(x, 1, self$u_sigma), "*")) %*% private$u_exp_modifier
         }
       }
-      if (length(self$beta_mu) == 1) return(c(beta_part + u_part))
-      return(beta_part + u_part)
+      if (length(self$beta_mu) == 1) out_val <- c(beta_part + u_part)
+      else out_val <- beta_part + u_part
+      if (self$em_type == 'variance' && check_neg && any(out_val <= 0)) {
+        vars <- self$get_cov(x, check_neg = FALSE)
+        which_neg <- which(out_val <= 0)
+        relev_vals <- data.frame(m = out_val[which_neg], v = vars[which_neg])
+        replace_vals <- apply(relev_vals, 1, function(x) get_truncation(x[[1]], x[[2]]))
+        for (i in 1:length(replace_vals)) {
+          out_val[which_neg[i]] <- replace_vals[[i]]
+        }
+      }
+      return(out_val)
     },
-    get_cov = function(x, xp = NULL, full = FALSE, samps = NULL) {
-      x <- eval_funcs(scale_input, x[, names(self$ranges)[names(self$ranges) %in% names(x)]], self$ranges)
+    get_cov = function(x, xp = NULL, full = FALSE, samps = NULL, check_neg = TRUE) {
+      if (check_neg) x <- eval_funcs(scale_input, x[, names(self$ranges)[names(self$ranges) %in% names(x)]], self$ranges)
       g_x <- apply(x, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y))
       x <- data.matrix(x)
       bupart_x <- apply(x, 1, self$beta_u_cov)
@@ -103,7 +112,7 @@ HierarchicalEmulator <- R6::R6Class(
         bupart_xp <- bupart_x
       }
       else {
-        xp <- eval_funcs(scale_input, xp[, names(self$ranges)[names(self$ranges) %in% names(xp)]], self$ranges)
+        if (check_neg) xp <- eval_funcs(scale_input, xp[, names(self$ranges)[names(self$ranges %in% names(x))]], self$ranges)
         g_xp <- apply(xp, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y))
         xp <- data.matrix(xp)
         bupart_xp <- apply(xp, 1, self$beta_u_cov)
@@ -174,9 +183,23 @@ HierarchicalEmulator <- R6::R6Class(
         else bupart <- purrr::map_dbl(point_seq, ~t(purrr::map_dbl(self$basis_f, purrr::exec, x[.,])) %*% bupart_xp[,.] + t(bupart_x[,.] %*% purrr::map_dbl(self$basis_f, purrr::exec, xp[.,])))
       }
       ## I don't like this, but there's a lot of rounding error going on
-      result <- round(beta_part + u_part + bupart, 10)
-      result[result < 0] <- 1e-6
-      return(result)
+      out_val <- round(beta_part+u_part+bupart, 10)
+      if (self$em_type == "variance" && check_neg) {
+        exps <- self$get_exp(x, check_neg = FALSE)
+        if (any(exps <= 0)) {
+          if (full) warning("Some values of predicted variance are negative. Proceed with extreme caution.")
+          else {
+            which_neg <- which(exps <= 0)
+            relev_vals <- data.frame(m = exps[which_neg], v = out_val[which_neg])
+            replace_vals <- apply(relev_vals, 1, function(x) get_truncation(x[[1]], x[[2]], FALSE))
+            for (i in 1:length(replace_vals)) {
+              out_val[which_neg[i]] <- replace_vals[[i]]
+            }
+          }
+        }
+      }
+      out_val[out_val < 0] <- 1e-6
+      return(out_val)
     },
     implausibility = function(x, z, cutoff = NULL) {
       if (nrow(x) > 1000) {
@@ -222,7 +245,7 @@ HierarchicalEmulator <- R6::R6Class(
       }
       else {
         G <- apply(this_data_in, 1, function(x) purrr::map_dbl(self$basis_f, purrr::exec, x))
-        temp_in <- eval_funcs(scale_input, this_data_in, self$ranges, FALSE)
+        temp_in <- eval_funcs(scale_input, data.frame(this_data_in), self$ranges, FALSE)
         sample_mod <- purrr::map_dbl(seq_along(1:nrow(temp_in)), ~self$s_diag(temp_in[.,], self$samples[.]))
         Ot <- apply(this_data_in, 1, function(x) apply(this_data_in, 1, self$corr$get_corr, x, self$active_vars)) + diag(sample_mod, nrow = nrow(this_data_in))
         O <- tryCatch(

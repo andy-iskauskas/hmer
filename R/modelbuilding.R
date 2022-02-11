@@ -486,17 +486,26 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
     else {
       variance_em <- emulator_from_data(all_var, i, ranges, quadratic = FALSE, adjusted = FALSE, has.hierarchy = TRUE, ...)[[1]]
     }
+    if (round(variance_em$u_sigma, 10) <= 0) {
+      s_vars <- all_var[is_high_rep, i]
+      s_n <- all_n[is_high_rep]
+      sig_est <- s_vars^2 * (kurt_ave-1+2/(s_n-1))/s_n
+      variance_em$u_sigma <- sqrt(mean(sig_est))
+    }
     var_mod <- function(x, n) {
       if (n > 1) return(variance_em$get_exp(x)^2 + variance_em$get_cov(x))/n * (kurt_ave - 1 + 2/(n-1))
       return(0)
     }
     variance_em$s_diag <- var_mod
-    variance_em$samples <- all_n
     variance_em$em_type <- "variance"
-    if (all(is_high_rep) || !any(is_high_rep) || sum(!is_high_rep) == 1)
+    if (all(is_high_rep) || !any(is_high_rep) || sum(!is_high_rep) == 1) {
+      variance_em$samples <- all_n
       v_em <- variance_em$adjust(all_var, i)
-    else
+    }
+    else {
+      variance_em$samples <- all_n[!is_high_rep]
       v_em <- variance_em$adjust(setNames(collected_df[!is_high_rep, c(input_names, paste0(i, 'var'))], c(input_names, i)), i)
+    }
     variance_emulators <- c(variance_emulators, v_em)
   }
   variance_emulators <- setNames(variance_emulators, output_names)
@@ -561,7 +570,7 @@ bimodal_emulator_from_data <- function(data, output_names, ranges, input_names =
   })
   prop_df <- setNames(data.frame(cbind(unique_points, proportion)), c(names(unique_points), 'prop'))
   print("Training emulator to proportion in modes.")
-  prop_em <- emulator_from_data(prop_df, c('prop'), ranges, ...)
+  prop_em <- emulator_from_data(prop_df, c('prop'), ranges, verbose = FALSE, ...)
   print("Performing clustering to identify modes.")
   has_bimodality <- setNames(data.frame(do.call('rbind', purrr::map(param_sets, function(x) {
     purrr::map_lgl(output_names, function(y) {
@@ -570,9 +579,9 @@ bimodal_emulator_from_data <- function(data, output_names, ranges, input_names =
     })
   }))), output_names)
   is_bimodal_target <- apply(has_bimodality, 2, function(x) sum(x)/length(x) >= 0.1)
-  if (!any(is_bimodal_target)) return(variance_emulator_from_data(data, output_names, ranges, ...))
+  if (!any(is_bimodal_target)) return(variance_emulator_from_data(data, output_names, ranges, verbose = FALSE, ...))
   print("Training to unimodal targets.")
-  non_bimodal <- variance_emulator_from_data(data, output_names[!is_bimodal_target], ranges, ...)
+  non_bimodal <- variance_emulator_from_data(data, output_names[!is_bimodal_target], verbose = FALSE, ranges, ...)
   print("Training to bimodal targets.")
   bimodal <- purrr::map(output_names[is_bimodal_target], function(x) {
     c1_data <- list()
@@ -592,7 +601,7 @@ bimodal_emulator_from_data <- function(data, output_names, ranges, input_names =
     mode1_dat <- do.call('rbind', c1_data)
     mode2_dat <- do.call('rbind', c2_data)
     m1em <- tryCatch(
-      variance_emulator_from_data(mode1_dat, x, ranges, ...),
+      variance_emulator_from_data(mode1_dat, x, ranges, verbose = FALSE, ...),
       error = function(e) {
         print(paste("Problem training mode 1 emulator for target", x))
         print(e)
@@ -600,7 +609,7 @@ bimodal_emulator_from_data <- function(data, output_names, ranges, input_names =
       }
     )
     m2em <- tryCatch(
-      variance_emulator_from_data(mode2_dat, x, ranges, ...),
+      variance_emulator_from_data(mode2_dat, x, ranges, verbose = FALSE, ...),
       error = function(e) {
         print(paste("Problem training mode 2 emulator for target", x))
         print(e)
