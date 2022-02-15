@@ -20,6 +20,7 @@ knitr::opts_chunk$set(
 library(hmer)
 library(lhs)
 library(ggplot2)
+set.seed(1234)
 ```
 
 # One-dimensional Example: Sine Function
@@ -145,7 +146,7 @@ legend('bottomleft', inset = c(0.05, 0.05), legend = c("Function value", "Emulat
        col = c('black', 'blue', 'red'), lty = c(1,1,2))
 ```
 
-Note that some of the newly proposed points (in blue) do not live inside the target bounds - in particular, there are points on the far right that are not near the target. This is a consequence of the way that the emulator proposes points: because the emulator uncertainty is large in that region of the parameter space, it cannot rule out those regions with certainty, and therefore samples from that region. This is in contrast to many optimisation methods, which look for regions that satisfy the conditions: the history matching iteratively removes regions that cannot satisfy the conditions. Because of the built-in understanding of uncertainty, the history matching is guaranteed not to remove parts of parameter space that could result in an adequate match to the targets. The points in the high uncertainty region will be extremely instructive in training a second wave of emulators, which may consequently remove the space.
+Note that some of the newly proposed points (in blue) do not live inside the target bounds - in particular, there are points on the far right that are not near the target. This is a consequence of the way that the emulator proposes points: because the emulator uncertainty is large in that region of the parameter space, it cannot rule out those regions with certainty, and therefore samples from that region. This is in contrast to many optimisation methods, which look for regions that satisfy the conditions: the history matching iteratively removes regions that cannot satisfy the conditions. Because of the built-in understanding of uncertainty, the history matching is highly unlikely to remove parts of parameter space that could eventually result in an adequate match to the targets. The points in the high uncertainty region will be extremely instructive in training a second wave of emulators, which may consequently remove the space.
 
 ## Second Wave
 
@@ -242,14 +243,14 @@ We want to check that the emulators are suitable for proposing new points robust
 These three tests are contained within `validation_diagnostics`, which prints out the corresponding plots for each emulator and returns any points which fail one or more of these checks.
 
 ```{r fig.width = 7, fig.height = 7}
-invalid_points <- validation_diagnostics(ems2d, targets2d, validation_data)
+invalid_points <- validation_diagnostics(ems2d, targets2d, validation_data, plt = TRUE)
 ```
 
-Looking at these plots shows that the emulators are doing fine. Any failing points are flagged as red in the first two columns of the plots, and appear in the data.frame `invalid_points`: should we have such points it is useful to consider why they might be problematic (for example, a point at an edge or a corner of the parameter space can have strange behaviours). At this stage, we can make a variety of changes to the prior specifications in order to combat these issues, by utilising the `set_sigma` and `set_hyperparams` functions of the `Emulator` object. For instance, to inflate the emulator variance for the $f_2$ emulator:
+Looking at these plots shows that the emulators are doing fine. Any failing points are flagged as red in the final two columns of the plots, and appear in the data.frame `invalid_points`: should we have such points it is useful to consider why they might be problematic (for example, a point at an edge or a corner of the parameter space can have strange behaviours). At this stage, we can make a variety of changes to the prior specifications in order to combat these issues, by utilising the `set_sigma` and `set_hyperparams` functions of the `Emulator` object. For instance, to inflate the emulator variance for the $f_2$ emulator:
 
 ```{r fig.width = 7, fig.height = 7}
-inflated_em <- ems2d$f2$mult_sigma(2)
-new_invalid <- validation_diagnostics(list(f1 = ems2d$f1, f2 = inflated_em), targets2d, validation_data)
+inflated_em <- ems2d$f1$mult_sigma(2)
+new_invalid <- validation_diagnostics(list(f1 = inflated_em, f2 = ems2d$f2), targets2d, validation_data, plt = TRUE)
 ```
 
 The `set_sigma` and `set_hyperparams` functions create a new Emulator object, so in general we would replace the old emulator with the new one rather than combining lists (e.g. `ems2d$f2 <- emd2d$f2$set_sigma(...)`). In this case, such tinkering is not required and hence we did not replace the $f_2$ emulator in situ.
@@ -269,7 +270,15 @@ The `emulator_plot` function can produce a number of things: the default is an e
 emulator_plot(ems2d$f1, plot_type = 'sd') + geom_point(data = initial_data, aes(x = x, y = y))
 ```
 
-The above single plot shows that perhaps the emulator is overly uncertain at a small distance from its training points. This could be rectified by more carefully choosing the design so that points lie closer to the boundary, or by inflating the correlation length so that more distant points have a higher correlation with the training points. In any event, an underconfident emulator is not a disasterous outcome: it merely means that the points proposed will be from a larger non-implausible space.
+The structure pf this plot warrants some discussion. In the one-dimensional case, we discussed the fact that the emulator was 'certain' at training points, and less so elsewhere; the uncertainty of the emulator was driven by its distance from a known training point. Here we have the same picture: minima of the emulator uncertainty (coloured here in deep blue) sit directly over training points. As we move away from a training point, the uncertainty increases until at the edges (which represent the maximum distance from training points) it reaches a maximum. The gradient of this change in uncertainty is controlled by the correlation length - a higher correlation length presumes that nearby points are more closely correlated, and in some sense can be equated to the 'smoothness' of our output space. In any event, we may look at the difference between correlation lengths by looking at the two emulator uncertainty plots.
+
+```{r fig.width = 7, fig.height = 7}
+ems2d$f1$corr$hyper_p$theta
+ems2d$f2$corr$hyper_p$theta
+emulator_plot(ems2d$f2, 'sd') + geom_point(data = initial_data, aes(x = x, y = y))
+```
+
+We can see that the emulator with the higher correlation length maintains a lower uncertainty when not at training points.
 
 The final two plots that `emulator_plot` can provide are those of implausibility, and nth-maximum implausibility.
 
@@ -286,10 +295,10 @@ Here $\mathbb{E}[f(x)]$ is the emulator expectation at the point, $\text{Var}[f(
 
 Of course, we want proposed points to be acceptable to matching both $f_1$ and $f_2$. The second plot gives maximum implausibility, which is exactly as it sounds: the largest implausibility across all outputs at a point. We can see that the $f_1$ emulator drives much of the space reduction in the lower-right and upper-left quadrant of the region, while the $f_2$ emulator drives space reduction in the lower-left and (to some extent) upper-right. This maximum implausibility is equivalent to the determination made by the one-dimensional emulator, where in that case the non-implausible region was easy to see graphically.
 
-We can now generate new points for a second wave of emulation.
+We can now generate new points for a second wave of emulation. We again make a slight modification to the normal behaviour of the `generate_new_runs` function. By default it will use a space-filling argument before using those points to draw lines to the boundaries of the non-implausible space - the points on the boundary are included in the proposal. From this augmented set, we perform importance sampling to try to fill out the space. To further ensure that the non-implausible space is filled out, we usually thin the proposed points and re-propose using the boundary search and importance sampling. This 'resampling' step can be repeated as many times as one desires (at a computational cost) and is useful in large-dimensional spaces; here we set `resample = 0` for efficiency's sake.
 
 ```{r fig.width = 7, fig.height = 7}
-new_points2d <- generate_new_runs(ems2d, 40, targets2d)
+new_points2d <- generate_new_runs(ems2d, 40, targets2d, resample = 0)
 new_data2d <- data.frame(x = new_points2d$x, y = new_points2d$y,
                          f1 = apply(new_points2d, 1, func1), f2 = apply(new_points2d, 1, func2))
 plot(new_data2d[,c('x','y')], pch = 16, cex = 0.5, xlim = c(-pi/2, pi/2), ylim = c(-1, 1))
@@ -312,7 +321,7 @@ ems2d_2
 One thing we can see from this is that the emulators' global variances have reduced, as one would expect. We check again on the emulator diagnostics and modify as necessary:
 
 ```{r fig.width = 7, fig.height = 7}
-invalid_points2 <- validation_diagnostics(ems2d_2, targets2d, valid2d)
+invalid_points2 <- validation_diagnostics(ems2d_2, targets2d, valid2d, plt = TRUE)
 ```
 
 We briefly look at the implausibilities for these new emulators:
@@ -324,7 +333,7 @@ emulator_plot(ems2d_2, 'imp', targets = targets2d)
 Finally, we propose points from a combination of these wave and the previous wave.
 
 ```{r fig.width = 7, fig.height = 7}
-new_new_points2d <- generate_new_runs(c(ems2d_2, ems2d), 40, c(targets2d, targets2d))
+new_new_points2d <- generate_new_runs(c(ems2d_2, ems2d), 40, c(targets2d, targets2d), resample = 0)
 plot(data = new_new_points2d, y ~ x, xlim = c(-pi, pi), ylim = c(-1, 1), pch = 16)
 ```
 
@@ -349,7 +358,6 @@ wave_points(all_waves, names(ranges2d))
 wave_values(all_waves, targets2d, l_wid = 0.8)
 ```
 
-*Add some more explanation here???*
 We can see a clear trend, as the colour moves from light to dark, of increased performance.
 
 ### The Structure of a Bayes Linear Emulator

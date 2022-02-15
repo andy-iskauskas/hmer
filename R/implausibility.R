@@ -33,13 +33,23 @@ sequential_imp <- function(ems, x, z, n = 1, cutoff = 3) {
 #' returned without evaluating any more. Due to R efficiencies, this is more efficient
 #' than the 'evaluate all' method once more than around 10 emulators are considered.
 #'
-#' @param ems A set of \code{\link{Emulator}} objects.
+#' This function also deals with variance emulators and bimodal emulators, working in a nested
+#' fashion. If targets are provided for both the expectation and variance as a list, then
+#' given \code{ems = list(expectation = ..., variance = ...)} the implausibility is calculated
+#' with respect to both sets of emulators, maximising as relevant. If targets are provided in
+#' the 'normal' fashion, then only the mean emulators are used. The bimodal case is similar;
+#' given a set of emulators \code{list(mode1 = list(expectation = ..., variance = ...), ...)}
+#' then each mode has implausibility evaluated separately. The results from the two modes are
+#' combined via piecewise minimisation.
+#'
+#' @param ems A set of \code{\link{Emulator}} objects or nested sets thereof (see description)
 #' @param x An input point, or \code{data.frame} of points.
-#' @param z The target values.
+#' @param z The target values, in the usual form or nested thereof.
 #' @param n The implausibility level to return.
 #' @param max_imp A maximum implausibility to return (often used with plotting)
 #' @param cutoff A numeric value, or vector of such, representing allowed implausibility
 #' @param sequential Should the emulators be evaluated sequentially?
+#' @param get_raw Boolean - determines whether nth-implausibility should be applied.
 #'
 #' @return Either the nth maximum implausibilities, or booleans (if cutoff is given).
 #' @export
@@ -63,36 +73,88 @@ sequential_imp <- function(ems, x, z, n = 1, cutoff = 3) {
 #' # Vector of booleans (note different output to i2)
 #' i4 <- nth_implausible(sample_emulators$ems, grid, sample_emulators$targets,
 #'  cutoff = c(4, 2.5, 1))
-nth_implausible <- function(ems, x, z, n = 1, max_imp = 20, cutoff = NULL, sequential = FALSE) {
-  if ("Emulator" %in% class(ems)) {
-    if (!ems$output_name %in% names(z)) stop("Target not found corresponding to named emulator.")
-    else return(ems$implausibility(x, z[[ems$output_name]], cutoff))
-  }
-  for (i in 1:length(z)) {
-    if (length(z[[i]]) == 1) {
-      warning(paste("Target", names(z)[i], "is a single value. Assuming it's a value with sigma = 0.01."))
-      z[[i]] <- list(val = z[[i]], sigma = 0.01)
+#'
+#' # Variance Emulators
+#' v_ems <- variance_emulator_from_data(BirthDeath$training, c('Y'),
+#'  list(lambda = c(0, 0.08), mu = c(0.04, 0.13)))
+#' v_targs = list(expectation = list(Y = c(90, 110)), variance = list(Y = c(55, 95)))
+#' nth_implausible(v_ems, unique(BirthDeath$validation[,1:2]), v_targs)
+#' ## If there is a mismatch between emulators and targets, expectation is assumed
+#' nth_implausible(v_ems$expectation, unique(BirthDeath$validation[,1:2]), v_targs)
+#' nth_implausible(v_ems, unique(BirthDeath$validation[,1:2]), v_targs$expectation)
+#'
+nth_implausible <- function(ems, x, z, n = 1, max_imp = 20, cutoff = NULL, sequential = FALSE, get_raw = FALSE) {
+  ## Preprocessing for variance emulation
+  if (!is.null(ems$expectation) && !is.null(ems$variance)) {
+    if (!is.null(z$expectation) && !is.null(z$variance)) {
+      imps_list <- list(expectation = nth_implausible(ems$expectation, x, z$expectation, n, max_imp, cutoff, FALSE, TRUE),
+                        variance = nth_implausible(ems$variance, x, z$variance, n, max_imp, cutoff, FALSE, TRUE))
+      imp_mat <- data.frame(cbind(imps_list$expectation, imps_list$variance))
+      if (get_raw) {
+        return(setNames(imp_mat, c(paste0(purrr::map_chr(ems$expectation, ~.$output_name), "Exp"), paste0(purrr::map_chr(ems$variance, ~.$output_name), "Var"))))
+      }
+    }
+    else {
+      return(nth_implausible(ems$expectation, x, z, n, max_imp, cutoff, sequential, get_raw))
     }
   }
-  if (n > length(unique(purrr::map_chr(ems, ~.$output_name)))) {
-    warning("n cannot be greater than the number of targets to match to. Switching to minimum implausibility.")
-    n <- length(unique(purrr::map_chr(ems, ~.$output_name)))
+  else if (!is.null(z$expectation) && !is.null(z$variance)) {
+    return(nth_implausible(ems, x, z$expectation, n, max_imp, cutoff, sequential, get_raw))
   }
-  if (length(cutoff) == 1) cutoff <- rep(cutoff, length(ems))
-  if (!is.null(cutoff) && (length(ems) > 10 || sequential))
-    return(sequential_imp(ems, x, z, n, cutoff[1]))
-  implausibles <- do.call('cbind', purrr::map(seq_along(ems), ~ems[[.]]$implausibility(x, z[[ems[[.]]$output_name]], cutoff[[.]])))
-  d_implausibles <- setNames(data.frame(implausibles), purrr::map_chr(ems, ~.$output_name))
+  else if (!is.null(ems$mode1) && !is.null(ems$mode2)) {
+    imps1 <- nth_implausible(ems$mode1, x, z, n, max_imp, cutoff, FALSE, TRUE)
+    imps2 <- nth_implausible(ems$mode2, x, z, n, max_imp, cutoff, FALSE, TRUE)
+    get_min_concrete <- function(v1, v2) {
+      if (all(is.numeric(v1))) {
+        output <- purrr::map_dbl(seq_along(v1), function(i) {
+          if (is.nan(v1[i]) && is.nan(v2[i])) return(0)
+          if (is.nan(v1[i])) return(v2[i])
+          if (is.nan(v2[i])) return(v1[i])
+          return(min(v1[i], v2[i]))
+        })
+      }
+      if (all(is.logical(v1))) {
+        output <- v1 | v2
+      }
+      return(output)
+    }
+    imp_mat <- as.data.frame(Map(get_min_concrete, imps1, imps2))
+    if (get_raw) return(imp_mat)
+  }
+  else {
+    for (i in 1:length(z)) {
+      if (length(z[[i]]) == 1) {
+        warning(paste("Target", names(z)[i], "is a single value. Assuming it's a val with sigma = 5%."))
+        z[[i]] <- list(val = z[[i]], sigma = 0.05*z[[i]])
+      }
+    }
+    if ("Emulator" %in% class(ems)) {
+      if (!ems$output_name %in% names(z)) stop("Target not found corresponding to named emulator.")
+      else return(ems$implausibility(x, z[[ems$output_name]], cutoff))
+    }
+    if (n > length(unique(purrr::map_chr(ems, ~.$output_name)))) {
+      warning("n cannot be greater than the number of targets to match to. Switching to minimum implausibility.")
+      n <- length(unique(purrr::map_chr(ems, ~.$output_name)))
+    }
+    if (length(cutoff) == 1) cutoff <- rep(cutoff, length(ems))
+    if (!is.null(cutoff) && (length(ems) > 10 || sequential)) {
+      return(sequential_imp(ems, x, z, n, cutoff[1]))
+    }
+    implausibles <- do.call('cbind', purrr::map(seq_along(ems), ~ems[[.]]$implausibility(x, z[[ems[[.]]$output_name]], cutoff[[.]])))
+    d_implausibles <- setNames(data.frame(implausibles), purrr::map_chr(ems, ~.$output_name))
+    if (!is.null(cutoff))
+      imp_mat <- t(apply(d_implausibles, 1, function(x) purrr::map_lgl(unique(names(x)), ~all(x[names(x) == .]))))
+    else
+      imp_mat <- t(apply(d_implausibles, 1, function(x) purrr::map_dbl(unique(names(x)), ~max(x[names(x) == .]))))
+  }
+  if (length(ems) == 1 || (!is.null(ems$expectation) && length(ems$expectation) == 1)) return(t(imp_mat))
+  if (nrow(imp_mat) == 1 && nrow(x) != 1) imp_mat <- t(imp_mat)
+  if (get_raw) return(setNames(data.frame(imp_mat), unique(purrr::map_chr(ems, ~.$output_name))))
   if (!is.null(cutoff)) {
-    implausibles <- t(apply(d_implausibles, 1, function(x) purrr::map_lgl(unique(names(x)), ~all(x[names(x) == .]))))
-    if (length(ems) == 1) return(t(implausibles))
-    return(apply(implausibles, 1, function(x) sum(x) > length(unique(purrr::map_chr(ems, ~.$output_name)))-n))
+    return(apply(imp_mat, 1, function(x) sum(x) > length(x)-n))
   }
-  if (length(ems) == 1) return(t(implausibles))
-  implausibles <- t(apply(d_implausibles, 1, function(x) purrr::map_dbl(unique(names(x)), ~max(x[names(x) == .]))))
-  if (nrow(implausibles) == 1 && nrow(x) != 1) implausibles <- t(implausibles)
-  if (n == 1) imps <- apply(implausibles, 1, max)
-  else imps <- apply(implausibles, 1, function(x) -sort(-x, partial = 1:n)[n])
+  if (n == 1) imps <- apply(imp_mat, 1, max)
+  else imps <- apply(imp_mat, 1, function(x) -sort(-x, partial = 1:n)[n])
   return(purrr::map_dbl(imps, ~min(., max_imp)))
 }
 

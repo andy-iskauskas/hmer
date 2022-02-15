@@ -11,15 +11,16 @@ nth_implausible(
   n = 1,
   max_imp = 20,
   cutoff = NULL,
-  sequential = FALSE
+  sequential = FALSE,
+  get_raw = FALSE
 )
 }
 \arguments{
-\item{ems}{A set of \code{\link{Emulator}} objects.}
+\item{ems}{A set of \code{\link{Emulator}} objects or nested sets thereof (see description)}
 
 \item{x}{An input point, or \code{data.frame} of points.}
 
-\item{z}{The target values.}
+\item{z}{The target values, in the usual form or nested thereof.}
 
 \item{n}{The implausibility level to return.}
 
@@ -28,6 +29,8 @@ nth_implausible(
 \item{cutoff}{A numeric value, or vector of such, representing allowed implausibility}
 
 \item{sequential}{Should the emulators be evaluated sequentially?}
+
+\item{get_raw}{Boolean - determines whether nth-implausibility should be applied.}
 }
 \value{
 Either the nth maximum implausibilities, or booleans (if cutoff is given).
@@ -45,6 +48,15 @@ emulators' implausibility will be evaluated one emulator at a time. If a point
 is judged non-implausible by more than \code{n} emulators, \code{FALSE} is
 returned without evaluating any more. Due to R efficiencies, this is more efficient
 than the 'evaluate all' method once more than around 10 emulators are considered.
+
+This function also deals with variance emulators and bimodal emulators, working in a nested
+fashion. If targets are provided for both the expectation and variance as a list, then
+given \code{ems = list(expectation = ..., variance = ...)} the implausibility is calculated
+with respect to both sets of emulators, maximising as relevant. If targets are provided in
+the 'normal' fashion, then only the mean emulators are used. The bimodal case is similar;
+given a set of emulators \code{list(mode1 = list(expectation = ..., variance = ...), ...)}
+then each mode has implausibility evaluated separately. The results from the two modes are
+combined via piecewise minimisation.
 }
 \examples{
 # A single point
@@ -65,4 +77,14 @@ i3 <- nth_implausible(sample_emulators$ems, grid, sample_emulators$targets, n = 
 # Vector of booleans (note different output to i2)
 i4 <- nth_implausible(sample_emulators$ems, grid, sample_emulators$targets,
  cutoff = c(4, 2.5, 1))
+
+# Variance Emulators
+v_ems <- variance_emulator_from_data(BirthDeath$training, c('Y'),
+ list(lambda = c(0, 0.08), mu = c(0.04, 0.13)))
+v_targs = list(expectation = list(Y = c(90, 110)), variance = list(Y = c(55, 95)))
+nth_implausible(v_ems, unique(BirthDeath$validation[,1:2]), v_targs)
+## If there is a mismatch between emulators and targets, expectation is assumed
+nth_implausible(v_ems$expectation, unique(BirthDeath$validation[,1:2]), v_targs)
+nth_implausible(v_ems, unique(BirthDeath$validation[,1:2]), v_targs$expectation)
+
 }

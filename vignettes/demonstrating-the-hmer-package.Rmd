@@ -18,6 +18,7 @@ knitr::opts_chunk$set(
 
 ```{r setup}
 library(hmer)
+library(ggplot2)
 set.seed(123)
 ```
 
@@ -67,7 +68,7 @@ targets <- list(
 ```
 
 ```{r fig.width = 7, fig.height = 7}
-invalid_points <- validation_diagnostics(wave1_emulators, targets, GillespieValidation)
+invalid_points <- validation_diagnostics(wave1_emulators, targets, GillespieValidation, plt = TRUE)
 ```
 
 ## Visualising Emulator Behaviour
@@ -105,10 +106,10 @@ plot_lattice(wave1_emulators, targets)
 In preparation for proposing new points, we can also look at the optimal 'cutoff', if we wish to remove a certain amount of parameter space, using the `space_removed` function.
 
 ```{r fig.width = 7, fig.height = 7}
-space_removed(wave1_emulators, targets, ppd = 10) + ggplot2::geom_vline(xintercept = 3)
+space_removed(wave1_emulators, targets, ppd = 10) + geom_vline(xintercept = 3)
 ```
 
-We see, for instance, that choosing a cutoff of 3 (roughly corresponding to a 3-sigma deviation from the target value) is sufficient to rule out over 60% of the space, and that increasing or decreasing observational uncertainly will not greatly change this outcome.
+We see, for instance, that choosing a cutoff of 3 (roughly corresponding to a 3-sigma deviation from the target value) is sufficient to rule out over 80% of the space, and that increasing or decreasing observational uncertainly will not greatly change this outcome.
 
 Eventually, the aim of history matching is to propose new points which can enter into the model, the results of which can train new emulators, repeating the cycle. The `generate_new_runs` function does just that. There are multiple options that can be passed to this function: the default behaviour should be adequate for most situations, with the consideration of the cutoff value mentioned above. Information about the progress of the point proposal can be obtained by setting the argument `verbose = TRUE`.
 

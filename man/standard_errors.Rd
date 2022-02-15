@@ -2,47 +2,34 @@
 % Please edit documentation in R/diagnostics.R
 \name{standard_errors}
 \alias{standard_errors}
-\title{Emulator Standardised Errors}
+\title{Standardized Error Diagnostics}
 \usage{
-standard_errors(emulator, targets = NULL, validation = NULL, plt = TRUE, ...)
+standard_errors(
+  emulator,
+  targets = NULL,
+  validation = NULL,
+  plt = interactive()
+)
 }
 \arguments{
-\item{emulator}{An \code{\link{Emulator}} object.}
+\item{emulator}{The emulator in question}
 
-\item{targets}{The output targets (to check the relevance of failed points).}
+\item{targets}{The output targets}
 
-\item{validation}{The validation data.frame, with all inputs and outputs.}
+\item{validation}{The validation set}
 
-\item{plt}{Should the histogram be produced?}
-
-\item{...}{Dummy parameters for compatibility with the diagnostic wrapper}
+\item{plt}{Whether to plot or not}
 }
 \value{
-A data.frame of points that fail the diagnostic.
+A data.frame of failed points
 }
 \description{
-Finds and plots emulator standardised errors.
+Shorthand function for diagnostic test 'se'.
 }
 \details{
-For an emulator of a simulator function \code{f(x)} and a validation set \code{X}, this
-finds the standardised errors in the form \code{(f(x)-E[f(x)])/sqrt(Var[f(x)])}, where
-\code{E[f(x)]} is the emulator expectation, and \code{Var[f(x)]} the emulator uncertainty,
-at each point \code{x} in \code{X}.
-
-If \code{plt = TRUE}, then the histogram of standardised errors is provided. Regardless,
-the set of points that fail this diagnostic are returned as a data.frame. If the output
-target is provided as a (val, sigma) pair, then the 'failing' points are checked for
-relevance: if they are a long way from the target region, then they are discounted.
-
-If a validation dataset is not provided, then cross-validation is performed using the
-training set. By default, leave-one-out cross-validation is used; the parameter \code{k}
-can be provided as an optional argument to this function to perform k-fold cross validation
-(where k must be a multiple of the dataset size).
+For details of the function, see \code{\link{get_diagnostic}} and for the plot
+see \code{\link{analyze_diagnostic}}.
 }
-\examples{
-standard_errors(sample_emulators$ems$nS, sample_emulators$targets, GillespieValidation)
-## An empty data.frame.
-standard_errors(sample_emulators$ems$nS, sample_emulators$targets)
-# leave-one-out cross-validation
-
+\seealso{
+\code{get_diagnostic}, \code{analyze_diagnostic}, \code{validation_diagnostic}
 }

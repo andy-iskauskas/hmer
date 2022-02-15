@@ -1,4 +1,6 @@
 Changelog (Release Branch)
+15/02/2022 - v0.9.9. Major changes to diagnostics and implausibility to account for bimodal emulation. Modified vignette files.
+
 09/02/2022 - v0.9.8. Fixes and improvements to model selection; new plotting options and small fixes.
 
 25/01/2022 - v0.9.7. Introducing bimodal emulation; fixes to a number of functions and reduction in package dependencies in the package overall.

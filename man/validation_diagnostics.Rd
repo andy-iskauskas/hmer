@@ -9,6 +9,8 @@ validation_diagnostics(
   targets = NULL,
   validation = NULL,
   which_diag = c("se", "cd", "ce"),
+  analyze = TRUE,
+  diagnose = "expectation",
   ...
 )
 }
@@ -20,6 +22,10 @@ validation_diagnostics(
 \item{validation}{The validation set, containing all inputs and outputs.}
 
 \item{which_diag}{Which diagnostics should be performed (see description)}
+
+\item{analyze}{Should plotting and/or failing points be returned?}
+
+\item{diagnose}{For bimodal systems, should the expectation or variance be considered?}
 
 \item{...}{Any additional parameters to pass to the diagnostics (eg sd, cutoff, ...)}
 }
@@ -43,13 +49,10 @@ The current options for diagnostics (with the codes for \code{which_diag}) are:
 
   Classification Errors (ce)
 
-  Regression Residuals (re)
-
   All of the above (all)
 
-For details of each of the tests, see the help files for \code{\link{standard_errors}},
-\code{\link{comparison_diag}}, \code{\link{classification_diag}} and
-\code{\link{residual_diag}} respectively.
+For details of each of the tests, see the help file for
+\code{\link{get_diagnostic}}.
 }
 \examples{
 validation_diagnostics(sample_emulators$ems, sample_emulators$targets, GillespieValidation)

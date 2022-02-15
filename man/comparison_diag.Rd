@@ -2,56 +2,31 @@
 % Please edit documentation in R/diagnostics.R
 \name{comparison_diag}
 \alias{comparison_diag}
-\title{Emulator Comparison Diagnostic}
+\title{Comparison Diagnostics}
 \usage{
-comparison_diag(
-  emulator,
-  targets = NULL,
-  validation = NULL,
-  sd = 3,
-  plt = T,
-  ...
-)
+comparison_diag(emulator, targets, validation, sd = 3, plt = interactive())
 }
 \arguments{
-\item{emulator}{An \code{\link{Emulator}} object.}
+\item{emulator}{The emulator in question}
 
-\item{targets}{The output targets (to check the relevance of failed points).}
+\item{targets}{The output targets}
 
-\item{validation}{The validation data.frame containing all inputs and outputs.}
+\item{validation}{The validation set}
 
-\item{sd}{The number of allowed standard deviations (default 3).}
+\item{sd}{The range of uncertainty allowed}
 
-\item{plt}{Should the plot be produced?}
-
-\item{...}{Dummy parameters for compatibility with the diagnostic wrapper.}
+\item{plt}{Whether to plot or not}
 }
 \value{
-A data.frame of points that fail the diagnostic.
+A data.frame of failed points
 }
 \description{
-Produces a comparison diagnostic of emulator and simulator prediction.
+Shorthand function for diagnostic test 'cd'.
 }
 \details{
-The emulator output \code{E[f(x)]} is plotted against the simulator output \code{f(x)},
-for points in a validation set. Error bars are determined by the emulator standard
-deviation \code{sqrt(Var[f(x)])}. Points whose emulator expectation bound does not
-contain the actual simulator output are deemed to fail this diagnostic.
-
-If \code{plt = TRUE}, then the equivalent plot is provided. As with
-\code{\link{standard_errors}}, if a target is provided to the diagnostic, then points
-whose emulator bound does not encompass the simulator result but lie far from the
-desired output are discounted.
-
-If a validation dataset is not provided, then cross-validation is performed using the
-training set. By default, leave-one-out cross-validation is used; the parameter \code{k}
-can be provided as an optional argument to this function to perform k-fold cross validation
-(where k must be a multiple of the dataset size).
+For details of the function, see \code{\link{get_diagnostic}} and for the plot
+see \code{\link{analyze_diagnostic}}.
 }
-\examples{
-comparison_diag(sample_emulators$ems$nS, sample_emulators$targets, GillespieValidation)
-## An empty data.frame.
-comparison_diag(sample_emulators$ems$nS, sample_emulators$targets, GillespieValidation,
- sd = 0.5)
-## A data.frame containing one point.
+\seealso{
+\code{get_diagnostic}, \code{analyze_diagnostic}, \code{validation_diagnostic}
 }

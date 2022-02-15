@@ -92,7 +92,9 @@ get_coefficient_model <- function(data, ranges, output_name, add = FALSE, order 
     quad_sos <- mod_anv[!row.names(mod_anv) %in% c(names(ranges), "Residuals"), "Sum Sq"]/tot_sos
     quad_names <- row.names(mod_coeffs)[!row.names(mod_coeffs) %in% names(ranges)]
     quad_remove <- quad_names[quad_sos < 0.01]
-    model <- lm(data = data, formula = as.formula(paste(output_name, "~", paste0(row.names(mod_coeffs)[!row.names(mod_coeffs) %in% quad_remove], collapse = "+"))))
+    final_terms <- row.names(mod_coeffs)[!row.names(mod_coeffs) %in% quad_remove]
+    if (length(final_terms) == 0) final_terms = c("1")
+    model <- lm(data = data, formula = as.formula(paste(output_name, "~", paste0(final_terms, collapse = "+"))))
   }
   return(model)
 }
@@ -498,7 +500,8 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
     }
     variance_em$s_diag <- var_mod
     variance_em$em_type <- "variance"
-    if (all(is_high_rep) || !any(is_high_rep) || sum(!is_high_rep) == 1) {
+    ## Modified this temporarily to see what's going on
+    if (all(is_high_rep) || !any(is_high_rep) || any(is_high_rep) || sum(!is_high_rep) == 1) {
       variance_em$samples <- all_n
       v_em <- variance_em$adjust(all_var, i)
     }

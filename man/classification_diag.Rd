@@ -2,49 +2,37 @@
 % Please edit documentation in R/diagnostics.R
 \name{classification_diag}
 \alias{classification_diag}
-\title{Classification Diagnostic}
+\title{Classification Diagnostics}
 \usage{
 classification_diag(
   emulator,
   targets,
-  validation = NULL,
+  validation,
   cutoff = 3,
-  plt = T,
-  ...
+  plt = interactive()
 )
 }
 \arguments{
-\item{emulator}{An \code{\link{Emulator}} object.}
+\item{emulator}{The emulator in question}
 
-\item{targets}{The targets to compare suitability against.}
+\item{targets}{The output targets}
 
-\item{validation}{The validation data.frame containing all inputs and outputs.}
+\item{validation}{The validation set}
 
-\item{cutoff}{The cutoff for the implausibility measures.}
+\item{cutoff}{The implausibility cutoff}
 
-\item{plt}{Should the plot be produced?}
-
-\item{...}{Dummy parameters for compatibility with the diagnostic wrapper.}
+\item{plt}{Whether to plot or not}
 }
 \value{
-A data.frame of points that fail the diagnostic check.
+A data.frame of failed points
 }
 \description{
-Checks for emulator misclassifications.
+Shorthand function for diagnostic test 'ce'.
 }
 \details{
-Both the emulator implausibility and the simulator implausibility can be computed
-and compared. Points for which the emulator implausibility is outside the desired cutoff
-but for which the simulator implausibility is not are misclassified points.
-
-If \code{plt = TRUE}, then the emulator and simulator implausibilities are plotted
-against one another. Misclassified points (i.e. those in the bottom right 'quadrant')
-are highlighted in red.
+For details of the function, see \code{\link{get_diagnostic}} and for the plot
+see \code{\link{analyze_diagnostic}}.
 }
-\examples{
-classification_diag(sample_emulators$ems$nS, sample_emulators$targets, GillespieValidation)
-## An empty data.frame.
-classification_diag(sample_emulators$ems$nS, sample_emulators$targets, GillespieValidation,
- cutoff = 1)
-## An empty data.frame.
+\seealso{
+\code{get_diagnostic}, \code{analyze_diagnostic}, \code{validation_diagnostic}
 }
