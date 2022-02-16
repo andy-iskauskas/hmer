@@ -412,7 +412,7 @@ analyze_diagnostic <- function(in_data, output_name, targets = NULL, plt = inter
 #'  cutoff = 2, sd = 2)
 #' # k-fold (with k = 3)
 #' validation_diagnostics(sample_emulators$ems, sample_emulators$targets, k = 3)
-validation_diagnostics <- function(emulators, targets = NULL, validation = NULL, which_diag = c('se', 'cd', 'ce'), analyze = TRUE, diagnose = "expectation", ...) {
+validation_diagnostics <- function(emulators, targets = NULL, validation = NULL, which_diag = c('cd', 'ce', 'se'), analyze = TRUE, diagnose = "expectation", ...) {
   if ("Emulator" %in% class(emulators))
     emulators <- setNames(list(emulators), emulators$output_name)
   if (length(which_diag) == 1 && which_diag == 'all') actual_diag <- c('cd', 'ce', 'se')

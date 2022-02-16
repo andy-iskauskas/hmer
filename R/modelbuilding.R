@@ -455,7 +455,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
     }
     vofv <- vars^2 * (kurts - 1 + 2/(n_points-1))/n_points
     kurt_relevant <- purrr::map_dbl(seq_along(kurts), function(x) {
-        if(!is.nan(kurts[x]) && (vofv/vars)[x] <= 1) kurts[x] else NA
+        if(!is.nan(kurts[x]) && (vofv/vars^2)[x] <= 1) kurts[x] else NA
       })
     return(c(x[1, input_names], means, vars, kurt_relevant, n_points, use.names = FALSE))
   }))
@@ -501,7 +501,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
     variance_em$s_diag <- var_mod
     variance_em$em_type <- "variance"
     ## Modified this temporarily to see what's going on
-    if (all(is_high_rep) || !any(is_high_rep) || any(is_high_rep) || sum(!is_high_rep) == 1) {
+    if (all(is_high_rep) || !any(is_high_rep) || sum(!is_high_rep) == 1) {
       variance_em$samples <- all_n
       v_em <- variance_em$adjust(all_var, i)
     }
@@ -583,8 +583,14 @@ bimodal_emulator_from_data <- function(data, output_names, ranges, input_names =
   }))), output_names)
   is_bimodal_target <- apply(has_bimodality, 2, function(x) sum(x)/length(x) >= 0.1)
   if (!any(is_bimodal_target)) return(variance_emulator_from_data(data, output_names, ranges, verbose = FALSE, ...))
-  print("Training to unimodal targets.")
-  non_bimodal <- variance_emulator_from_data(data, output_names[!is_bimodal_target], verbose = FALSE, ranges, ...)
+  if (!all(is_bimodal_target)) {
+    print("Training to unimodal targets.")
+    non_bimodal <- variance_emulator_from_data(data, output_names[!is_bimodal_target], verbose = FALSE, ranges, ...)
+  }
+  else {
+    print("No targets appear to be unimodal.")
+    non_bimodal <- NULL
+  }
   print("Training to bimodal targets.")
   bimodal <- purrr::map(output_names[is_bimodal_target], function(x) {
     c1_data <- list()
