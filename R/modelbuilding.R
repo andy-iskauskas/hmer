@@ -125,7 +125,7 @@ get_coefficient_model <- function(data, ranges, output_name, add = FALSE, order 
 #' @noRd
 #'
 #' @return A list of hyperparameter values
-likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_range, beta = NULL, delta = NULL) {
+likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_range, beta = NULL, delta = NULL, nsteps = 30) {
   if (!"data.frame" %in% class(inputs)) inputs <- data.frame(inputs)
   H <- t(eval_funcs(h, inputs))
   if (!is.null(beta) && length(beta) != length(h)) stop("Number of coefficients does not match number of regression functions.")
@@ -144,6 +144,7 @@ likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_
     delta <- params[length(hp_range)+1]
     if (is.na(delta)) delta <- 0
     A <- corr_mat(inputs, hp, delta)
+    if (suppressWarnings(is.nan(log(det(A)))) && !return_stats) return(-Inf)
     A_inv <- tryCatch(
       chol2inv(chol(A)),
       error = function(e) MASS::ginv(A)
@@ -170,7 +171,7 @@ likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_
     best_params <- c(best_hp, best_delta)
   }
   else {
-    grid_search <- expand.grid(purrr::map(hp_range, ~seq(.[[1]], .[[2]], length.out = 20)))
+    grid_search <- expand.grid(purrr::map(hp_range, ~seq(.[[1]], .[[2]], length.out = nsteps)))
     grid_liks <- apply(grid_search, 1, function(x) {
       if (is.null(delta)) return(func_to_opt(c(x, 0)))
       else return(func_to_opt(c(x, delta)))

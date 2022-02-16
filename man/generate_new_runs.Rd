@@ -99,10 +99,10 @@ These methods may not work if the target space is very small comparative to the 
 not-yet-ruled-out space, or it may miss small disconnected regions of parameter space.
 }
 \examples{
-# A simple example that runs quickly with some passed parameters to subroutines
-pts <- generate_new_runs(sample_emulators$ems, 20, sample_emulators$targets,
- measure.method = 'maximin', distro = 'sphere', resample = 0)
 \donttest{
+ # A simple example that uses a number of the native and ... parameter options
+ pts <- generate_new_runs(sample_emulators$ems, 20, sample_emulators$targets,
+ measure.method = 'maximin', distro = 'sphere', resample = 0)
  pts_optical <- generate_new_runs(sample_emulators$ems, 100, sample_emulators$targets,
   method = c('optical'), plausible_set = pts)
  pts_slice <- generate_new_runs(sample_emulators$ems, 100, sample_emulators$targets,

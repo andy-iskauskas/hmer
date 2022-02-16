@@ -110,11 +110,12 @@ imp_plot <- function(em, z, plotgrid = NULL, ppd = 30, cb = FALSE, nth = NULL) {
     else if (nth == 2) ns <- "Second"
     else if (nth == 3) ns <- "Third"
     else ns <- paste0(nth, "th")
-    ranges <- em[[1]]$ranges
+    if (!is.null(em$expectation)) ranges <- em$expectation[[1]]$ranges
+    else if (!is.null(em$mode1)) ranges <- em$mode1$expectation[[1]]$ranges
+    else ranges <- em[[1]]$ranges
   }
   else ranges <- em$ranges
   if (is.null(plotgrid)) {
-    ranges <- em$ranges
     plotgrid <- setNames(expand.grid(seq(ranges[[1]][1], ranges[[1]][2], length.out = ppd), seq(ranges[[2]][1], ranges[[2]][2], length.out = ppd)), names(ranges)[1:2])
     for (i in 3:length(ranges)) {
       plotgrid[[names(ranges)[i]]] <- sum(ranges[[i]])/2
@@ -124,7 +125,7 @@ imp_plot <- function(em, z, plotgrid = NULL, ppd = 30, cb = FALSE, nth = NULL) {
   imp_names <- c(0, '', '', 1, '', '', 2, '', '', 3, '', '', '', 5, '', '', '', 10, 15, '')
   if (!is.null(nth)) {
     if (!"Emulator" %in% class(em)) {
-      em_imp <- nth_implausible(em, plotgrid[names(em[[1]]$ranges)], z, n = nth, max_imp = 99)
+      em_imp <- nth_implausible(em, plotgrid[names(ranges)], z, n = nth, max_imp = 99)
     }
     else stop("Not all required parameters (emulator list, target list, nth) passed for nth maximum implausibility.")
   }
@@ -209,9 +210,12 @@ emulator_plot <- function(ems, plot_type = 'exp', ppd = 30, targets = NULL, cb =
     single_em <- TRUE
   }
   else {
-    ranges <- ems[[1]]$ranges
+    if (!is.null(ems$expectation)) ranges <- ems$expectation[[1]]$ranges
+    else if (!is.null(ems$mode1)) ranges <- ems$mode1$expectation[[1]]$ranges
+    else ranges <- ems[[1]]$ranges
     single_em <- FALSE
   }
+  if (!is.null(ems$expectation)) ems <- ems$expectation
   if (is.null(params) || length(params) != 2 || any(!params %in% names(ranges))) p_vals <- c(1,2)
   else p_vals <- which(names(ranges) %in% params)
   plotgrid <- setNames(expand.grid(seq(ranges[[p_vals[1]]][1], ranges[[p_vals[1]]][2], length.out = ppd), seq(ranges[[p_vals[2]]][1], ranges[[p_vals[2]]][2], length.out = ppd)), names(ranges)[p_vals])

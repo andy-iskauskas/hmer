@@ -118,3 +118,26 @@
 #'  \item{Y}{The number of people at time t = 15}
 #' }
 "BirthDeath"
+
+#' Stochastic SIR Data
+#'
+#' An RData object consisting of two data.frames (in a similar fashion to \code{BirthDeath}).
+#' The first consists of 30 points in the parameter space (aSI, aIR, aSR), each of which has
+#' been inputted into the Gillespie algorithm for the stochastic version of the model used
+#' in \code{GillespieSIR} (but with changed starting conditions) 100 times. The second has
+#' similar form but for 20 unique points, each with 100 repetitions.
+#'
+#' The outputs observed are the numbers of infected (I) and recovered (R) people at time points
+#' t = 10, 25, 50. All outputs display some level of bimodality. The initial conditions to
+#' generate the runs had S(0)=995, I(0)=5, R(0)=0.
+#'
+#' @format A list of two data.frames \code{training} and \code{validation}: each has the
+#' following columns:
+#' \describe{
+#'  \item{aSI}{Infection rate}
+#'  \item{aIR}{Recovery rate}
+#'  \item{aSR}{Waning immunity rate}
+#'  \item{I10 (25, 50)}{The number of infected people at t = 10 (25, 50)}
+#'  \item{R10 (25, 50)}{The number of recovered people at t = 10 (25, 50)}
+#' }
+"SIR_stochastic"

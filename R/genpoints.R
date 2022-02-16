@@ -84,10 +84,10 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #' @export
 #'
 #' @examples
-#' # A simple example that runs quickly with some passed parameters to subroutines
-#' pts <- generate_new_runs(sample_emulators$ems, 20, sample_emulators$targets,
-#'  measure.method = 'maximin', distro = 'sphere', resample = 0)
 #' \donttest{
+#'  # A simple example that uses a number of the native and ... parameter options
+#'  pts <- generate_new_runs(sample_emulators$ems, 20, sample_emulators$targets,
+#'  measure.method = 'maximin', distro = 'sphere', resample = 0)
 #'  pts_optical <- generate_new_runs(sample_emulators$ems, 100, sample_emulators$targets,
 #'   method = c('optical'), plausible_set = pts)
 #'  pts_slice <- generate_new_runs(sample_emulators$ems, 100, sample_emulators$targets,
@@ -96,7 +96,10 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #'   method = c('line'))
 #' }
 generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'importance'), cutoff = 3, nth = 1, plausible_set, verbose = interactive(), cluster = FALSE, resample = 1, seek = 0, ...) {
-  ranges <- if ("Emulator" %in% class(ems)) ems$ranges else ems[[1]]$ranges
+  if ("Emulator" %in% class(ems)) ranges <- ems$ranges
+  else if (!is.null(ems$expectation)) ranges <- ems$expectation[[1]]$ranges
+  else if (!is.null(ems$mode1)) ranges <- ems$mode1$expectation[[1]]$ranges
+  else ranges <- ems[[1]]$ranges
   if (n_points < 10*length(ranges)) n_points <- 10*length(ranges)
   possible_methods <- c('lhs', 'line', 'importance', 'slice', 'optical')
   which_methods <- possible_methods[possible_methods %in% method]

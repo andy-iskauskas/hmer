@@ -8,7 +8,7 @@ validation_diagnostics(
   emulators,
   targets = NULL,
   validation = NULL,
-  which_diag = c("se", "cd", "ce"),
+  which_diag = c("cd", "ce", "se"),
   analyze = TRUE,
   diagnose = "expectation",
   ...

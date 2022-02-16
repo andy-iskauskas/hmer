@@ -11,6 +11,8 @@ get_diagnostic(
   which_diag = "cd",
   stdev = 3,
   cleaned = NULL,
+  warn = TRUE,
+  kfold = NULL,
   ...
 )
 }
@@ -26,6 +28,10 @@ get_diagnostic(
 \item{stdev}{For 'cd', a measure of the allowed distance from prediction and reality}
 
 \item{cleaned}{Internal for stochastic emulators}
+
+\item{warn}{Should a warning be shown if ce is chosen and no targets provided?}
+
+\item{kfold}{Mainly internal: pre-computed k-fold diagnostic results for output}
 
 \item{...}{Any other parameters to be passed through to subfunctions.}
 }

@@ -190,6 +190,8 @@ residual_diag <- function(emulator, histogram = FALSE, ...) {
 #' @param which_diag Which diagnostic measure to use (choosing from cd, ce, se above)
 #' @param stdev For 'cd', a measure of the allowed distance from prediction and reality
 #' @param cleaned Internal for stochastic emulators
+#' @param warn Should a warning be shown if ce is chosen and no targets provided?
+#' @param kfold Mainly internal: pre-computed k-fold diagnostic results for output
 #' @param ... Any other parameters to be passed through to subfunctions.
 #'
 #' @return A data.frame consisting of the input points, output values, and diagnostic measures.
@@ -205,13 +207,16 @@ residual_diag <- function(emulator, histogram = FALSE, ...) {
 #'  # No validation set: k-fold cross-validation will be used.
 #'  get_diagnostic(sample_emulators$ems$nR, which_diag = 'se')
 #'
-get_diagnostic <- function(emulator, targets = NULL, validation = NULL, which_diag = 'cd', stdev = 3, cleaned = NULL, ...) {
+get_diagnostic <- function(emulator, targets = NULL, validation = NULL, which_diag = 'cd', stdev = 3, cleaned = NULL, warn = TRUE, kfold = NULL, ...) {
   if (is.null(targets) && which_diag == 'ce') stop("Targets must be provided for classification error diagnostics.")
   if (is.null(validation)) {
-    if (which_diag == "ce"){
-      dat <- k_fold_measure(emulator, targets[[emulator$output_name]], ...)
+    if (is.null(kfold)) {
+      if (which_diag == "ce"){
+        dat <- k_fold_measure(emulator, targets[[emulator$output_name]], ...)
+      }
+      else dat <- k_fold_measure(emulator, ...)
     }
-    else dat <- k_fold_measure(emulator, ...)
+    else dat <- kfold
     input_points <- dat[,names(emulator$ranges)]
     output_points <- dat[,emulator$output_name]
     if (which_diag == 'ce')
@@ -457,13 +462,17 @@ validation_diagnostics <- function(emulators, targets = NULL, validation = NULL,
       })
       cluster1 <- purrr::map(seq_along(m1_ems), ~list(emulator = m1_ems[[.]], validation = list(valid_one, valid_two)[[match_modes[.]]]))
       cluster2 <- purrr::map(seq_along(m2_ems), ~list(emulator = m2_ems[[.]], validation = list(valid_two, valid_one)[[match_modes[.]]]))
+      res_one <- unlist(purrr::map(cluster1, function(x) {
+        suppressWarnings(validation_diagnostics(x$emulator, targets, x$validation, which_diag, analyze = FALSE, ...))
+      }), recursive = FALSE) |> setNames(purrr::map_chr(cluster1, ~.$emulator$output_name))
+      res_two <- unlist(purrr::map(cluster2, function(x) {
+        suppressWarnings(validation_diagnostics(x$emulator, targets, x$validation, which_diag, analyze = FALSE, ...))
+      }), recursive = FALSE) |> setNames(purrr::map_chr(cluster2, ~.$emulator$output_name))
     }
-    res_one <- unlist(purrr::map(cluster1, function(x) {
-      validation_diagnostics(x$emulator, targets, x$validation, which_diag, analyze = FALSE, ...)
-    }), recursive = FALSE) |> setNames(purrr::map_chr(cluster1, ~.$emulator$output_name))
-    res_two <- unlist(purrr::map(cluster2, function(x) {
-      validation_diagnostics(x$emulator, targets, x$validation, which_diag, analyze = FALSE, ...)
-    }), recursive = FALSE) |> setNames(purrr::map_chr(cluster2, ~.$emulator$output_name))
+    else {
+      res_one <- unlist(purrr::map(m1_ems, ~suppressWarnings(validation_diagnostics(., targets, validation, which_diag, analyze = FALSE, ...))), recursive = FALSE) |> setNames(purrr::map_chr(m1_ems, ~.$output_name))
+      res_two <- unlist(purrr::map(m2_ems, ~suppressWarnings(validation_diagnostics(., targets, validation, which_diag, analyze = FALSE, ...))), recursive = FALSE) |> setNames(purrr::map_chr(m2_ems, ~.$output_name))
+    }
     diag_results <- purrr::map(unique(c(names(res_one), names(res_two))), function(x) {
       if (!is.null(res_one[[x]]) && !is.null(res_two[[x]]))
         return(purrr::map(seq_along(res_one[[x]]), ~rbind(res_one[[x]][[.]], res_two[[x]][[.]])))
@@ -472,20 +481,29 @@ validation_diagnostics <- function(emulators, targets = NULL, validation = NULL,
     }) |> setNames(unique(c(names(res_one), names(res_two))))
   }
   else {
+    if (!is.null(emulators$expectation)) {
+      emulators <- emulators[[ifelse(diagnose == "variance", "variance", "expectation")]]
+    }
     if (!is.null(validation)) {
       cleaning_dat <- purrr::map(emulators, function(x) {
         if ("Hierarchical" %in% class(x)) valid_dat <- clean_data(validation, names(x$ranges), x$output_name, x$em_type == "variance")
         else valid_dat <- NULL
         valid_dat
       })
+      kfolded <- NULL
     }
-    else cleaning_dat <- NULL
-    diag_results <- purrr::map(emulators, function(x) purrr::map(actual_diag, function(y) get_diagnostic(x, targets, validation, y, cleaned = cleaning_dat[[x$output_name]], ...)))
+    else {
+      cleaning_dat <- NULL
+      kfolded <- purrr::map(emulators, function(x) k_fold_measure(x, targets[[x$output_name]], ...)) |> setNames(purrr::map_chr(emulators, ~.$output_name))
+    }
+    diag_results <- purrr::map(emulators, function(x) purrr::map(actual_diag, function(y) get_diagnostic(x, targets, validation, y, cleaned = cleaning_dat[[x$output_name]], kfold = kfolded[[x$output_name]], ...)))
   }
   if (!analyze) return(diag_results)
   fail_point_list <- list()
   mf <- length(actual_diag)
-  op <- par(mfrow = c(3, mf))
+  n_row <- list(...)[['row']]
+  if (!is.null(n_row)) op <- par(mfrow = c(n_row, mf))
+  else op <- par(mfrow = c(3, mf))
   for (i in 1:length(diag_results)) {
     for (j in 1:length(diag_results[[i]])) {
       fail_point_list[[length(fail_point_list)+1]] <- analyze_diagnostic(diag_results[[i]][[j]], names(diag_results)[[i]], targets, ...)
