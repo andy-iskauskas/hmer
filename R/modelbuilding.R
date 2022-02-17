@@ -255,6 +255,7 @@ likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_
 #' @param discrepancies Any internal or external discrepancies in the model.
 #' @param has.hierarchy For hierarchical emulators, this will be TRUE.
 #' @param verbose Should status updates be printed?
+#' @param na.rm If NAs exist in the dataset, should those rows be removed?
 #'
 #' @return A list of \code{\link{Emulator}} objects.
 #' @export
@@ -303,7 +304,8 @@ emulator_from_data <- function(input_data, output_names, ranges,
                                c_lengths, funcs, deltas, ev,
                                quadratic = TRUE, beta.var = FALSE,
                                adjusted = TRUE, discrepancies = NULL,
-                               has.hierarchy = FALSE, verbose = interactive()) {
+                               has.hierarchy = FALSE, verbose = interactive(),
+                               na.rm = TRUE) {
   model_beta_mus <- model_u_sigmas <- model_u_corrs <- NULL
   if (missing(ranges)) {
     if (is.null(input_names)) stop("Input ranges or names of inputs must be provided.")
@@ -316,6 +318,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
   if (is.null(ranges)) stop("Ranges either not specified, or misspecified.")
   data <- setNames(cbind(eval_funcs(scale_input, input_data[,names(ranges)], ranges), input_data[,output_names]), c(names(ranges), output_names))
   if (!"data.frame" %in% class(data)) data <- setNames(data.frame(data), c(names(ranges), output_names))
+  if (na.rm) data <- data[apply(data, 1, function(x) !any(is.na(x))),]
   if (missing(funcs)) {
     if (verbose) print("Fitting regression surfaces...")
     if (quadratic) {
@@ -398,7 +401,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
   for (i in 1:length(out_ems)) out_ems[[i]]$output_name <- output_names[[i]]
   if (adjusted) {
     if (verbose) print("Performing Bayes linear adjustment...")
-    out_ems <- purrr::map(out_ems, ~.$adjust(input_data, .$output_name))
+    out_ems <- purrr::map(out_ems, ~.$adjust(data, .$output_name))
   }
   return(out_ems)
 }

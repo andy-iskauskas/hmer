@@ -246,7 +246,7 @@ These three tests are contained within `validation_diagnostics`, which prints ou
 invalid_points <- validation_diagnostics(ems2d, targets2d, validation_data, plt = TRUE)
 ```
 
-Looking at these plots shows that the emulators are doing fine. Any failing points are flagged as red in the final two columns of the plots, and appear in the data.frame `invalid_points`: should we have such points it is useful to consider why they might be problematic (for example, a point at an edge or a corner of the parameter space can have strange behaviours). At this stage, we can make a variety of changes to the prior specifications in order to combat these issues, by utilising the `set_sigma` and `set_hyperparams` functions of the `Emulator` object. For instance, to inflate the emulator variance for the $f_2$ emulator:
+Looking at these plots shows that the emulators are doing fine. Any failing points are flagged as red in the first two columns of the plots, and appear in the data.frame `invalid_points`: should we have such points it is useful to consider why they might be problematic (for example, a point at an edge or a corner of the parameter space can have strange behaviours). At this stage, we can make a variety of changes to the prior specifications in order to combat these issues, by utilising the `set_sigma` and `set_hyperparams` functions of the `Emulator` object. For instance, to inflate the emulator variance for the $f_2$ emulator:
 
 ```{r fig.width = 7, fig.height = 7}
 inflated_em <- ems2d$f1$mult_sigma(2)

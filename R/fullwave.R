@@ -152,13 +152,14 @@ preflight <- function(data, targets, coff = 0.95, logging = NULL) {
 #'   old_emulators = GillespieMultiWaveEmulators[[1]])
 #'  }
 full_wave <- function(data, ranges, targets, old_emulators = NULL, prop_train = 0.7, cutoff = 3, nth = 1, ...) {
+  new_ranges <- setNames(purrr::map(names(ranges), ~c(max(ranges[[.]][1], min(data[,.]) - 0.05 * diff(range(data[,.]))), min(ranges[[.]][2], max(data[,.]) + 0.05 * diff(range(data[,.]))))), names(ranges))
   preflight(data, targets)
   samp <- sample(1:nrow(data), floor(prop_train*nrow(data)))
   train <- data[samp,]
   valid <- data[!seq_along(1:nrow(data)) %in% samp,]
   print("Training emulators...")
   tryCatch(
-    ems <- emulator_from_data(train, names(targets), ranges, ...),
+    ems <- emulator_from_data(train, names(targets), new_ranges, ...),
     error = function(e) {
       print(paste("Problem with emulator training:", e))
     }
@@ -194,19 +195,9 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL, prop_train = 
     working_ems <- ems
   targets <- targets[purrr::map_chr(working_ems, ~.$output_name)]
   print("Generating new points...")
-  new_points <- NULL
-  inflations <- 0
-  while((is.null(new_points) || nrow(new_points) == 0) && inflations < 3) {
-    new_points <- generate_new_runs(working_ems, nrow(data), targets, cutoff = cutoff + inflations, verbose = FALSE, nth = nth)
-    if (nrow(new_points) == 0) inflations <- inflations + 1
-  }
-  inflations <- 0
-  while((is.null(new_points) || nrow(new_points) == 0) && inflations < 3) {
-    new_points <- generate_new_runs(working_ems, nrow(data), targets, cutoff = cutoff + inflations, verbose = FALSE, nth = nth + 1)
-    if (nrow(new_points) == 0) inflations <- inflations + 1
-  }
+  new_points <- generate_new_runs(working_ems, nrow(data), targets, cutoff = cutoff, verbose = FALSE, nth = nth)
   if (nrow(new_points) == 0) stop("Could not generate points in non-implausible space.")
   if (!any(purrr::map_lgl(targets, is.atomic)))
-    if (!is.null(emulator_uncerts) && all(emulator_uncerts < 1.1) && length(emulator_uncerts) == length(targets)) print("All emulator uncertainties are comparable to target uncertainties. More waves may be unnecessary.")
+    if (!is.null(emulator_uncerts) && all(emulator_uncerts < 1.02) && length(emulator_uncerts) == length(targets)) print("All emulator uncertainties are comparable to target uncertainties. More waves may be unnecessary.")
   return(list(points = new_points, emulators = ems))
 }

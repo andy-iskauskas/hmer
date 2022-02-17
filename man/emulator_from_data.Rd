@@ -20,7 +20,8 @@ emulator_from_data(
   adjusted = TRUE,
   discrepancies = NULL,
   has.hierarchy = FALSE,
-  verbose = interactive()
+  verbose = interactive(),
+  na.rm = TRUE
 )
 }
 \arguments{
@@ -55,6 +56,8 @@ emulator_from_data(
 \item{has.hierarchy}{For hierarchical emulators, this will be TRUE.}
 
 \item{verbose}{Should status updates be printed?}
+
+\item{na.rm}{If NAs exist in the dataset, should those rows be removed?}
 }
 \value{
 A list of \code{\link{Emulator}} objects.

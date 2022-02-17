@@ -151,7 +151,7 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
           points <- generate_new_runs(ems, n_points, z, method = which_methods[!which_methods %in% c('lhs')], cutoff = cutoff_current, nth = nth, plausible_set = plaus_points, verbose = verbose, resample = resample - 1, ...)
           point_imps <- nth_implausible(ems, points, z, max_imp = Inf)
           cutoff_temp <- max(cutoff, sort(point_imps)[required_points])
-          if (cutoff_temp == cutoff_current) break
+          if (round(cutoff_temp - cutoff_current, 3) == 0) break
           cutoff_current <- cutoff_temp
         }
         if (cutoff_current != cutoff) {
