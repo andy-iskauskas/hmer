@@ -97,18 +97,18 @@ If \code{ev} is provided, then the ensemble variability is taken into account in
 determination of the nugget term via a two-stage training process.
 }
 \examples{
-# Use the \code{\link{GillespieSIR}} dataset as an example.
+# Use the \code{\link{SIRSample}} training dataset as an example.
 ranges <- list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05))
 out_vars <- c('nS','nI','nR')
-ems_linear <- emulator_from_data(GillespieSIR, out_vars, ranges, quadratic = FALSE)
+ems_linear <- emulator_from_data(SIRSample$training, out_vars, ranges, quadratic = FALSE)
 ems_linear # Printout of the key information.
 
 \donttest{
 
-  ems_quad <- emulator_from_data(GillespieSIR, out_vars, ranges)
+  ems_quad <- emulator_from_data(SIRSample$training, out_vars, ranges)
   ems_quad # Now includes quadratic terms (but only where needed)
 
-  ems_unadjusted <- emulator_from_data(GillespieSIR, out_vars, ranges, adjusted = FALSE)
+  ems_unadjusted <- emulator_from_data(SIRSample$training, out_vars, ranges, adjusted = FALSE)
   ems_unadjusted # Looks the same as ems_quad, but the emulators are not BL adjusted
 
   # Reproduce the linear case, but with slightly changed beta values
@@ -122,7 +122,7 @@ ems_linear # Printout of the key information.
    list(mu = c(120, 110, -260)),
    list(mu = c(580, 160, 130))
   )
-  ems2 <- emulator_from_data(GillespieSIR, out_vars, ranges,
+  ems2 <- emulator_from_data(SIRSample$training, out_vars, ranges,
                              funcs = basis_f, beta = beta_vals)
   ems2
   # Custom correlation functions
@@ -131,7 +131,7 @@ ems_linear # Printout of the key information.
     list(sigma = 95, corr = Correlator$new('exp_sq', list(theta = 0.4), nug = 0.25)),
     list(sigma = 164, corr = Correlator$new('exp_sq', list(theta = 0.2), nug = 0.45))
   )
-  ems3 <- emulator_from_data(GillespieSIR, out_vars, ranges,
+  ems3 <- emulator_from_data(SIRSample$training, out_vars, ranges,
                              u = corr_structs)
 }
 

@@ -40,12 +40,12 @@
 #'   \code{data} A \code{data.frame} consisting of the data with which to adjust
 #'   the emulator, consisting of input values for each parameter and the output.
 #'
+#'   \code{out_name} The name of the output variable.
+#'
 #'   \code{a_vars} A logical vector indicating which variables are active for
 #'   this emulator.
 #'
-#'   \code{out_name} The name of the output variable.
-#'
-#'   \code{disc} Model discrepancies: does not include observational error. Ideally
+#'   \code{discs} Model discrepancies: does not include observational error. Ideally
 #'   split into \code{list(internal = ..., external = ...)}.
 #'
 #'   Internal:
@@ -55,6 +55,9 @@
 #'
 #'   \code{original_em} If the emulator has been adjusted, the unadjusted
 #'   \code{Emulator} object is stored, for use of \code{set_sigma} or similar.
+#'
+#'   \code{multiplier} A multiplicative factor to be applied to u_sigma. Typically
+#'   equal to 1, unless changes have been made by, for example, \code{mult_sigma}.
 #'
 #' @section Constructor Details:
 #'
@@ -68,10 +71,11 @@
 #'
 #' @section Accessor Methods:
 #'
-#'    \code{get_exp(x)} Returns the emulator expectation at a point, or at a
-#'    collection of points.
+#'    \code{get_exp(x, include_c)} Returns the emulator expectation at a point,
+#'    or at a collection of points. If \code{include_c = FALSE}, the contribution
+#'    made by the correlation structure is not included.
 #'
-#'    \code{get_cov(x, xp = NULL, full = FALSE)} Returns the covariance between
+#'    \code{get_cov(x, xp = NULL, full = FALSE, include_c)} Returns the covariance between
 #'    collections of points \code{x} and \code{xp}. If \code{xp} is not supplied,
 #'    then this is equivalent to \code{get_cov(x, x, ...)}; if \code{full = TRUE},
 #'    then the full covariance matrix is calculated - this is FALSE by default
@@ -98,7 +102,7 @@
 #'    which indicate the derivative directions. Formally, the output of this function is
 #'    equivalent to Cov[df/dp1, df/dp2].
 #'
-#'    \code{print()} Returns a summary of the emulator specifications.
+#'    \code{print(...)} Returns a summary of the emulator specifications.
 #'
 #' @section Object Methods:
 #'
@@ -112,6 +116,10 @@
 #'    \code{set_sigma(sigma)} Modifies the (usually constant) global variance of
 #'    the correlation structure, \code{Var[u(X)]}. If the emulator has been trained,
 #'    the original emulator is modified and Bayes Linear adjustment is again performed.
+#'
+#'    \code{mult_sigma(m)} Modifies the global variance of the correlation structure via
+#'    a multiplicative factor. As with \code{set_sigma}, this change will chain through
+#'    any prior emulators if the emulator in question is Bayes Linear adjusted.
 #'
 #'    \code{set_hyperparams(hp, nugget)} Modifies the underlying correlator for \code{u(x)}.
 #'    Behaves in a similar way to \code{set_sigma} as regards trained emulators. See

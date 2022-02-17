@@ -195,14 +195,14 @@ imp_plot <- function(em, z, plotgrid = NULL, ppd = 30, cb = FALSE, nth = NULL) {
 #'
 #' @examples
 #'  # Reducing ppd to 10 for speed.
-#'  emulator_plot(sample_emulators$ems, ppd = 10)
-#'  emulator_plot(sample_emulators$ems$nS, ppd = 10)
-#'  emulator_plot(sample_emulators$ems, plot_type = 'var', ppd = 10, params = c('aIR', 'aSR'))
-#'  emulator_plot(sample_emulators$ems, plot_type = 'imp', ppd = 10,
-#'   targets = sample_emulators$targets,
+#'  emulator_plot(SIREmulators$ems, ppd = 10)
+#'  emulator_plot(SIREmulators$ems$nS, ppd = 10)
+#'  emulator_plot(SIREmulators$ems, plot_type = 'var', ppd = 10, params = c('aIR', 'aSR'))
+#'  emulator_plot(SIREmulators$ems, plot_type = 'imp', ppd = 10,
+#'   targets = SIREmulators$targets,
 #'   fixed_vals = list(aSR = 0.02))
-#'  emulator_plot(sample_emulators$ems, plot_type = 'nimp', cb = TRUE,
-#'   targets = sample_emulators$targets, nth = 2, ppd = 10)
+#'  emulator_plot(SIREmulators$ems, plot_type = 'nimp', cb = TRUE,
+#'   targets = SIREmulators$targets, nth = 2, ppd = 10)
 #'
 emulator_plot <- function(ems, plot_type = 'exp', ppd = 30, targets = NULL, cb = FALSE, params = NULL, fixed_vals = NULL, nth = 1) {
   if ("Emulator" %in% class(ems)){
@@ -302,8 +302,8 @@ emulator_plot <- function(ems, plot_type = 'exp', ppd = 30, targets = NULL, cb =
 #' @export
 #'
 #' @examples
-#'  output_plot(sample_emulators$ems, sample_emulators$targets)
-#'  output_plot(sample_emulators$ems, sample_emulators$targets, points = GillespieSIR)
+#'  output_plot(SIREmulators$ems, SIREmulators$targets)
+#'  output_plot(SIREmulators$ems, SIREmulators$targets, points = SIRSample$training)
 output_plot <- function(ems, targets, points = NULL, npoints = 1000) {
   ranges <- if ("Emulator" %in% class(ems)) ems$ranges else ems[[1]]$ranges
   if (is.null(points)) {
@@ -318,6 +318,7 @@ output_plot <- function(ems, targets, points = NULL, npoints = 1000) {
   }
   target_data <- data.frame(label = names(targets), mn = purrr::map_dbl(targets, ~.[1]), md = purrr::map_dbl(targets, mean), mx = purrr::map_dbl(targets, ~.[2]))
   name <- value <- run <- mn <- md <- mx <- label <- NULL
+  em_exp$name <- factor(em_exp$name, levels = names(targets))
   ggplot(data = em_exp, aes(x = name, y = value)) +
     geom_line(colour = 'purple', aes(group = run), lwd = 1) +
     geom_point(data = target_data, aes(x = label, y = md), size = 2) +
@@ -363,8 +364,8 @@ output_plot <- function(ems, targets, points = NULL, npoints = 1000) {
 #'
 #' @examples
 #' \donttest{
-#'  plot_lattice(sample_emulators$ems, sample_emulators$targets, ppd = 10)
-#'  plot_lattice(sample_emulators$ems$nS, sample_emulators$targets)
+#'  plot_lattice(SIREmulators$ems, SIREmulators$targets, ppd = 10)
+#'  plot_lattice(SIREmulators$ems$nS, SIREmulators$targets)
 #' }
 plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE, cutoff = 3, maxpoints = 5e4) {
   ranges <- if ("Emulator" %in% class(ems)) ems$ranges else ems[[1]]$ranges
@@ -385,7 +386,7 @@ plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE, cutoff = 3, maxpoin
       how_many_valid <- if (nrow(valid_points) == 0) NA else sum(valid_points$I <= cutoff)/nrow(valid_points)
       return(c(param_seq[x], how_many_valid))
     })
-    data.frame(do.call('rbind', collection)) |> setNames(c(parameter, 'op'))
+    do.call('rbind.data.frame', collection) |> setNames(c(parameter, 'op'))
   }
   two_dim <- function(data, parameters, op = FALSE) {
     param_seqs <- purrr::map(ranges[parameters], ~seq(.[[1]], .[[2]], length.out = ppd + 1))
@@ -402,7 +403,7 @@ plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE, cutoff = 3, maxpoin
         param_list[[length(param_list)+1]] <- c(param_seqs[[1]][i], param_seqs[[2]][j], rel_stat)
       }
     }
-    return(data.frame(do.call('rbind', param_list)) |> setNames(c(parameters, if(op) "op" else "imp")))
+    return(do.call('rbind.data.frame', param_list) |> setNames(c(parameters, if(op) "op" else "imp")))
   }
   cols <- if(cb) colourblind else redgreen
   imp_breaks <- c(0, 0.3, 0.7, 1, 1.3, 1.7, 2, 2.3, 2.7, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 10, 15, 100)
@@ -465,11 +466,11 @@ plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE, cutoff = 3, maxpoin
 #' @export
 #'
 #' @examples
-#'  plot_actives(sample_emulators$ems)
+#'  plot_actives(SIREmulators$ems)
 #'  # Remove the nR output and aIR input from the plot
-#'  plot_actives(sample_emulators$ems, c('nS', 'nI'), c('aSI', 'aSR'))
+#'  plot_actives(SIREmulators$ems, c('nS', 'nI'), c('aSI', 'aSR'))
 #'  # Note that we can equally restrict the emulator list...
-#'  plot_actives(sample_emulators$ems[c('nS', 'nI')], input_names = c('aSI', 'aSR'))
+#'  plot_actives(SIREmulators$ems[c('nS', 'nI')], input_names = c('aSI', 'aSR'))
 plot_actives <- function(ems, output_names = NULL, input_names = NULL) {
   if ("Emulator" %in% class(ems)) {
     ems <- list(ems)
@@ -509,12 +510,12 @@ plot_actives <- function(ems, output_names = NULL, input_names = NULL) {
 #' @return The corresponding pairs plot
 #' @export
 #' @examples
-#'  plot_wrap(GillespieSIR[,1:3], sample_emulators$ems[[1]]$ranges)
+#'  plot_wrap(SIRSample$training[,1:3], SIREmulators$ems[[1]]$ranges)
 #'
 plot_wrap <- function(points, ranges = NULL, p_size = 0.5) {
   if (is.null(ranges))
-    boundary_points <- setNames(data.frame(do.call('cbind', purrr::map(names(points), ~c(min(points[,.]), max(points[,.]))))), names(points))
+    boundary_points <- setNames(do.call('cbind.data.frame', purrr::map(names(points), ~c(min(points[,.]), max(points[,.])))), names(points))
   else
-    boundary_points <- setNames(data.frame(do.call('rbind', purrr::map(1:2, ~purrr::map_dbl(ranges, function(x) x[[.]])))), names(ranges))
+    boundary_points <- setNames(do.call('rbind.data.frame', purrr::map(1:2, ~purrr::map_dbl(ranges, function(x) x[[.]]))), names(ranges))
   plot(rbind(points, boundary_points), pch = 16, cex = p_size, col = c(rep('black', nrow(points)), 'white', 'white'))
 }

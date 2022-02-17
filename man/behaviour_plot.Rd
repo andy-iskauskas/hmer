@@ -20,6 +20,6 @@ each individual input dimension. If \code{points} is not provided, then a sample
 of points across the full space is created by uniform sampling.
 }
 \examples{
- behaviour_plot(sample_emulators$ems, GillespieSIR)
- behaviour_plot(sample_emulators$ems$nS)
+ behaviour_plot(SIREmulators$ems, SIRSample$training)
+ behaviour_plot(SIREmulators$ems$nS)
 }

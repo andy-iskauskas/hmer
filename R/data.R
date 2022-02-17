@@ -1,11 +1,17 @@
 #' Sample SIR data
 #'
-#' A small dataset containing points generated using the Gillespie algorithm.
-#' The SIR model contains three input parameters, and generates three output
+#' A small dataset containing points generated from a simple deterministic SIR model.
+#' The model contains three input parameters, and generates three output
 #' parameters. The initial populations are 950 susceptible (S), 50 infected (I),
-#' and 0 recovered (R). The final values are taken at time t=20.
+#' and 0 recovered (R). The final values are taken at time t=10.
 #'
-#' @format A data frame with 30 rows and 6 variables:
+#' The model operates using simple differential equations, where
+#' S' = aSR*R - aSI*S*R/(S+I+R)
+#' I' = aSI*S*R/(S+I+R) - aIR*I
+#' R' = aIR*I - aSR*R.
+#'
+#' @format A list of two data frames. The first has 30 rows and 6 variables, the second
+#' 60 rows and 6 variables. The structure is the same in both cases:
 #' \describe{
 #'   \item{aSI}{Infection: transition rate from S to I}
 #'   \item{aIR}{Recovery: transition rate from I to R}
@@ -14,35 +20,19 @@
 #'   \item{nI}{Final number of I}
 #'   \item{nR}{Final number of R}
 #' }
-"GillespieSIR"
-
-#' Sample SIR validation data
-#'
-#' A small dataset containing points generated using the Gillespie algorithm.
-#' Very similar to \code{\link{GillespieSIR}}, slightly larger in size.
-#'
-#' @format A data frame with 60 rows and 6 variables:
-#' \describe{
-#'   \item{aSI}{Infection: transition rate from S to I}
-#'   \item{aIR}{Recovery: transition rate from I to R}
-#'   \item{aSR}{Immunisation: transition rate from S to R}
-#'   \item{nS}{Final number of S}
-#'   \item{nI}{Final number of I}
-#'   \item{nR}{Final number of R}
-#' }
-"GillespieValidation"
+"SIRSample"
 
 #' Sample Implausibility Data
 #'
 #' A dataset containing 1000 points from the region bounded by
 #' [0.1, 0.8], [0, 0.5], [0, 0.05] for aSI, aIR and aSR respectively.
 #' Implausibility has been calculated (for emulators trained on the
-#' \code{\link{GillespieSIR}} dataset) for each of the outputs nS, nI, nR,
-#' and the maximum implausibility is included.
+#' \code{\link{SIRSample}} training dataset) for each of the outputs
+#' nS, nI, nR, and the maximum implausibility is included.
 #' The target values used in calculating implausibility were:
-#' nS: 281 (sigma 10.43);
-#' nI: 30 (sigma 11.16);
-#' nR: 689 (sigma 14.32)
+#' nS: between 324 and 358;
+#' nI: mean 143 (sigma 7.15);
+#' nR: between 490 and 542
 #'
 #' @format A data frame with 1000 rows and 7 variables:
 #' \describe{
@@ -54,27 +44,28 @@
 #'   \item{nR}{Implausibility for nR}
 #'   \item{I}{Maximum implausibility}
 #' }
-"GillespieImplausibility"
+"SIRImplausibility"
 
 #' Sample Multi-wave Emulators
 #'
-#' An rda object containing three waves of emulation on the
-#' Gillespie SIR model.
+#' An rda object containing three waves of emulators applied to
+#' SIR model (described in \code{\link{SIRSample}}). The corresponding points
+#' (both training and validation) are stored in \code{\link{SIRMultiWaveData}}.
 #'
 #' @format A list containing \code{\link{Emulator}} objects:
 #' \describe{
-#'   \item{Wave 1}{Emulators trained on GillespieSIR to generate wave 2 points}
-#'   \item{Wave 2}{Emulators trained on the results of the above wave 2 points}
-#'   \item{Wave 3}{Emulators trained on the results of the wave 3 points}
+#'   \item{Wave 1}{Emulators trained on Wave 0, generating wave 1 points}
+#'   \item{Wave 2}{Emulators trained on the results of the above wave 1 points}
+#'   \item{Wave 3}{Emulators trained on the results of the above wave 2 points}
 #' }
-"GillespieMultiWaveEmulators"
+"SIRMultiWaveEmulators"
 
 #' Sample Multi-wave Results
 #'
 #' An rda object containing four data.frames: an initial set of points
-#' given by \code{GillespieSIR} and \code{GillespieValidation}, and
+#' alos provided in \code{\link{SIRSample}}, and
 #' the 90 points generated at each of three subsequent waves. The trained
-#' emulators are provided in \code{\link{GillespieMultiWaveEmulators}}.
+#' emulators are provided in \code{\link{SIRMultiWaveEmulators}}.
 #'
 #' @format A list of data.frame objects:
 #' \describe{
@@ -83,13 +74,13 @@
 #'   \item{Wave 2}{Points generated from the wave 2 emulators}
 #'   \item{Wave 3}{Points generated from the wave 3 emulators}
 #' }
-"GillespieMultiWaveData"
+"SIRMultiWaveData"
 
 #' Sample Emulators
 #'
 #' An RData object containing three trained emulators, and the associated
-#' targets, for the Gillespie SIR example. The emulators have been trained
-#' on the \code{\link{GillespieSIR}} dataset using methods documented in
+#' targets, for the SIR example. The emulators have been trained
+#' on the \code{\link{SIRSample}} training dataset using methods documented in
 #' this package.
 #'
 #' @format A list containing two objects:
@@ -97,7 +88,7 @@
 #'  \item{ems}{The trained \code{\link{Emulator}} objects.}
 #'  \item{targets}{The targets to match to, as a set of val-sigma pairs.}
 #' }
-"sample_emulators"
+"SIREmulators"
 
 #' Birth-Death Model Results
 #'

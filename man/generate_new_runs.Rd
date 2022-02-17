@@ -36,7 +36,7 @@ generate_new_runs(
 
 \item{verbose}{Should progress statements be printed to the console?}
 
-\item{cluster}{Should emulator clustering be considered in the LHS generation?}
+\item{cluster}{Should emulator clustering be considered in the LHS generation? EXPERIMENTAL}
 
 \item{resample}{Number of times to resample using line and/or importance sampling.}
 
@@ -95,19 +95,26 @@ line sampling is performed to find the boundaries; and finally this collection o
 is augmented to the desired number of points by importance sampling using uniform
 spherical proposals.
 
+In regions where the non-implausible space (at the given cutoff) is very hard to find,
+the function will start at a higher implausibility where it can find a space-filling
+design; using this as a starting point any other methods are performed. From this new
+proposal, a subset of lower-implausibility points are selected. This process iterates
+until either the desired implausibility has been reached or the process has reached a
+barrier to further reductions in implausibility.
+
 These methods may not work if the target space is very small comparative to the current
 not-yet-ruled-out space, or it may miss small disconnected regions of parameter space.
 }
 \examples{
 \donttest{
  # A simple example that uses a number of the native and ... parameter options
- pts <- generate_new_runs(sample_emulators$ems, 20, sample_emulators$targets,
+ pts <- generate_new_runs(SIREmulators$ems, 20, SIREmulators$targets,
  measure.method = 'maximin', distro = 'sphere', resample = 0)
- pts_optical <- generate_new_runs(sample_emulators$ems, 100, sample_emulators$targets,
+ pts_optical <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
   method = c('optical'), plausible_set = pts)
- pts_slice <- generate_new_runs(sample_emulators$ems, 100, sample_emulators$targets,
+ pts_slice <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
   method = c('slice'))
- pts_no_importance <- generate_new_runs(sample_emulators$ems, 100, sample_emulators$targets,
+ pts_no_importance <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
   method = c('line'))
 }
 }

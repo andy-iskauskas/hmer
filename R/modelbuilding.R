@@ -72,8 +72,6 @@ get_coefficient_model <- function(data, ranges, output_name, add = FALSE, order 
     warning("Maximum number of regression terms is greater than the available degrees of freedom. Changing to add = TRUE")
     add <- TRUE
   }
-  #scaled_input_data <- scale_input(data[, names(ranges)], ranges)
-  #full_scaled_data <- setNames(cbind(scaled_input_data, data[,output_name]), c(names(ranges), output_name))
   if (!"data.frame" %in% class(data)) data <- setNames(data.frame(data), c(names(ranges), output_name))
   if (add) {
     model <- step(lm(formula = lower_form, data = data),
@@ -261,18 +259,18 @@ likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_
 #' @export
 #'
 #' @examples
-#' # Use the \code{\link{GillespieSIR}} dataset as an example.
+#' # Use the \code{\link{SIRSample}} training dataset as an example.
 #' ranges <- list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05))
 #' out_vars <- c('nS','nI','nR')
-#' ems_linear <- emulator_from_data(GillespieSIR, out_vars, ranges, quadratic = FALSE)
+#' ems_linear <- emulator_from_data(SIRSample$training, out_vars, ranges, quadratic = FALSE)
 #' ems_linear # Printout of the key information.
 #'
 #' \donttest{
 #'
-#'   ems_quad <- emulator_from_data(GillespieSIR, out_vars, ranges)
+#'   ems_quad <- emulator_from_data(SIRSample$training, out_vars, ranges)
 #'   ems_quad # Now includes quadratic terms (but only where needed)
 #'
-#'   ems_unadjusted <- emulator_from_data(GillespieSIR, out_vars, ranges, adjusted = FALSE)
+#'   ems_unadjusted <- emulator_from_data(SIRSample$training, out_vars, ranges, adjusted = FALSE)
 #'   ems_unadjusted # Looks the same as ems_quad, but the emulators are not BL adjusted
 #'
 #'   # Reproduce the linear case, but with slightly changed beta values
@@ -286,7 +284,7 @@ likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_
 #'    list(mu = c(120, 110, -260)),
 #'    list(mu = c(580, 160, 130))
 #'   )
-#'   ems2 <- emulator_from_data(GillespieSIR, out_vars, ranges,
+#'   ems2 <- emulator_from_data(SIRSample$training, out_vars, ranges,
 #'                              funcs = basis_f, beta = beta_vals)
 #'   ems2
 #'   # Custom correlation functions
@@ -295,7 +293,7 @@ likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_
 #'     list(sigma = 95, corr = Correlator$new('exp_sq', list(theta = 0.4), nug = 0.25)),
 #'     list(sigma = 164, corr = Correlator$new('exp_sq', list(theta = 0.2), nug = 0.45))
 #'   )
-#'   ems3 <- emulator_from_data(GillespieSIR, out_vars, ranges,
+#'   ems3 <- emulator_from_data(SIRSample$training, out_vars, ranges,
 #'                              u = corr_structs)
 #' }
 #'
@@ -316,9 +314,9 @@ emulator_from_data <- function(input_data, output_names, ranges,
     ranges <- convertRanges(ranges)
   }
   if (is.null(ranges)) stop("Ranges either not specified, or misspecified.")
+  if (na.rm) input_data <- input_data[apply(input_data, 1, function(x) !any(is.na(x))),]
   data <- setNames(cbind(eval_funcs(scale_input, input_data[,names(ranges)], ranges), input_data[,output_names]), c(names(ranges), output_names))
   if (!"data.frame" %in% class(data)) data <- setNames(data.frame(data), c(names(ranges), output_names))
-  if (na.rm) data <- data[apply(data, 1, function(x) !any(is.na(x))),]
   if (missing(funcs)) {
     if (verbose) print("Fitting regression surfaces...")
     if (quadratic) {
@@ -401,7 +399,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
   for (i in 1:length(out_ems)) out_ems[[i]]$output_name <- output_names[[i]]
   if (adjusted) {
     if (verbose) print("Performing Bayes linear adjustment...")
-    out_ems <- purrr::map(out_ems, ~.$adjust(data, .$output_name))
+    out_ems <- purrr::map(out_ems, ~.$adjust(input_data, .$output_name))
   }
   return(out_ems)
 }
@@ -437,8 +435,6 @@ emulator_from_data <- function(input_data, output_names, ranges,
 #'
 #' @export
 variance_emulator_from_data <- function(input_data, output_names, ranges, input_names = names(ranges), ...) {
-  # unique_point_combs <- unique(input_data[,input_names])
-  # data_by_point <- purrr::map(1:nrow(unique_point_combs), function(j) input_data[purrr::map_lgl(1:nrow(input_data), function(i) all(input_data[i,input_names] == unique_point_combs[j,])),])
   unique_points <- unique(input_data[, input_names])
   uids <- apply(unique_points, 1, hash)
   data_by_point <- purrr::map(uids, function(x) {
@@ -504,7 +500,6 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
     }
     variance_em$s_diag <- var_mod
     variance_em$em_type <- "variance"
-    ## Modified this temporarily to see what's going on
     if (all(is_high_rep) || !any(is_high_rep) || sum(!is_high_rep) == 1) {
       variance_em$samples <- all_n
       v_em <- variance_em$adjust(all_var, i)
@@ -559,43 +554,52 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
 #' @param output_names The names of the outputs to emulate
 #' @param ranges The parameter ranges
 #' @param input_names The names of the parameters (by default inferred from \code{ranges})
+#' @param verbose Should status updates be provided?
 #' @param ... Any other parameters to pass to emulator training
 #'
 #' @return A list \code{(mode1, mode2, prop)} of emulator lists and objects.
 #' @export
 #'
-bimodal_emulator_from_data <- function(data, output_names, ranges, input_names = names(ranges), ...) {
+#' @examples
+#'  \dontrun{
+#'   Use the stochastic SIR dataset
+#'   SIR_ranges <- list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05))
+#'   SIR_names <- c("I10", "I25", "I50", "R10", "R25", "R50")
+#'   b_ems <- bimodal_emulator_from_data(stochastic_SIR$training, SIR_names, SIR_ranges)
+#'  }
+#'
+bimodal_emulator_from_data <- function(data, output_names, ranges, input_names = names(ranges), verbose = interactive(), ...) {
   unique_points <- unique(data[,input_names])
   uids <- apply(unique_points, 1, hash)
   param_sets <- purrr::map(uids, function(x) {
     data[apply(data[,input_names], 1, hash) == x,]
   })
-  print("Separated dataset by unique points.")
+  if(verbose) print("Separated dataset by unique points.")
   proportion <- purrr::map_dbl(param_sets, function(x) {
     prop_clust <- Mclust(x[, output_names], G = 1:2, verbose = FALSE, control = emControl(tol = 1e-3))$classification
     return(sum(prop_clust ==1)/length(prop_clust))
   })
   prop_df <- setNames(data.frame(cbind(unique_points, proportion)), c(names(unique_points), 'prop'))
-  print("Training emulator to proportion in modes.")
+  if (verbose) print("Training emulator to proportion in modes.")
   prop_em <- emulator_from_data(prop_df, c('prop'), ranges, verbose = FALSE, ...)
-  print("Performing clustering to identify modes.")
-  has_bimodality <- setNames(data.frame(do.call('rbind', purrr::map(param_sets, function(x) {
+  if (verbose) print("Performing clustering to identify modes.")
+  has_bimodality <- setNames(do.call('rbind.data.frame', purrr::map(param_sets, function(x) {
     purrr::map_lgl(output_names, function(y) {
       if (length(unique(x[,y])) == 1) return(FALSE)
       return(Mclust(x[,y], G = 1:2, verbose = FALSE)$G == 2)
     })
-  }))), output_names)
+  })), output_names)
   is_bimodal_target <- apply(has_bimodality, 2, function(x) sum(x)/length(x) >= 0.1)
   if (!any(is_bimodal_target)) return(variance_emulator_from_data(data, output_names, ranges, verbose = FALSE, ...))
   if (!all(is_bimodal_target)) {
-    print("Training to unimodal targets.")
+    if (verbose) print("Training to unimodal targets.")
     non_bimodal <- variance_emulator_from_data(data, output_names[!is_bimodal_target], verbose = FALSE, ranges, ...)
   }
   else {
-    print("No targets appear to be unimodal.")
+    if (verbose) print("No targets appear to be unimodal.")
     non_bimodal <- NULL
   }
-  print("Training to bimodal targets.")
+  if (verbose) print("Training to bimodal targets.")
   bimodal <- purrr::map(output_names[is_bimodal_target], function(x) {
     c1_data <- list()
     c2_data <- list()
@@ -632,7 +636,7 @@ bimodal_emulator_from_data <- function(data, output_names, ranges, input_names =
     return(list(m1 = m1em, m2 = m2em))
   })
   bimodals <- setNames(bimodal, output_names[is_bimodal_target])
-  print("Trained emulators. Collating.")
+  if (verbose) print("Trained emulators. Collating.")
   m1exps <- m2exps <- m1vars <- m2vars <- list()
   for (i in output_names) {
     if (i %in% names(non_bimodal$expectation)) {

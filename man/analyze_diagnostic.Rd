@@ -43,8 +43,8 @@ as whether very many points have either large or small errors.
 
 Comparison Diagnostics: Error bars around points, corresponding to emulator prediction plus or
 minus emulator uncertainty. A green line indicates where the emulator and simulator prediction
-would be in complete agreement: error bars that do not overlap with this line (coloured red) are
-to be considered. Where targets are provided, the colouration is limited only to points where
+would be in complete agreement: error bars that do not overlap with this line (colored red) are
+to be considered. Where targets are provided, the coloration is limited only to points where
 the simulator prediction would be close to the targets.
 
 Classification Error: A point plot comparing emulator implausibility to simulator
@@ -53,7 +53,7 @@ that lie in the lower right quadrant (i.e. emulator would reject; simulator woul
 be considered.
 
 This function takes a data.frame that contains the input points, simulator values and, depending
-on the diagnostic, a set of siummary measures. It returns a data.frame of any points that failed
+on the diagnostic, a set of summary measures. It returns a data.frame of any points that failed
 the diagnostic.
 }
 \seealso{

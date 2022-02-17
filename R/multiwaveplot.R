@@ -20,8 +20,8 @@
 #' @export
 #'
 #' @examples
-#'  wave_points(GillespieMultiWaveData, c('aSI', 'aIR', 'aSR'))
-#'  wave_points(GillespieMultiWaveData, c('aSI', 'aIR', 'aSR'), TRUE, 0.8)
+#'  wave_points(SIRMultiWaveData, c('aSI', 'aIR', 'aSR'))
+#'  wave_points(SIRMultiWaveData, c('aSI', 'aIR', 'aSR'), TRUE, 0.8)
 wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5, zero_in = TRUE, wave_numbers = ifelse(zero_in, 0, 1):(length(waves)-ifelse(zero_in, 1, 0)), ...) {
   wave <- NULL
   out_list <- list()
@@ -88,9 +88,9 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5, zero
 #' @export
 #'
 #' @examples
-#'  wave_values(GillespieMultiWaveData, sample_emulators$targets, surround = TRUE, p_size = 1)
-#'  wave_values(GillespieMultiWaveData, sample_emulators$targets, c('nS', 'nI'), l_wid = 0.8)
-#'  wave_values(GillespieMultiWaveData, sample_emulators$targets, l_wid = 0.8,
+#'  wave_values(SIRMultiWaveData, SIREmulators$targets, surround = TRUE, p_size = 1)
+#'  wave_values(SIRMultiWaveData, SIREmulators$targets, c('nS', 'nI'), l_wid = 0.8)
+#'  wave_values(SIRMultiWaveData, SIREmulators$targets, l_wid = 0.8,
 #'   wave_numbers = c(0, 1, 3), which_wave = 2, upper_scale =  1.5)
 wave_values <- function(waves, targets, output_names = names(targets), surround = FALSE, restrict = FALSE, p_size = 1.5, l_wid = 1.5, zero_in = TRUE,
                         wave_numbers = ifelse(zero_in, 0, 1):(length(waves)-ifelse(zero_in, 1, 0)), which_wave = ifelse(zero_in, 0, 1), upper_scale = 1, ...) {
@@ -198,8 +198,8 @@ wave_values <- function(waves, targets, output_names = names(targets), surround 
 #' @export
 #'
 #' @examples
-#'  wave_dependencies(GillespieMultiWaveData, sample_emulators$targets, l_wid = 0.8, p_size = 0.8)
-#'  wave_dependencies(GillespieMultiWaveData, sample_emulators$targets, c('nS', 'nI'), c('aIR', 'aSI'))
+#'  wave_dependencies(SIRMultiWaveData, SIREmulators$targets, l_wid = 0.8, p_size = 0.8)
+#'  wave_dependencies(SIRMultiWaveData, SIREmulators$targets, c('nS', 'nI'), c('aIR', 'aSI'))
 #'
 wave_dependencies <- function(waves, targets, output_names = names(targets), input_names = names(waves[[1]])[!names(waves[[1]]) %in% names(targets)], p_size = 1.5, l_wid = 1.5, normalize = FALSE, zero_in = TRUE, wave_numbers = ifelse(zero_in, 0, 1):(length(waves)-ifelse(zero_in, 1, 0)), ...) {
   input_names <- input_names
@@ -269,8 +269,8 @@ wave_dependencies <- function(waves, targets, output_names = names(targets), inp
 #' @export
 #'
 #' @examples
-#'  simulator_plot(GillespieMultiWaveData, sample_emulators$targets)
-#'  simulator_plot(GillespieMultiWaveData[2:4], sample_emulators$targets,
+#'  simulator_plot(SIRMultiWaveData, SIREmulators$targets)
+#'  simulator_plot(SIRMultiWaveData[2:4], SIREmulators$targets,
 #'   zero_in = FALSE, wave_numbers = c(1,3))
 #'
 simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_numbers = seq(ifelse(zero_in, 0, 1), length(wave_points)-ifelse(zero_in, 1, 0)), normalize = FALSE, logscale = FALSE, barcol = "#444444", ...) {
@@ -297,6 +297,7 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_
   }
   pivoted <- pivot_longer(sim_runs, cols = !c('run', 'wave'))
   pivoted$wave = as.factor(pivoted$wave)
+  pivoted$name <- factor(pivoted$name, levels = names(z))
   if (is.null(palette))
     pal <- viridis::viridis(length(wave_points), option = 'plasma', direction = -1)
   else pal <- palette
@@ -345,8 +346,8 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_
 #'
 #' @examples
 #' \donttest{
-#'  diagnostic_wrap(GillespieMultiWaveData, sample_emulators$targets)
-#'  diagnostic_wrap(GillespieMultiWaveData, sample_emulators$targets,
+#'  diagnostic_wrap(SIRMultiWaveData, SIREmulators$targets)
+#'  diagnostic_wrap(SIRMultiWaveData, SIREmulators$targets,
 #'   input_names = c('aSI', 'aIR'), output_names = c('nI', 'nR'),
 #'   p_size = 0.8, l_wid = 0.8, wave_numbers = 1:3, zero_in = FALSE, surround = TRUE)
 #'   }
@@ -408,7 +409,6 @@ diagnostic_wrap <- function(waves, targets, output_names = names(targets), input
 #' wave, and for each output.
 #'
 #' @import ggplot2
-#' @importFrom purrr %>%
 #' @importFrom viridis scale_fill_viridis
 #'
 #' @param waves A list of lists of \code{\link{Emulator}} objects, corresponding to the waves
@@ -424,8 +424,8 @@ diagnostic_wrap <- function(waves, targets, output_names = names(targets), input
 #'
 #' @examples
 #'  outputs <- c('nS', 'nI', 'nR')
-#'  wave_variance(GillespieMultiWaveEmulators, outputs, ppd = 5)
-#'  wave_variance(GillespieMultiWaveEmulators, c('nI', 'nR'),
+#'  wave_variance(SIRMultiWaveEmulators, outputs, ppd = 5)
+#'  wave_variance(SIRMultiWaveEmulators, c('nI', 'nR'),
 #'   plot_dirs = c('aIR', 'aSR'), ppd = 5, sd = TRUE)
 #'
 wave_variance <- function(waves, output_names, plot_dirs = names(waves[[1]][[1]]$ranges)[1:2], wave_numbers = 1:length(waves), ppd = 20, sd = FALSE) {

@@ -60,6 +60,13 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #' is augmented to the desired number of points by importance sampling using uniform
 #' spherical proposals.
 #'
+#' In regions where the non-implausible space (at the given cutoff) is very hard to find,
+#' the function will start at a higher implausibility where it can find a space-filling
+#' design; using this as a starting point any other methods are performed. From this new
+#' proposal, a subset of lower-implausibility points are selected. This process iterates
+#' until either the desired implausibility has been reached or the process has reached a
+#' barrier to further reductions in implausibility.
+#'
 #' These methods may not work if the target space is very small comparative to the current
 #' not-yet-ruled-out space, or it may miss small disconnected regions of parameter space.
 #'
@@ -74,7 +81,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #' @param nth A parameter to be passed to the \code{n} argument of \code{\link{nth_implausible}}.
 #' @param plausible_set An optional set of known non-implausible points (for eg line sampling).
 #' @param verbose Should progress statements be printed to the console?
-#' @param cluster Should emulator clustering be considered in the LHS generation?
+#' @param cluster Should emulator clustering be considered in the LHS generation? EXPERIMENTAL
 #' @param resample Number of times to resample using line and/or importance sampling.
 #' @param seek How many 'good' points to search for
 #' @param ... Any parameters to pass to individual sampling functions, eg \code{distro} for importance sampling.
@@ -86,13 +93,13 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #' @examples
 #' \donttest{
 #'  # A simple example that uses a number of the native and ... parameter options
-#'  pts <- generate_new_runs(sample_emulators$ems, 20, sample_emulators$targets,
+#'  pts <- generate_new_runs(SIREmulators$ems, 20, SIREmulators$targets,
 #'  measure.method = 'maximin', distro = 'sphere', resample = 0)
-#'  pts_optical <- generate_new_runs(sample_emulators$ems, 100, sample_emulators$targets,
+#'  pts_optical <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
 #'   method = c('optical'), plausible_set = pts)
-#'  pts_slice <- generate_new_runs(sample_emulators$ems, 100, sample_emulators$targets,
+#'  pts_slice <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
 #'   method = c('slice'))
-#'  pts_no_importance <- generate_new_runs(sample_emulators$ems, 100, sample_emulators$targets,
+#'  pts_no_importance <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
 #'   method = c('line'))
 #' }
 generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'importance'), cutoff = 3, nth = 1, plausible_set, verbose = interactive(), cluster = FALSE, resample = 1, seek = 0, ...) {
@@ -261,7 +268,7 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
   return(points)
 }
 
-# LHS Sampling function
+# LHS Sampling function - DEPRECATED
 lhs_gen <- function(ems, n_points, z, cutoff = 3, nth = 1, measure.method = 'V_optimal', n.runs = 100, verbose = interactive(), ...) {
   ranges <- if("Emulator" %in% class(ems)) ems$ranges else ems[[1]]$ranges
   current_trace <- out_points <- NULL
@@ -533,13 +540,13 @@ seek_good <- function(ems, n_points, z, plausible_set, cutoff = 3, distro = "nor
     for (i in 1:length(targets)) {
       if (!is.atomic(targets[[i]])) targets[[i]] <- c(targets[[i]]$val - 3*targets[[i]]$sigma, targets[[i]]$val + 3*targets[[i]]$sigma)
     }
-    em_exps <- data.frame(do.call('cbind', purrr::map(ems, ~.$get_exp(points))))
-    em_sds <- sqrt(data.frame(do.call('cbind', purrr::map(ems, ~.$get_cov(points)))))
-    em_probs <- data.frame(do.call('rbind', purrr::map(1:nrow(em_exps), function(x) {
+    em_exps <- do.call('cbind.data.frame', purrr::map(ems, ~.$get_exp(points)))
+    em_sds <- sqrt(do.call('cbind.data.frame', purrr::map(ems, ~.$get_cov(points))))
+    em_probs <- do.call('rbind.data.frame', purrr::map(1:nrow(em_exps), function(x) {
       purrr::map_dbl(1:length(em_exps[x,]), function(y) {
         pnorm(targets[[ems[[y]]$output_name]][2], em_exps[x,y], em_sds[x,y]) - pnorm(targets[[ems[[y]]$output_name]][1], em_exps[x,y], em_sds[x,y])
       })
-    })))
+    }))
     result <- apply(em_probs, 1, function(x) prod(purrr::map_dbl(unique(names(targets)), ~min(x[purrr::map_chr(ems, function(a) a$output_name) == .]))))
     return(result)
   }

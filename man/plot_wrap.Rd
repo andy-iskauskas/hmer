@@ -26,6 +26,6 @@ ranges of the parameters. This function provides pairs plots of the parameters, 
 bounds of the plots calculated with respect to the parameter ranges provided.
 }
 \examples{
- plot_wrap(GillespieSIR[,1:3], sample_emulators$ems[[1]]$ranges)
+ plot_wrap(SIRSample$training[,1:3], SIREmulators$ems[[1]]$ranges)
 
 }

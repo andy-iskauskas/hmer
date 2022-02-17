@@ -59,7 +59,7 @@ at the far left or right edge of a plot, can give an indication that the input r
 unsuitable for matching the target.
 }
 \examples{
- wave_dependencies(GillespieMultiWaveData, sample_emulators$targets, l_wid = 0.8, p_size = 0.8)
- wave_dependencies(GillespieMultiWaveData, sample_emulators$targets, c('nS', 'nI'), c('aIR', 'aSI'))
+ wave_dependencies(SIRMultiWaveData, SIREmulators$targets, l_wid = 0.8, p_size = 0.8)
+ wave_dependencies(SIRMultiWaveData, SIREmulators$targets, c('nS', 'nI'), c('aIR', 'aSI'))
 
 }

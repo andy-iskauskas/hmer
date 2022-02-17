@@ -55,13 +55,13 @@ For details of each of the tests, see the help file for
 \code{\link{get_diagnostic}}.
 }
 \examples{
-validation_diagnostics(sample_emulators$ems, sample_emulators$targets, GillespieValidation)
-# data.frame of failed points and a 3x3 set of plots
-validation_diagnostics(sample_emulators$ems, sample_emulators$targets, GillespieValidation,
+validation_diagnostics(SIREmulators$ems, SIREmulators$targets, SIRSample$validation)
+# data.frame of failed points (empty) and a 3x3 set of plots
+validation_diagnostics(SIREmulators$ems, SIREmulators$targets, SIRSample$validation,
  c('ce','cd'))
-# data.frame and a 3x2 set of plots
-validation_diagnostics(sample_emulators$ems, sample_emulators$targets, GillespieValidation,
+# empty data.frame and a 3x2 set of plots
+validation_diagnostics(SIREmulators$ems, SIREmulators$targets, SIRSample$validation,
  cutoff = 2, sd = 2)
 # k-fold (with k = 3)
-validation_diagnostics(sample_emulators$ems, sample_emulators$targets, k = 3)
+validation_diagnostics(SIREmulators$ems, SIREmulators$targets, k = 3)
 }

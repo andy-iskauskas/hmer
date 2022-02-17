@@ -9,6 +9,7 @@ bimodal_emulator_from_data(
   output_names,
   ranges,
   input_names = names(ranges),
+  verbose = interactive(),
   ...
 )
 }
@@ -20,6 +21,8 @@ bimodal_emulator_from_data(
 \item{ranges}{The parameter ranges}
 
 \item{input_names}{The names of the parameters (by default inferred from \code{ranges})}
+
+\item{verbose}{Should status updates be provided?}
 
 \item{...}{Any other parameters to pass to emulator training}
 }
@@ -50,4 +53,13 @@ This value is also emulated as a deterministic emulator and included in the outp
 The output of the function is a list, containing three objects: \code{mode1}, \code{mode2}, and
 \code{prop}. The first two objects havethe form produced by \code{variance_emulator_from_data}
 while \code{prop} has the form of an \code{emulator_from_data} output.
+}
+\examples{
+ \dontrun{
+  Use the stochastic SIR dataset
+  SIR_ranges <- list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05))
+  SIR_names <- c("I10", "I25", "I50", "R10", "R25", "R50")
+  b_ems <- bimodal_emulator_from_data(stochastic_SIR$training, SIR_names, SIR_ranges)
+ }
+
 }

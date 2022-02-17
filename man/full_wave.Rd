@@ -57,10 +57,8 @@ the emulators demonstrate misclassification errors (from \code{\link{classificat
 provided at this wave. Some point generation mechanisms terminate early if a point is ruled
 out by a single emulator, so the ordering ensures this happens earlier rather than later.
 
-5) Generate the new points using the defauly method of \code{\link{generate_new_runs}}. The
-initial implausibility cutoff is set by \code{cutoff}; up to three inflations of the cutoff
-can be performed. If points still cannot be generated, then the nth implausibility is
-increased by one (so maximum implausibility becomes second-maximum implausibility).
+5) Generate the new points using the default method of \code{\link{generate_new_runs}}, using
+the normal procedure (for details, see the description for generate_new_runs).
 
 If the parameter \code{old_emulators} is provided, this should be a list of emulators used
 at all previous waves - for example if \code{full_wave} is used to do a second wave of
@@ -73,11 +71,11 @@ be put into the simulator to generate runs for a subsequent wave.
 \examples{
 \donttest{
  ranges <- list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05))
- default <- full_wave(rbind(GillespieSIR, GillespieValidation), ranges,
-  sample_emulators$targets)
- non_quad <- full_wave(rbind(GillespieSIR, GillespieValidation), ranges,
-  sample_emulators$targets, quadratic = FALSE)
- second <- full_wave(GillespieMultiWaveData[[2]], ranges, sample_emulators$targets,
-  old_emulators = GillespieMultiWaveEmulators[[1]])
+ default <- full_wave(do.call('rbind.data.frame', SIRSample), ranges,
+  SIREmulators$targets)
+ non_quad <- full_wave(do.call('rbind.data.frame', SIRSample), ranges,
+  SIREmulators$targets, quadratic = FALSE)
+ second <- full_wave(SIRMultiWaveData[[2]], ranges, SIREmulators$targets,
+  old_emulators = SIRMultiWaveEmulators[[1]])
  }
 }

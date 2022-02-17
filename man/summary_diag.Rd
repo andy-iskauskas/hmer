@@ -33,5 +33,5 @@ measure than the chi-squared measure. Any anomalous results can be investigated
 in more depth using the \code{\link{individual_errors}} function.
 }
 \examples{
- summary_diag(sample_emulators$ems$nR, GillespieValidation)
+ summary_diag(SIREmulators$ems$nR, SIRSample$validation)
 }

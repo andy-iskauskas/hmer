@@ -41,6 +41,6 @@ evolution of the non-implausible region. One-dimensional density plots
 are also created on the diagonal .
 }
 \examples{
- wave_points(GillespieMultiWaveData, c('aSI', 'aIR', 'aSR'))
- wave_points(GillespieMultiWaveData, c('aSI', 'aIR', 'aSR'), TRUE, 0.8)
+ wave_points(SIRMultiWaveData, c('aSI', 'aIR', 'aSR'))
+ wave_points(SIRMultiWaveData, c('aSI', 'aIR', 'aSR'), TRUE, 0.8)
 }

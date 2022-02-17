@@ -22,7 +22,6 @@ clean_data <- function(data, in_names, out_name, is.variance = FALSE, boots = 10
   unique_points <- unique(data[,in_names])
   uids <- apply(unique_points, 1, hash)
   summary_stats <- purrr::map(uids, function(i) {
-    #relev <- data[purrr::map_lgl(1:nrow(data), ~all(data[.,in_names] == unique_points[i,])),out_name]
     relev <- data[apply(data[,in_names], 1, hash) == i, out_name]
     if (!is.variance)
       return(c(mean(relev), sd(relev)^2/length(relev), length(relev)))
@@ -33,12 +32,13 @@ clean_data <- function(data, in_names, out_name, is.variance = FALSE, boots = 10
     })
     return(c(var_mean, sd(bootstrap)^2, length(relev)))
   })
-  out_data <- setNames(data.frame(cbind(unique_points, do.call('rbind', summary_stats))), c(in_names, 'mean', 'var', 'n'))
+  out_data <- setNames(cbind.data.frame(unique_points, do.call('rbind', summary_stats)), c(in_names, 'mean', 'var', 'n'))
   return(out_data[out_data$n > 1, ])
 }
 
+# A function for calculating k-fold cross-validation statistics.
 k_fold_measure <- function(em, target = NULL, k = 1, ...) {
-  train_data <- setNames(data.frame(cbind(eval_funcs(scale_input, data.frame(em$in_data), em$ranges, FALSE), em$out_data)), c(names(em$ranges), em$output_name))
+  train_data <- setNames(cbind.data.frame(eval_funcs(scale_input, data.frame(em$in_data), em$ranges, FALSE), em$out_data), c(names(em$ranges), em$output_name))
   ordering <- 1:nrow(train_data)
   if (k > 1) {
     if (nrow(train_data) %% k != 0) k <- 1
@@ -51,7 +51,7 @@ k_fold_measure <- function(em, target = NULL, k = 1, ...) {
         adj_em <- relev_em$adjust(adjust_data, em$output_name)
         outp <- cbind(cbind(train_data[relev_pts,], adj_em$get_exp(train_data[relev_pts, names(em$ranges)])), adj_em$get_cov(train_data[relev_pts, names(em$ranges)]))
         if ("Hierarchical" %in% class(em)) outp <- cbind(outp, purrr::map_dbl(relev_pts, ~em$s_diag(train_data[., names(em$ranges)], 1)))
-        if (!is.null(target)) outp <- c(outp, adj_em$implausibility(train_data[relev_pts, names(em$ranges)], target))
+        if (!is.null(target)) outp <- cbind(outp, adj_em$implausibility(train_data[relev_pts, names(em$ranges)], target))
         return(outp)
       })
     }
@@ -70,7 +70,7 @@ k_fold_measure <- function(em, target = NULL, k = 1, ...) {
   res_names <- c(names(em$ranges), em$output_name, "E", "V")
   if ("Hierarchical" %in% class(em)) res_names <- c(res_names, "Vest")
   if (!is.null(target)) res_names <- c(res_names, "I")
-  out_df <- setNames(data.frame(apply(data.frame(do.call('rbind', loo_data)), 2, unlist)), res_names)
+  out_df <- setNames(data.frame(apply(do.call('rbind.data.frame', loo_data), 2, unlist)), res_names)
   return(out_df[order(as.numeric(row.names(out_df))),])
 }
 
@@ -99,7 +99,7 @@ k_fold_measure <- function(em, target = NULL, k = 1, ...) {
 #' @export
 #'
 #' @examples
-#'  summary_diag(sample_emulators$ems$nR, GillespieValidation)
+#'  summary_diag(SIREmulators$ems$nR, SIRSample$validation)
 summary_diag <- function(emulator, validation, verbose = interactive()) {
   points <- validation[,names(emulator$ranges)]
   outputs <- validation[,emulator$output_name]
@@ -138,8 +138,8 @@ summary_diag <- function(emulator, validation, verbose = interactive()) {
 #' @export
 #'
 #' @examples
-#' residual_diag(sample_emulators$ems$nS)
-#' residual_diag(sample_emulators$ems$nI, TRUE)
+#' residual_diag(SIREmulators$ems$nS)
+#' residual_diag(SIREmulators$ems$nI, TRUE)
 #'
 residual_diag <- function(emulator, histogram = FALSE, ...) {
   in_points <- eval_funcs(scale_input, data.frame(emulator$in_data), emulator$ranges, FALSE)
@@ -200,12 +200,12 @@ residual_diag <- function(emulator, histogram = FALSE, ...) {
 #' @seealso validation_diagnostics
 #'
 #' @examples
-#'  # Use the simple SIR model via sample_emulators
-#'  get_diagnostic(sample_emulators$ems$nS, validation = GillespieValidation)
+#'  # Use the simple SIR model via SIREmulators
+#'  get_diagnostic(SIREmulators$ems$nS, validation = SIRSample$validation)
 #'  # Classification error fails without the set of targets
-#'  get_diagnostic(sample_emulators$ems$nI, sample_emulators$targets, GillespieValidation, 'ce')
+#'  get_diagnostic(SIREmulators$ems$nI, SIREmulators$targets, SIRSample$validation, 'ce')
 #'  # No validation set: k-fold cross-validation will be used.
-#'  get_diagnostic(sample_emulators$ems$nR, which_diag = 'se')
+#'  get_diagnostic(SIREmulators$ems$nR, which_diag = 'se')
 #'
 get_diagnostic <- function(emulator, targets = NULL, validation = NULL, which_diag = 'cd', stdev = 3, cleaned = NULL, warn = TRUE, kfold = NULL, ...) {
   if (is.null(targets) && which_diag == 'ce') stop("Targets must be provided for classification error diagnostics.")
@@ -259,7 +259,7 @@ get_diagnostic <- function(emulator, targets = NULL, validation = NULL, which_di
     else
       denom <- sqrt(em_vars + emulator$disc$internal^2 + emulator$disc$external^2)
     errors <- num/denom
-    out_data <- data.frame(do.call('cbind', list(input_points, output_points, errors))) |> setNames(c(names(input_points), emulator$output_name, 'error'))
+    out_data <- do.call('cbind.data.frame', list(input_points, output_points, errors)) |> setNames(c(names(input_points), emulator$output_name, 'error'))
   }
   if (which_diag == 'cd') {
     if (is.null(stdev)) stdev <- 3
@@ -267,7 +267,7 @@ get_diagnostic <- function(emulator, targets = NULL, validation = NULL, which_di
       emulator_unc <- stdev * sqrt(em_vars + point_vars + emulator$disc$internal^2 + emulator$disc$external^2)
     else
       emulator_unc <- stdev * sqrt(em_vars + emulator$disc$internal^2 + emulator$disc$external^2)
-    out_data <- data.frame(do.call('cbind', list(input_points, output_points, em_exps, emulator_unc))) |> setNames(c(names(input_points), emulator$output_name, 'exp', 'unc'))
+    out_data <- do.call('cbind.data.frame', list(input_points, output_points, em_exps, emulator_unc)) |> setNames(c(names(input_points), emulator$output_name, 'exp', 'unc'))
   }
   if (which_diag == 'ce') {
     this_target <- targets[[emulator$output_name]]
@@ -275,7 +275,7 @@ get_diagnostic <- function(emulator, targets = NULL, validation = NULL, which_di
       sim_imp <- abs(output_points - rep(mean(this_target), length(output_points)))/rep(diff(this_target)/2, length(output_points))
     else
       sim_imp <- purrr::map_dbl(output_points, ~sqrt((this_target$val-.)^2/this_target$sigma^2))
-    out_data <- data.frame(do.call('cbind', list(input_points, output_points, em_imp, sim_imp))) |> setNames(c(names(input_points), emulator$output_name, 'em', 'sim'))
+    out_data <- do.call('cbind.data.frame', list(input_points, output_points, em_imp, sim_imp)) |> setNames(c(names(input_points), emulator$output_name, 'em', 'sim'))
   }
   return(out_data)
 }
@@ -294,8 +294,8 @@ get_diagnostic <- function(emulator, targets = NULL, validation = NULL, which_di
 #'
 #' Comparison Diagnostics: Error bars around points, corresponding to emulator prediction plus or
 #' minus emulator uncertainty. A green line indicates where the emulator and simulator prediction
-#' would be in complete agreement: error bars that do not overlap with this line (coloured red) are
-#' to be considered. Where targets are provided, the colouration is limited only to points where
+#' would be in complete agreement: error bars that do not overlap with this line (colored red) are
+#' to be considered. Where targets are provided, the coloration is limited only to points where
 #' the simulator prediction would be close to the targets.
 #'
 #' Classification Error: A point plot comparing emulator implausibility to simulator
@@ -304,7 +304,7 @@ get_diagnostic <- function(emulator, targets = NULL, validation = NULL, which_di
 #' be considered.
 #'
 #' This function takes a data.frame that contains the input points, simulator values and, depending
-#' on the diagnostic, a set of siummary measures. It returns a data.frame of any points that failed
+#' on the diagnostic, a set of summary measures. It returns a data.frame of any points that failed
 #' the diagnostic.
 #'
 #' @importFrom graphics abline arrows hist
@@ -361,7 +361,7 @@ analyze_diagnostic <- function(in_data, output_name, targets = NULL, plt = inter
     if (is.null(cutoff)) cutoff <- 3
     this_target <- targets[[output_name]]
     t_cutoff <- if (is.atomic(this_target)) 1 * cutoff/3 else cutoff
-    emulator_invalid <- (in_data$em > cutoff) & (in_data$sim <= cutoff)
+    emulator_invalid <- (in_data$em > cutoff) & (in_data$sim <= t_cutoff)
     if (plt) {
       plot(in_data$em, in_data$sim, pch = 16,
            col = ifelse(emulator_invalid, 'red', 'black'), xlab = "Emulator Implausibility", ylab = "Simulator Implausibility",
@@ -408,15 +408,15 @@ analyze_diagnostic <- function(in_data, output_name, targets = NULL, plt = inter
 #' @export
 #'
 #' @examples
-#' validation_diagnostics(sample_emulators$ems, sample_emulators$targets, GillespieValidation)
-#' # data.frame of failed points and a 3x3 set of plots
-#' validation_diagnostics(sample_emulators$ems, sample_emulators$targets, GillespieValidation,
+#' validation_diagnostics(SIREmulators$ems, SIREmulators$targets, SIRSample$validation)
+#' # data.frame of failed points (empty) and a 3x3 set of plots
+#' validation_diagnostics(SIREmulators$ems, SIREmulators$targets, SIRSample$validation,
 #'  c('ce','cd'))
-#' # data.frame and a 3x2 set of plots
-#' validation_diagnostics(sample_emulators$ems, sample_emulators$targets, GillespieValidation,
+#' # empty data.frame and a 3x2 set of plots
+#' validation_diagnostics(SIREmulators$ems, SIREmulators$targets, SIRSample$validation,
 #'  cutoff = 2, sd = 2)
 #' # k-fold (with k = 3)
-#' validation_diagnostics(sample_emulators$ems, sample_emulators$targets, k = 3)
+#' validation_diagnostics(SIREmulators$ems, SIREmulators$targets, k = 3)
 validation_diagnostics <- function(emulators, targets = NULL, validation = NULL, which_diag = c('cd', 'ce', 'se'), analyze = TRUE, diagnose = "expectation", ...) {
   if ("Emulator" %in% class(emulators))
     emulators <- setNames(list(emulators), emulators$output_name)
@@ -558,10 +558,10 @@ validation_diagnostics <- function(emulators, targets = NULL, validation = NULL,
 #' @export
 #'
 #' @examples
-#' individual_errors(sample_emulators$ems$nS, GillespieValidation)
-#' individual_errors(sample_emulators$ems$nS, GillespieValidation, "chol", "em")
-#' individual_errors(sample_emulators$ems$nS, GillespieValidation, "eigen", plottype = "qq")
-#' individual_errors(sample_emulators$ems$nS, GillespieValidation, "cholpivot", xtype = "aSI")
+#' individual_errors(SIREmulators$ems$nS, SIRSample$validation)
+#' individual_errors(SIREmulators$ems$nS, SIRSample$validation, "chol", "em")
+#' individual_errors(SIREmulators$ems$nS, SIRSample$validation, "eigen", plottype = "qq")
+#' individual_errors(SIREmulators$ems$nS, SIRSample$validation, "cholpivot", xtype = "aSI")
 #'
 individual_errors <- function(em, validation, errtype = "normal", xtype = "index", plottype = "normal") {
   if (!errtype %in% c("normal", "eigen", "chol", "cholpivot"))

@@ -44,8 +44,8 @@ to be done relative to the original input space, rather than the (reduced) param
 space upon which the emulators have been trained.
 }
 \examples{
- validation_pairs(sample_emulators$ems, GillespieValidation, sample_emulators$targets)
- wider_ranges <- purrr::map(sample_emulators$ems[[1]]$ranges, ~.*c(-2, 2))
- validation_pairs(sample_emulators$ems, GillespieValidation,
-  sample_emulators$targets, ranges = wider_ranges, cb = TRUE)
+ validation_pairs(SIREmulators$ems, SIRSample$validation, SIREmulators$targets)
+ wider_ranges <- purrr::map(SIREmulators$ems[[1]]$ranges, ~.*c(-2, 2))
+ validation_pairs(SIREmulators$ems, SIRSample$validation,
+  SIREmulators$targets, ranges = wider_ranges, cb = TRUE)
 }

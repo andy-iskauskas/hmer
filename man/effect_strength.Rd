@@ -6,25 +6,25 @@
 \usage{
 effect_strength(
   ems,
-  line_plot = FALSE,
+  line.plot = FALSE,
+  grid.plot = FALSE,
   labels = TRUE,
   quadratic = TRUE,
-  xvar = TRUE,
-  grid.plot = FALSE
+  xvar = TRUE
 )
 }
 \arguments{
 \item{ems}{The Emulator object(s) to be analyzed.}
 
-\item{line_plot}{Should a line plot be produced?}
+\item{line.plot}{Should a line plot be produced?}
+
+\item{grid.plot}{Should the effect strengths be plotted as a grid?}
 
 \item{labels}{Whether or not the legend should be included.}
 
 \item{quadratic}{Whether or not quadratic effect strength should be calculated.}
 
 \item{xvar}{Should the inputs be used on the x-axis?}
-
-\item{grid.plot}{Should the effect strengths be plotted as a grid?}
 }
 \value{
 A list of data.frames: the first is the linear strength, and the second quadratic.
@@ -46,6 +46,7 @@ if a legend should be provided with the plot (for large numbers of emulators, it
 advisable to set this to \code{FALSE}).
 }
 \examples{
- effect <- effect_strength(sample_emulators$ems)
- effect_line <- effect_strength(sample_emulators$ems, line_plot = TRUE)
+ effect <- effect_strength(SIREmulators$ems)
+ effect_line <- effect_strength(SIREmulators$ems, line.plot = TRUE)
+ effect_grid <- effect_strength(SIREmulators$ems, grid.plot = TRUE)
 }

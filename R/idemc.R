@@ -190,19 +190,12 @@ IDEMC_step <- function(ems, points, imp_func, imp_levels, s, pm = 0.9, M = 10) {
 #' @examples
 #' \dontrun{
 #' ranges <- list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05))
-#' out_vars <- c('nS', 'nI', 'nR')
-#' ems <- emulator_from_data(GillespieSIR, out_vars, ranges)
-#' z <- list(
-#'  nS = list(val = 281, sigma = 10.43),
-#'  nI = list(val = 30, sigma = 11.16),
-#'  nR = list(val = 689, sigma = 14.32)
-#' )
 #' start_pts <- data.frame(
 #'   aSI = runif(500, ranges$aSI[1], ranges$aSI[2]),
 #'   aIR = runif(500, ranges$aIR[1], ranges$aIR[2]),
 #'   aSR = runif(500, ranges$aSR[1], ranges$aSR[2])
 #' )
-#' result <- IDEMC(start_pts, ems, z, 50, 100, 0.3, imp = 2)
+#' result <- IDEMC(start_pts, SIREmulators$ems, SIREmulators$targets, 50, 100, 0.3, imp = 2)
 #' }
 #'
 #' @export

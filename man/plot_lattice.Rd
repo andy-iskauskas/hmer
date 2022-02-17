@@ -46,7 +46,7 @@ are sampled uniformly from the region instead of regularly spacing them.
 }
 \examples{
 \donttest{
- plot_lattice(sample_emulators$ems, sample_emulators$targets, ppd = 10)
- plot_lattice(sample_emulators$ems$nS, sample_emulators$targets)
+ plot_lattice(SIREmulators$ems, SIREmulators$targets, ppd = 10)
+ plot_lattice(SIREmulators$ems$nS, SIREmulators$targets)
 }
 }

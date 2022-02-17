@@ -60,8 +60,8 @@ combined via piecewise minimisation.
 }
 \examples{
 # A single point
-nth_implausible(sample_emulators$ems, data.frame(aSI = 0.4, aIR = 0.25, aSR = 0.025),
- sample_emulators$targets)
+nth_implausible(SIREmulators$ems, data.frame(aSI = 0.4, aIR = 0.25, aSR = 0.025),
+ SIREmulators$targets)
 # A data.frame of points
 grid <- expand.grid(
  aSI = seq(0.1, 0.8, length.out = 4),
@@ -69,13 +69,13 @@ grid <- expand.grid(
  aSR = seq(0, 0.05, length.out = 4)
 )
 # Vector of numerics
-i1 <- nth_implausible(sample_emulators$ems, grid, sample_emulators$targets)
+i1 <- nth_implausible(SIREmulators$ems, grid, SIREmulators$targets)
 # Vector of booleans (same as i1 <= 3)
-i2 <- nth_implausible(sample_emulators$ems, grid, sample_emulators$targets, cutoff = 3)
+i2 <- nth_implausible(SIREmulators$ems, grid, SIREmulators$targets, cutoff = 3)
 # Throws a warning as n > no. of targets
-i3 <- nth_implausible(sample_emulators$ems, grid, sample_emulators$targets, n = 4)
+i3 <- nth_implausible(SIREmulators$ems, grid, SIREmulators$targets, n = 4)
 # Vector of booleans (note different output to i2)
-i4 <- nth_implausible(sample_emulators$ems, grid, sample_emulators$targets,
+i4 <- nth_implausible(SIREmulators$ems, grid, SIREmulators$targets,
  cutoff = c(4, 2.5, 1))
 
 # Variance Emulators

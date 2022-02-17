@@ -44,8 +44,8 @@ wave, and for each output.
 }
 \examples{
  outputs <- c('nS', 'nI', 'nR')
- wave_variance(GillespieMultiWaveEmulators, outputs, ppd = 5)
- wave_variance(GillespieMultiWaveEmulators, c('nI', 'nR'),
+ wave_variance(SIRMultiWaveEmulators, outputs, ppd = 5)
+ wave_variance(SIRMultiWaveEmulators, c('nI', 'nR'),
   plot_dirs = c('aIR', 'aSR'), ppd = 5, sd = TRUE)
 
 }

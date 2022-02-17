@@ -24,6 +24,8 @@
 #'    \code{samples} A numeric vector that indicates how many replicates each of the training
 #'    points has.
 #'
+#'    \code{em_type} Whether the emulator is emulating a mean surface or a variance surface.
+#'
 #' @section Constructor Details:
 #'
 #'    See \code{\link{Emulator}}: the constructor structure is the same save for the two

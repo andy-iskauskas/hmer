@@ -25,6 +25,8 @@ Creates a univariate emulator with hierarchical structure.
 
    \code{samples} A numeric vector that indicates how many replicates each of the training
    points has.
+
+   \code{em_type} Whether the emulator is emulating a mean surface or a variance surface.
 }
 
 \section{Constructor Details}{

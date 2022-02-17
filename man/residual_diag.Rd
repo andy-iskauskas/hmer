@@ -26,7 +26,7 @@ of the regression surface on the training set, to determine the extent to which
 the regression surface is being 'corrected for' by the correlation structure.
 }
 \examples{
-residual_diag(sample_emulators$ems$nS)
-residual_diag(sample_emulators$ems$nI, TRUE)
+residual_diag(SIREmulators$ems$nS)
+residual_diag(SIREmulators$ems$nI, TRUE)
 
 }

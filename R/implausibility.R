@@ -1,3 +1,4 @@
+# Code to check emulator implausibilities sequentially
 sequential_imp <- function(ems, x, z, n = 1, cutoff = 3) {
   t_ems <- ems
   results <- purrr::map_lgl(1:nrow(x), function(a) {
@@ -56,8 +57,8 @@ sequential_imp <- function(ems, x, z, n = 1, cutoff = 3) {
 #'
 #' @examples
 #' # A single point
-#' nth_implausible(sample_emulators$ems, data.frame(aSI = 0.4, aIR = 0.25, aSR = 0.025),
-#'  sample_emulators$targets)
+#' nth_implausible(SIREmulators$ems, data.frame(aSI = 0.4, aIR = 0.25, aSR = 0.025),
+#'  SIREmulators$targets)
 #' # A data.frame of points
 #' grid <- expand.grid(
 #'  aSI = seq(0.1, 0.8, length.out = 4),
@@ -65,13 +66,13 @@ sequential_imp <- function(ems, x, z, n = 1, cutoff = 3) {
 #'  aSR = seq(0, 0.05, length.out = 4)
 #' )
 #' # Vector of numerics
-#' i1 <- nth_implausible(sample_emulators$ems, grid, sample_emulators$targets)
+#' i1 <- nth_implausible(SIREmulators$ems, grid, SIREmulators$targets)
 #' # Vector of booleans (same as i1 <= 3)
-#' i2 <- nth_implausible(sample_emulators$ems, grid, sample_emulators$targets, cutoff = 3)
+#' i2 <- nth_implausible(SIREmulators$ems, grid, SIREmulators$targets, cutoff = 3)
 #' # Throws a warning as n > no. of targets
-#' i3 <- nth_implausible(sample_emulators$ems, grid, sample_emulators$targets, n = 4)
+#' i3 <- nth_implausible(SIREmulators$ems, grid, SIREmulators$targets, n = 4)
 #' # Vector of booleans (note different output to i2)
-#' i4 <- nth_implausible(sample_emulators$ems, grid, sample_emulators$targets,
+#' i4 <- nth_implausible(SIREmulators$ems, grid, SIREmulators$targets,
 #'  cutoff = c(4, 2.5, 1))
 #'
 #' # Variance Emulators
@@ -89,7 +90,7 @@ nth_implausible <- function(ems, x, z, n = 1, max_imp = 20, cutoff = NULL, seque
     if (!is.null(z$expectation) && !is.null(z$variance)) {
       imps_list <- list(expectation = nth_implausible(ems$expectation, x, z$expectation, n, max_imp, cutoff, FALSE, TRUE),
                         variance = nth_implausible(ems$variance, x, z$variance, n, max_imp, cutoff, FALSE, TRUE))
-      imp_mat <- data.frame(cbind(imps_list$expectation, imps_list$variance))
+      imp_mat <- cbind.data.frame(imps_list$expectation, imps_list$variance)
       if (get_raw) {
         return(setNames(imp_mat, c(paste0(purrr::map_chr(ems$expectation, ~.$output_name), "Exp"), paste0(purrr::map_chr(ems$variance, ~.$output_name), "Var"))))
       }

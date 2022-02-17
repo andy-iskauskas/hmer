@@ -28,6 +28,6 @@ input region. Otherwise, the provided points are used: for example, if a represe
 sample current NROY space is available.
 }
 \examples{
- output_plot(sample_emulators$ems, sample_emulators$targets)
- output_plot(sample_emulators$ems, sample_emulators$targets, points = GillespieSIR)
+ output_plot(SIREmulators$ems, SIREmulators$targets)
+ output_plot(SIREmulators$ems, SIREmulators$targets, points = SIRSample$training)
 }

@@ -25,15 +25,15 @@ set.seed(123)
 # Introducing hmer
 This vignette briefly outlines the main functionality of the hmer package. It can be seen as a quick reference to the main functions and usage of the package and will not detail the mathematical framework of emulation and history matching: for a more in-depth treatment, see the other vignettes in the package.
 
-We use a set of (included) model run datasets to demonstrate the functionality - all have been generated from an SIRS model solved using the Gillespie algorithm. By and large in the document, we will not focus on emulating the variance of this stochastic system.
+We use a set of (included) model run datasets to demonstrate the functionality - all have been generated from an SIRS model using a system of differential equations. The stochastic equivalent (using the Gillespie algorithm) will be dealt with in a later vignette.
 
 ## Training emulators
-The first step, given a dataset (here the `GillespieSIR` set), is to train an emulator to each output. We need to provide details about the parameters (and their ranges) to the model and the outputs from the model, as well as the data itself. Then the function `emulator_from_data(data, outputs, ranges, ...)` produces a set of `Emulator` objects, as a named list.
+The first step, given a dataset (here the `SIRSample` training set), is to train an emulator to each output. We need to provide details about the parameters (and their ranges) to the model and the outputs from the model, as well as the data itself. Then the function `emulator_from_data(data, outputs, ranges, ...)` produces a set of `Emulator` objects, as a named list.
 
 ```{r}
 input_ranges <- list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05))
 output_names <- c('nS', 'nI', 'nR')
-wave1_emulators <- emulator_from_data(GillespieSIR, output_names, input_ranges)
+wave1_emulators <- emulator_from_data(SIRSample$training, output_names, input_ranges)
 ```
 
 An emulator is an R6 object, with the requisite print statement giving the core details of the emulator. It also contains a Correlator object with similar R6 properties.
@@ -53,22 +53,22 @@ The default training process assumes the following:
 Any of these default behaviours can be modified; for instance, manually setting the correlation lengths requires the provision of a numeric vector of correlation lengths:
 
 ```{r}
-custom_emulators <- emulator_from_data(GillespieSIR, output_names, input_ranges, c_lengths = c(0.6, 0.7, 0.85))
+custom_emulators <- emulator_from_data(SIRSample$training, output_names, input_ranges, c_lengths = c(0.6, 0.7, 0.85))
 custom_emulators$nR$corr
 ```
 
-In any event, having trained emulators it is crucial to ensure that they are accurately representing the model behaviour, at the very least over the region of potential interest. The `validation_diagnostics` function produces some simple plots to check this. It requires a separate hold-out or validation set of model runs. Some of the diagnostic functions also require a set of targets - values which we expect the model to match to. These are specified as a named list, each element consisting of an observation value `val` and an associated uncertainty `sigma`.
+In any event, having trained emulators it is crucial to ensure that they are accurately representing the model behaviour, at the very least over the region of potential interest. The `validation_diagnostics` function produces some simple plots to check this. It requires a separate hold-out or validation set of model runs. Some of the diagnostic functions also require a set of targets - values which we expect the model to match to. These can be specified as a named list, each element consisting of an observation value `val` and an associated uncertainty `sigma`; alternatively we can provide an upper and lower bound $[a,b]$ corresponding to the target range. A combination thereof can be provided in a given set of targets.
 
 ```{r}
 targets <- list(
-  nS = list(val = 281, sigma = 10.43),
-  nI = list(val = 30, sigma = 11.16),
-  nR = list(val = 689, sigma = 14.32)
+  nS = c(580, 651),
+  nI = list(val = 169, sigma = 8.45),
+  nR = c(199, 221)
 )
 ```
 
 ```{r fig.width = 7, fig.height = 7}
-invalid_points <- validation_diagnostics(wave1_emulators, targets, GillespieValidation, plt = TRUE)
+invalid_points <- validation_diagnostics(wave1_emulators, targets, SIRSample$validation, plt = TRUE)
 ```
 
 ## Visualising Emulator Behaviour
@@ -77,7 +77,7 @@ Emulators can be used as a (statistical) surrogate for the model, and in particu
 
 ```{r fig.width = 7, fig.height = 7}
 emulator_plot(wave1_emulators)
-emulator_plot(wave1_emulators$nS, params = c('aIR', 'aSR'), fixed_vals = list(aSI = 0.3))
+emulator_plot(wave1_emulators$nS, params = c('aSI', 'aIR'), fixed_vals = list(aSR = 0.03))
 emulator_plot(wave1_emulators$nI, plot_type = 'var')
 emulator_plot(wave1_emulators$nI, plot_type = 'sd')
 ```
@@ -85,7 +85,7 @@ emulator_plot(wave1_emulators$nI, plot_type = 'sd')
 Almost all the return values of plots produced by `hmer` are `ggplot` objects, and so can be augmented after the fact.
 
 ```{r fig.width = 7, fig.height = 7}
-emulator_plot(wave1_emulators$nS, params = c('aIR', 'aSR')) + ggplot2::geom_point(data = GillespieSIR, ggplot2::aes(x = aIR, y = aSR))
+emulator_plot(wave1_emulators$nS, params = c('aIR', 'aSI')) + ggplot2::geom_point(data = SIRSample$training, ggplot2::aes(x = aSI, y = aIR))
 ```
 
 Using these, we can plot implausibility across the parameter space, again using `emulator_plot`. We can also combine the implausibilities into a combined measure of point suitability by considering maximum implausibility across all outputs. While traditionally, implausibility plots are green-red, a colourblind friendly palette is available with the use of `cb=TRUE`.
@@ -95,7 +95,7 @@ emulator_plot(wave1_emulators, plot_type = 'imp', targets = targets)
 emulator_plot(wave1_emulators, plot_type = 'nimp', targets = targets, cb = TRUE)
 ```
 
-While these plots represent slices of parameter space, other functionality allows a rough understanding of the behaviour across the full space.In particular, the `plot_lattice` function provides a plot of optical depth and minimum implausibility for all parameter combinations.
+While these plots represent slices of parameter space, other functionality allows a rough understanding of the behaviour across the full space.In particular, the `plot_lattice` function provides a plot of optical depth and minimum implausibility for all parameter combinations. Since this is generating a plot that represents the full space and not a two-dimensional slice, it typically takes a little longer than the previous plots considered.
 
 ```{r fig.width = 7, fig.height = 7}
 plot_lattice(wave1_emulators, targets)
@@ -109,19 +109,19 @@ In preparation for proposing new points, we can also look at the optimal 'cutoff
 space_removed(wave1_emulators, targets, ppd = 10) + geom_vline(xintercept = 3)
 ```
 
-We see, for instance, that choosing a cutoff of 3 (roughly corresponding to a 3-sigma deviation from the target value) is sufficient to rule out over 80% of the space, and that increasing or decreasing observational uncertainly will not greatly change this outcome.
+We see, for instance, that choosing a cutoff of 3 (roughly corresponding to a 3-sigma deviation from the target value) is sufficient to rule out over 95% of the space - coupled with the fact that our diagnostics were so healthy suggests that this is a very reasonable first cut.
 
-Eventually, the aim of history matching is to propose new points which can enter into the model, the results of which can train new emulators, repeating the cycle. The `generate_new_runs` function does just that. There are multiple options that can be passed to this function: the default behaviour should be adequate for most situations, with the consideration of the cutoff value mentioned above. Information about the progress of the point proposal can be obtained by setting the argument `verbose = TRUE`.
+Eventually, the aim of history matching is to propose new points which can enter into the model, the results of which can train new emulators, repeating the cycle. The `generate_new_runs` function does just that. There are multiple options that can be passed to this function: the default behaviour should be adequate for most situations, with the consideration of the cutoff value mentioned above. Information about the progress of the point proposal can be suppressed by setting the argument `verbose = FALSE` - by default it will be `TRUE` if we are stepping through this by hand, but not if we run this at arm's length (for example on a cluster).
 
 ```{r fig.height = 7, fig.width = 7}
 new_points <- generate_new_runs(wave1_emulators, 90, targets)
-plot(rbind(rbind(GillespieSIR, GillespieValidation)[,names(input_ranges)], new_points), pch = 16, cex = 0.8, col = rep(c('black', 'blue'), each = 90))
+plot(rbind(rbind(SIRSample$training, SIRSample$validation)[,names(input_ranges)], new_points), pch = 16, cex = 0.8, col = rep(c('black', 'blue'), each = 90))
 ```
 
 The plot command above is replicated in the `hmer` package itself, to a degree. We first create a list of 'waves'; each element of the list is a data.frame containing all points proposed at that time. For now, we merely look at the proposed points and not the resulting model values.
 
 ```{r}
-wave.points <- list(GillespieSIR[,c('aSI', 'aIR', 'aSR')], new_points)
+wave.points <- list(SIRSample$training[,c('aSI', 'aIR', 'aSR')], new_points)
 ```
 
 There are a number of explanatory plots that can be produced, given a set of wave data. Some require the model to have been run on the points, but one that doesn't is `wave_points`:
@@ -137,21 +137,21 @@ This shows the evolution of the point proposals as the waves go on.
 For these plots, we will use the `GillespieMultiWaveData` dataset provided. This contains a list of four waves of points (including wave 0), along with the model evaluation. We can use this to look at dependencies of the outputs on the inputs (`wave_dependencies`), the evolution of the output values obtained (`wave_values`), and the overall behaviour of the model runs (`simulator_plot`).
 
 ```{r, fig.height = 7, fig.width = 7}
-wave_values(GillespieMultiWaveData, targets)
-wave_dependencies(GillespieMultiWaveData, targets)
-simulator_plot(GillespieMultiWaveData, targets)
+wave_values(SIRMultiWaveData, targets)
+wave_dependencies(SIRMultiWaveData, targets)
+simulator_plot(SIRMultiWaveData, targets)
 ```
 
 All of these plots, as well as `wave_points`, are wrapped into a single function, `diagnostic_wrap`. Normalisation options are available for target values (log-scaled or normalising all targets to the range $[-1,1]$), but we suppress those plots here using `include.norm = FALSE` and `include.log = FALSE`.
 
 ```{r, fig.height = 7, fig.width = 7}
-diagnostic_wrap(GillespieMultiWaveData, targets, include.norm = FALSE, include.log = FALSE)
+diagnostic_wrap(SIRMultiWaveData, targets, include.norm = FALSE, include.log = FALSE)
 ```
 
-Given an equivalent list of emulators (here using `GillespieMultiWaveEmulators`), we can see the evolution of the emulator variance across the waves. Note that only three rows, each corresponding to a wave, are produced, since the first element of the MultiWaveData contains wave '0' points, to which no emulators are associated.
+Given an equivalent list of emulators (here using `SIRMultiWaveEmulators`), we can see the evolution of the emulator variance across the waves. Note that only three rows, each corresponding to a wave, are produced, since the first element of the MultiWaveData contains wave '0' points, to which no emulators are associated.
 
 ```{r, fig.height = 7, fig.width = 7}
-wave_variance(GillespieMultiWaveEmulators, names(targets))
+wave_variance(SIRMultiWaveEmulators, names(targets))
 ```
 
 ## Hands-off Emulation and History Matching
@@ -159,7 +159,7 @@ wave_variance(GillespieMultiWaveEmulators, names(targets))
 Each of the functions in constructing emulators has a number of options with which the default behaviour can be modified. However, if investigation of the emulator structure is not required and one simply wants the next set of proposed points, then the `full_wave` function allows this. It requires only a set of points to train the emulators on. If applying this at later waves, the emulators from previous waves are provided as a list to the `old_emulators` argument.
 
 ```{r}
-f_w <- suppressWarnings(full_wave(GillespieSIR, list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05)), targets))
+f_w <- suppressWarnings(full_wave(SIRSample$training, list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05)), targets))
 ```
 
 This provides two things: a next set of points to evaluate the model on, and the emulators that gave rise to them.

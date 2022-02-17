@@ -14,17 +14,17 @@
 #' @export
 #'
 #' @examples
-#'  behaviour_plot(sample_emulators$ems, GillespieSIR)
-#'  behaviour_plot(sample_emulators$ems$nS)
+#'  behaviour_plot(SIREmulators$ems, SIRSample$training)
+#'  behaviour_plot(SIREmulators$ems$nS)
 behaviour_plot <- function(ems, points) {
   if ("Emulator" %in% class(ems)) ems <- setNames(list(ems), ems$output_name)
   if (missing(points)) {
     ranges <- ems[[1]]$ranges
-    points <- setNames(data.frame(do.call('cbind', purrr::map(ranges, ~runif(1000, .[1], .[2])))), names(ranges))
+    points <- setNames(do.call('cbind.data.frame', purrr::map(ranges, ~runif(1000, .[1], .[2]))), names(ranges))
   }
   in_names <- names(ems[[1]]$ranges)
   out_names <- purrr::map_chr(ems, ~.$output_name)
-  data <- setNames(data.frame(cbind(points, purrr::map(ems, ~.$get_exp(points)))), c(in_names, out_names))
+  data <- setNames(cbind.data.frame(points, purrr::map(ems, ~.$get_exp(points))), c(in_names, out_names))
   op <- par(mfrow = c(length(out_names), length(in_names)))
   for (i in 1:length(ems)) {
     for (j in 1:length(in_names)) {
@@ -75,8 +75,8 @@ behaviour_plot <- function(ems, points) {
 #' @export
 #'
 #' @examples
-#' space_removed(sample_emulators$ems, sample_emulators$targets, ppd = 5)
-# space_removed(sample_emulators$ems$nS, sample_emulators$targets,
+#' space_removed(SIREmulators$ems, SIREmulators$targets, ppd = 5)
+# space_removed(SIREmulators$ems$nS, SIREmulators$targets,
 #  ppd = 5, u_mod = seq(0.75, 1.25, by = 0.25), intervals = seq(2, 6, by = 0.1))
 space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1), intervals = seq(0, 10, length.out = 200), modified = 'obs', maxpoints = NULL) {
   value <- name <- NULL
@@ -85,7 +85,7 @@ space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1
   ranges <- ems[[1]]$ranges
   if (is.null(maxpoints)) maxpoints <- 100*length(ranges)
   if (ppd^length(ranges) > maxpoints) {
-    ptgrid <- setNames(data.frame(do.call('cbind', purrr::map(ranges, ~runif(maxpoints, .[[1]], .[[2]])))), names(ranges))
+    ptgrid <- setNames(do.call('cbind.data.frame', purrr::map(ranges, ~runif(maxpoints, .[[1]], .[[2]]))), names(ranges))
   }
   else {
     ptgrid <- setNames(expand.grid(purrr::map(ranges, ~seq(.[[1]], .[[2]], length.out = ppd))), names(ranges))
@@ -177,10 +177,10 @@ space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1
 #' @export
 #'
 #' @examples
-#'  validation_pairs(sample_emulators$ems, GillespieValidation, sample_emulators$targets)
-#'  wider_ranges <- purrr::map(sample_emulators$ems[[1]]$ranges, ~.*c(-2, 2))
-#'  validation_pairs(sample_emulators$ems, GillespieValidation,
-#'   sample_emulators$targets, ranges = wider_ranges, cb = TRUE)
+#'  validation_pairs(SIREmulators$ems, SIRSample$validation, SIREmulators$targets)
+#'  wider_ranges <- purrr::map(SIREmulators$ems[[1]]$ranges, ~.*c(-2, 2))
+#'  validation_pairs(SIREmulators$ems, SIRSample$validation,
+#'   SIREmulators$targets, ranges = wider_ranges, cb = TRUE)
 validation_pairs <- function(ems, points, targets, ranges, nth = 1, cb = FALSE) {
   if ("Emulator" %in% class(ems))
     ems <- setNames(list(ems), ems$output_name)
@@ -229,20 +229,21 @@ validation_pairs <- function(ems, points, targets, ranges, nth = 1, cb = FALSE) 
 #' @import ggplot2
 #'
 #' @param ems The Emulator object(s) to be analyzed.
-#' @param line_plot Should a line plot be produced?
+#' @param line.plot Should a line plot be produced?
+#' @param grid.plot Should the effect strengths be plotted as a grid?
 #' @param labels Whether or not the legend should be included.
 #' @param quadratic Whether or not quadratic effect strength should be calculated.
 #' @param xvar Should the inputs be used on the x-axis?
-#' @param grid.plot Should the effect strengths be plotted as a grid?
 #'
 #' @return A list of data.frames: the first is the linear strength, and the second quadratic.
 #'
 #' @export
 #'
 #' @examples
-#'  effect <- effect_strength(sample_emulators$ems)
-#'  effect_line <- effect_strength(sample_emulators$ems, line_plot = TRUE)
-effect_strength <- function(ems, line_plot = FALSE, labels = TRUE, quadratic = TRUE, xvar = TRUE, grid.plot = FALSE) {
+#'  effect <- effect_strength(SIREmulators$ems)
+#'  effect_line <- effect_strength(SIREmulators$ems, line.plot = TRUE)
+#'  effect_grid <- effect_strength(SIREmulators$ems, grid.plot = TRUE)
+effect_strength <- function(ems, line.plot = FALSE, grid.plot = FALSE, labels = TRUE, quadratic = TRUE, xvar = TRUE) {
   get_effect_strength <- function(em, quad = FALSE) {
     es <- c()
     for (i in 1:length(em$ranges)) {
@@ -290,7 +291,7 @@ effect_strength <- function(ems, line_plot = FALSE, labels = TRUE, quadratic = T
     }
   }
   else if (xvar) {
-    if (line_plot) {
+    if (line.plot) {
       g <- ggplot(data = lin.mat, aes(x = Var2, y = value, group = Var1, colour = Var1)) +
           geom_line(lwd = 1.2) +
           viridis::scale_color_viridis(discrete = TRUE, name = "Output") +
@@ -332,7 +333,7 @@ effect_strength <- function(ems, line_plot = FALSE, labels = TRUE, quadratic = T
     }
   }
   else {
-    if (line_plot) {
+    if (line.plot) {
       g <- ggplot(data = lin.mat, aes(x = Var1, y = value, group = Var2, colour = Var2)) +
         geom_line(lwd = 1.2) +
         viridis::scale_color_viridis(discrete = TRUE, name = "Parameter") +

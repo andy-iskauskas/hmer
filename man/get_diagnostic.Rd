@@ -71,12 +71,12 @@ the emulator diagnostics are performed with respect to its training points, usin
 cross-validation.
 }
 \examples{
- # Use the simple SIR model via sample_emulators
- get_diagnostic(sample_emulators$ems$nS, validation = GillespieValidation)
+ # Use the simple SIR model via SIREmulators
+ get_diagnostic(SIREmulators$ems$nS, validation = SIRSample$validation)
  # Classification error fails without the set of targets
- get_diagnostic(sample_emulators$ems$nI, sample_emulators$targets, GillespieValidation, 'ce')
+ get_diagnostic(SIREmulators$ems$nI, SIREmulators$targets, SIRSample$validation, 'ce')
  # No validation set: k-fold cross-validation will be used.
- get_diagnostic(sample_emulators$ems$nR, which_diag = 'se')
+ get_diagnostic(SIREmulators$ems$nR, which_diag = 'se')
 
 }
 \seealso{

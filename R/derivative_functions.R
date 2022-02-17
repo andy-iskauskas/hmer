@@ -34,7 +34,6 @@ get_deriv_info <- function(em, x, var = FALSE, ...) {
 #'
 #' @export
 #'
-# Need to work out how to normalise the uncertainty!
 directional_deriv <- function(em, x, v, sd = NULL, ...) {
   normed_v <- v/sqrt(sum(v^2))
   deriv_info <- get_deriv_info(em, x, ...)
@@ -83,8 +82,19 @@ directional_deriv <- function(em, x, v, sd = NULL, ...) {
 #' @param nv The number of directions on the n-sphere to try.
 #'
 #' @return Either a new proposal point, or the original point if an improvement could not be found.
-#'
 #' @export
+#'
+#' @examples
+#'  # Take a point from the SIR system at later waves with low (but >3) implausibility
+#'  start_point <- SIRMultiWaveData[[2]][59,1:3]
+#'  ems <- SIRMultiWaveEmulators[[3]]
+#'  targs <- SIREmulators$targets
+#'  # Using expected error as measure
+#'  new_point1 <- directional_proposal(ems, start_point, targs)
+#'  # Using implausibility as measure
+#'  new_point2 <- directional_proposal(ems, start_point, targs, iteration.measure = 'imp')
+#'  all_points <- do.call('rbind.data.frame', list(start_point, new_point1, new_point2))
+#'  nth_implausible(ems, all_points, targs)
 directional_proposal <- function(ems, x, targets, accept = 2, hstart = 1e-04, hcutoff = 1e-09, iteration.measure = 'exp', iteration.steps = 100, nv = 500) {
   if (length(x) > length(ems[[1]]$ranges))
     x <- x[,names(ems[[1]]$ranges)]
@@ -107,7 +117,7 @@ directional_proposal <- function(ems, x, targets, accept = 2, hstart = 1e-04, hc
   suit_means <- apply(suits, 1, mean)
   order_dirs <- test_dirs[order(suit_means, decreasing = TRUE),]
   order_suits <- suits[order(suit_means, decreasing = TRUE),]
-  restrict_dirs <- order_dirs[apply(order_suits, 1, function(y) all(y >= 0 || point_implaus < accept)),]
+  restrict_dirs <- order_dirs[apply(order_suits, 1, function(y) all(y >= 0 | point_implaus < accept)),]
   nth_discrepancy <- function(ems, x, targets, n = 1) {
     discs <- purrr::map_dbl(seq_along(ems), function(y) {
       if (!is.numeric(targets[[y]])) return(abs((ems[[y]]$get_exp(x) - targets[[y]]$val)/targets[[y]]$val))

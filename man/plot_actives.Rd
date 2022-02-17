@@ -29,9 +29,9 @@ Both the outputs and inputs can be restricted to colelctions of interest, if des
 optional \code{output_names} and \code{input_names} parameters.
 }
 \examples{
- plot_actives(sample_emulators$ems)
+ plot_actives(SIREmulators$ems)
  # Remove the nR output and aIR input from the plot
- plot_actives(sample_emulators$ems, c('nS', 'nI'), c('aSI', 'aSR'))
+ plot_actives(SIREmulators$ems, c('nS', 'nI'), c('aSI', 'aSR'))
  # Note that we can equally restrict the emulator list...
- plot_actives(sample_emulators$ems[c('nS', 'nI')], input_names = c('aSI', 'aSR'))
+ plot_actives(SIREmulators$ems[c('nS', 'nI')], input_names = c('aSI', 'aSR'))
 }

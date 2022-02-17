@@ -49,8 +49,8 @@ scheme is chosen outright for all invocations of this function: it is a 10-colou
 palette. If more waves are required, then an alternative palette should be selected.
 }
 \examples{
- simulator_plot(GillespieMultiWaveData, sample_emulators$targets)
- simulator_plot(GillespieMultiWaveData[2:4], sample_emulators$targets,
+ simulator_plot(SIRMultiWaveData, SIREmulators$targets)
+ simulator_plot(SIRMultiWaveData[2:4], SIREmulators$targets,
   zero_in = FALSE, wave_numbers = c(1,3))
 
 }

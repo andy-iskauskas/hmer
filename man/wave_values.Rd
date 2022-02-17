@@ -70,8 +70,8 @@ to a provided wave (or one explicitly not included in \code{wave_numbers}), it d
 the closest available wave to the value of \code{which_wave}.
 }
 \examples{
- wave_values(GillespieMultiWaveData, sample_emulators$targets, surround = TRUE, p_size = 1)
- wave_values(GillespieMultiWaveData, sample_emulators$targets, c('nS', 'nI'), l_wid = 0.8)
- wave_values(GillespieMultiWaveData, sample_emulators$targets, l_wid = 0.8,
+ wave_values(SIRMultiWaveData, SIREmulators$targets, surround = TRUE, p_size = 1)
+ wave_values(SIRMultiWaveData, SIREmulators$targets, c('nS', 'nI'), l_wid = 0.8)
+ wave_values(SIRMultiWaveData, SIREmulators$targets, l_wid = 0.8,
   wave_numbers = c(0, 1, 3), which_wave = 2, upper_scale =  1.5)
 }
