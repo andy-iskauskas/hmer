@@ -76,8 +76,8 @@ behaviour_plot <- function(ems, points) {
 #'
 #' @examples
 #' space_removed(SIREmulators$ems, SIREmulators$targets, ppd = 5)
-# space_removed(SIREmulators$ems$nS, SIREmulators$targets,
-#  ppd = 5, u_mod = seq(0.75, 1.25, by = 0.25), intervals = seq(2, 6, by = 0.1))
+#  space_removed(SIREmulators$ems$nS, SIREmulators$targets,
+#   ppd = 5, u_mod = seq(0.75, 1.25, by = 0.25), intervals = seq(2, 6, by = 0.1))
 space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1), intervals = seq(0, 10, length.out = 200), modified = 'obs', maxpoints = NULL) {
   value <- name <- NULL
   if ("Emulator" %in% class(ems))

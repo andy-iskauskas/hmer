@@ -455,7 +455,7 @@ plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE, cutoff = 3, maxpoin
 #' for a give collection of emulators. The plot here produces an nxp grid for n emulators in p
 #' inputs; a square is blacked out if that variable does not contribute to that output.
 #'
-#' Both the outputs and inputs can be restricted to colelctions of interest, if desired, with the
+#' Both the outputs and inputs can be restricted to collections of interest, if desired, with the
 #' optional \code{output_names} and \code{input_names} parameters.
 #'
 #' @param ems The list of emulators to consider

@@ -14,6 +14,8 @@
 #'
 #' @name Emulator
 #'
+#' @importFrom R6 R6Class
+#'
 #' @section Constructor: \code{Emulator$new(basis_f, beta, u, ranges, ...)}
 #'
 #' @section Arguments:

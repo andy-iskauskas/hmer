@@ -1,4 +1,4 @@
-HierarchicalEmulator <- R6::R6Class(
+HierarchicalEmulator <- R6Class(
   "Hierarchical",
   inherit = Emulator,
   public = list(

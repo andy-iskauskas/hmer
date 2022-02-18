@@ -1,4 +1,4 @@
-Emulator <- R6::R6Class(
+Emulator <- R6Class(
   "Emulator",
   private = list(
     data_corrs = NULL,

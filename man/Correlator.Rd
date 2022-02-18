@@ -55,6 +55,41 @@ Creates a correlation structure, with the necessary specifications.
     terms. Returns a new \code{Correlator} object.
 }
 
+\section{Options for Correlations}{
+
+
+    The default choice (and that supported by other functions in this package, particularly
+    emulator_from_data) for the correlation structure is exponential-squared, due to the
+    useful properties it possesses. However, one can manually instantiate a Correlator with
+    a different underlying structure. Built-in alternatives are as follows, as well as whether
+    a form exists for its derivative:
+
+    \describe{
+     \item{\code{\link{matern}}}{the Matérn function (derivative exists)}
+     \item{\code{\link{orn_uhl}}}{the Ornstein-Uhlenbeck function (no derivative)}
+     \item{\code{\link{rat_quad}}}{the rational quadratic function (derivative exists)}
+     }
+
+    One more function, \code{\link{gamma_exp}}, is available but not directly supported
+    by \code{emulator_from_data}, for example, due to its very limited suitability to
+    emulating model outputs. However, this can be used as a test case for writing one's
+    own correlation functions and using them with \code{emulator_from_data}.
+
+    A user-defined correlation function can be provided to the Correlator: the requirements
+    are that the function be vectorized in its first two argument, return a single value,
+    and accept a named list of hyperparameters as its third argument. If a derivative also
+    exists, it should take the same name as the correlation function with "_d" appended to
+    it, and the directions to differentiate wite respect to should come after the
+    hyperparameter argument. For example, the rational quadratic functions have the form
+
+     \code{rat_quad(x1, x2, hp = list(alpha, theta))}
+
+     \code{rat_quad_d(x1, x2, hp = list(alpha, theta), dx1, dx2)}
+
+    If defining a custom correlation function, care should be taken with hyperparameter
+    estimation.
+}
+
 \examples{
 test_corr <- Correlator$new(nug = 0.1)
 test_corr

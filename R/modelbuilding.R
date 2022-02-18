@@ -108,22 +108,20 @@ get_coefficient_model <- function(data, ranges, output_name, add = FALSE, order 
 #' optimiser to finesse the estimate for the hyperparameters and the nugget term. Once this
 #' is done, the final ML estimates of sigma and beta are calculated.
 #'
-#' @importFrom dfoptim nmkb
-#'
 #' @param inputs The input data
 #' @param outputs The output values (usually as residuals from a fitted regression)
 #' @param h The basis functions of the regression surface
-#' @param corr The \code{\link{Correlator}} object to use
+#' @param corr_name The name of the correlation function to use.
 #' @param hp_range The allowed range for the hyperparameters
 #' @param beta If provided, the regression coefficients will be treated as known.
 #' @param delta The value of the nugget term. If \code{NULL}, it is treated as a hyperparameter.
-#'
 #'
 #' @keywords internal
 #' @noRd
 #'
 #' @return A list of hyperparameter values
-likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_range, beta = NULL, delta = NULL, nsteps = 30) {
+likelihood_estimate <- function(inputs, outputs, h, corr_name = 'exp_sq', hp_range, beta = NULL, delta = NULL, nsteps = 30) {
+  corr <- Correlator$new(corr_name, hp = setNames(purrr::map(names(hp_range), ~hp_range[[.]][[1]]), names(hp_range)))
   if (!"data.frame" %in% class(inputs)) inputs <- data.frame(inputs)
   H <- t(eval_funcs(h, inputs))
   if (!is.null(beta) && length(beta) != length(h)) stop("Number of coefficients does not match number of regression functions.")
@@ -155,52 +153,57 @@ likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_
     }
     else b_ml <- b
     m_diff <- if (nrow(H) == 1) t(outputs - H * b_ml) else outputs - H %*% b_ml
-    sigma_ml <- sqrt(t(m_diff) %*% A_inv %*% m_diff/length(outputs))
+    sigma_ml <- suppressWarnings(sqrt(t(m_diff) %*% A_inv %*% m_diff/length(outputs)))
     if (log_lik) lik <- -length(outputs) * log(2*pi*sigma_ml^2)/2 - log(det(A))/2 - (t(m_diff) %*% A_inv %*% m_diff)/(2*sigma_ml^2)
     else lik <-  1/((2*pi*sigma_ml^2)^(length(outputs)/2) * sqrt(det(A))) * exp(-(t(m_diff) %*% A_inv %*% m_diff)/(2 * sigma_ml^2))
     if (!is.finite(lik)) lik <- -Inf
     if (return_stats) return(list(beta = b_ml, sigma = sigma_ml))
     else return(lik)
   }
-  if (length(hp_range[[1]]) == 1) {
+  if (length(hp_range[['theta']]) == 1) {
     if (is.null(delta)) delta <- 0.05
-    best_hp <- hp_range
+    best_point <- hp_range
     best_delta <- delta
-    best_params <- c(best_hp, best_delta)
+    best_params <- c(best_point, best_delta)
   }
   else {
-    grid_search <- expand.grid(purrr::map(hp_range, ~seq(.[[1]], .[[2]], length.out = nsteps)))
+    if (corr_name == "matern") {
+      grid_search <- expand.grid(theta = seq(hp_range$theta[[1]], hp_range$theta[[2]], length.out = nsteps), nu = c(0.5, 1.5, 2.5))
+    }
+    else {
+      grid_search <- expand.grid(purrr::map(hp_range, ~seq(.[[1]], .[[2]], length.out = nsteps)))
+    }
     grid_liks <- apply(grid_search, 1, function(x) {
       if (is.null(delta)) return(func_to_opt(c(x, 0)))
       else return(func_to_opt(c(x, delta)))
     })
     maximin_distance <- max(apply(diag(Inf, nrow(inputs)) + as.matrix(dist(inputs, diag = TRUE, upper = TRUE)), 1, min))
-    if (maximin_distance > hp_range[[1]][2])
-      best_initial <- grid_search[which.max(grid_liks),]
-    else
-      best_initial <- max(maximin_distance, grid_search[which.max(grid_liks),])
+    best_point <- as.list(c(grid_search[which.max(grid_liks),])) |> setNames(names(hp_range))
+    if (maximin_distance < hp_range[['theta']][2])
+      best_point$theta <- max(maximin_distance, grid_search[which.max(grid_liks), 'theta'])
     if (sum(av) == length(inputs)) delta <- 0
-    if(is.null(delta)) {
-      initial_params <- c(best_initial, 0.01, use.names = F)
-    }
+    if(is.null(delta))
+      best_delta <- 0.01
     else
-      initial_params <- c(best_initial, if (delta == 0) 1e-10 else delta, use.names = F)
-    best_params <- initial_params
+      best_delta <- ifelse (delta == 0, 1e-10, delta)
+    initial_params <- unlist(c(best_point, best_delta), use.names = FALSE)
     # best_params <- tryCatch(
     #   nmkb(initial_params, func_to_opt, lower = c(purrr::map_dbl(hp_range, ~.[[1]]-1e-6), if(is.null(delta)) 0 else max(0, delta - 1e-6), use.names = F), upper = c(purrr::map_dbl(hp_range, ~.[[2]]+1e-6), if(is.null(delta)) 0.1 else delta + 1e-6, use.names = F), control = list(maximize = TRUE))$par,
     #   error = function(e) {
     #     return(initial_params)
     #   }
     # )
-    best_hp <- best_params[-length(best_params)]
-    best_delta <- min(best_params[length(best_params)], 0.05)
+    #best_hp <- list(best_params[-length(best_params)]) |> setNames(names(hp_range))
+    #best_delta <- min(best_params[length(best_params)], 0.05)
   }
   # if (all(unlist(best_hp, use.names = FALSE) - purrr::map_dbl(hp_range, ~.[[1]]) < 1e-5)) {
   #   best_hp <- purrr::map_dbl(hp_range, ~sum(.)/2)
   #   best_delta <- 0.05
   # }
   # if (sum(av) == length(inputs)) best_delta <- 0
-  return(c(hp = best_hp, delta = best_delta, func_to_opt(best_params, return_stats = TRUE)))
+  best_params <- unlist(c(best_point, best_delta), use.names = FALSE)
+  other_pars <- func_to_opt(best_params, return_stats = TRUE)
+  return(list(hp = best_point, delta = best_delta, sigma = other_pars$sigma, beta = other_pars$beta))
 }
 
 #' Generate Emulators from Data
@@ -237,6 +240,15 @@ likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_
 #' If \code{ev} is provided, then the ensemble variability is taken into account in the
 #' determination of the nugget term via a two-stage training process.
 #'
+#' Some rudimentary data handling functionality is available but should be approached with
+#' caution. The `na.rm` option will strip out rows of the training data that have NA values
+#' in them; this of course may leave too few points to train to, and any consistent occurence
+#' of NAs in model data should be investigated. The `check.ranges` option allows a redefinition
+#' of the ranges of the input parameters for emulator training; this is a common practice in
+#' later waves in order to maximise the predictive power of the emulators, but should only be
+#' used here if one is sure that the training set is representative of (and certainly spanning)
+#' the full minimum enclosing hyperrectangle.
+#'
 #' @param input_data Required. A data.frame containing parameter and output values.
 #' @param output_names Required. A character vector of output names.
 #' @param ranges A named list of input parameter ranges.
@@ -254,6 +266,9 @@ likelihood_estimate <- function(inputs, outputs, h, corr = Correlator$new(), hp_
 #' @param has.hierarchy For hierarchical emulators, this will be TRUE.
 #' @param verbose Should status updates be printed?
 #' @param na.rm If NAs exist in the dataset, should those rows be removed?
+#' @param check.ranges Should the ranges be modified in light of the data provided?
+#' @param corr_name What correlation function to use. Defaults to exp_sq
+#' @param ... Any additional parameters (eg for custom correlation functions)
 #'
 #' @return A list of \code{\link{Emulator}} objects.
 #' @export
@@ -303,7 +318,8 @@ emulator_from_data <- function(input_data, output_names, ranges,
                                quadratic = TRUE, beta.var = FALSE,
                                adjusted = TRUE, discrepancies = NULL,
                                has.hierarchy = FALSE, verbose = interactive(),
-                               na.rm = TRUE) {
+                               na.rm = FALSE, check.ranges = FALSE,
+                               corr_name = 'exp_sq', ...) {
   model_beta_mus <- model_u_sigmas <- model_u_corrs <- NULL
   if (missing(ranges)) {
     if (is.null(input_names)) stop("Input ranges or names of inputs must be provided.")
@@ -315,6 +331,9 @@ emulator_from_data <- function(input_data, output_names, ranges,
   }
   if (is.null(ranges)) stop("Ranges either not specified, or misspecified.")
   if (na.rm) input_data <- input_data[apply(input_data, 1, function(x) !any(is.na(x))),]
+  if (check.ranges) {
+    ranges <- setNames(purrr::map(names(ranges), ~c(max(ranges[[.]][1], min(input_data[,.]) - 0.05 * diff(range(input_data[,.]))), min(ranges[[.]][2], max(input_data[,.]) + 0.05 * diff(range(input_data[,.]))))), names(ranges))
+  }
   data <- setNames(cbind(eval_funcs(scale_input, input_data[,names(ranges)], ranges), input_data[,output_names]), c(names(ranges), output_names))
   if (!"data.frame" %in% class(data)) data <- setNames(data.frame(data), c(names(ranges), output_names))
   if (missing(funcs)) {
@@ -364,12 +383,51 @@ emulator_from_data <- function(input_data, output_names, ranges,
   }
   if (verbose) print("Building correlation structures..")
   if (any(is.null(model_beta_mus) || is.null(model_u_sigmas) || is.null(model_u_corrs))) {
-    if (missing(c_lengths)) theta_ranges <- purrr::map(model_basis_funcs, ~list(theta = c(1/3, ifelse(quadratic, 1, 2))))
-    else theta_ranges <- c_lengths
-    specs <- purrr::map(seq_along(model_basis_funcs), ~likelihood_estimate(data[,input_names], data[,output_names[[.]]], model_basis_funcs[[.]], hp_range = theta_ranges[[.]], beta = model_beta_mus[[.]], delta = model_deltas[[.]]))
+    corr_func <- tryCatch(
+      get(corr_name),
+      error = function(e) {
+        print(paste("Can't find correlation function of type", corr_name, "- reverting to exp_sq"))
+        return(NULL)
+      }
+    )
+    if (missing(c_lengths)) {
+      if(is.null(corr_func)) corr_name <- 'exp_sq'
+      else {
+        if (!corr_name %in% c('exp_sq', 'orn_uhl', 'matern', 'rat_quad')) {
+          th_ra <- list(...)[["theta_ranges"]]
+          if (is.null(th_ra)) {
+            print(paste("User defined correlation function", corr_name, "found but no corresponding hyperparameter ranges via theta_ranges. Please provide - reverting to exponential squared."))
+            corr_name <- 'exp_sq'
+          }
+          else {
+            theta_ranges <- list()
+            for (i in 1:length(model_basis_funcs)) theta_ranges[[length(theta_ranges)+1]] <- th_ra
+          }
+        }
+      }
+      if (corr_name == "exp_sq" || corr_name == "orn_uhl")
+        theta_ranges <- purrr::map(model_basis_funcs, ~list(theta = c(1/3, ifelse(quadratic, 1, 2))))
+      else if (corr_name == "matern")
+        theta_ranges <- purrr::map(model_basis_funcs, ~list(theta = c(1/3, ifelse(quadratic, 1, 2)), nu = c(0.5, 2.5)))
+      else if (corr_name == "rat_quad")
+        theta_ranges <- purrr::map(model_basis_funcs, ~list(theta = c(1/3, ifelse(quadratic, 1, 2)), alpha = c(-1, 1)))
+    }
+    else {
+      if (corr_name == "exp_sq" || corr_name == "orn_uhl") {
+        if (length(c_lengths) == 1) theta_ranges <- purrr::map(1:length(model_basis_funcs), ~list(theta = c_lengths))
+        else theta_ranges <- purrr::map(1:length(model_basis_funcs), ~list(theta = c_lengths[[.]]))
+      }
+      else {
+        if (is.null(names(c_lengths)))
+          theta_ranges <- purrr::map(1:length(model_basis_funcs), ~c_lengths[[.]])
+        else
+          theta_ranges <- purrr::map(1:length(model_basis_funcs), ~c_lengths)
+      }
+    }
+    specs <- purrr::map(seq_along(model_basis_funcs), ~likelihood_estimate(data[,input_names], data[,output_names[[.]]], model_basis_funcs[[.]], corr_name = corr_name, hp_range = theta_ranges[[.]], beta = model_beta_mus[[.]], delta = model_deltas[[.]]))
     if (is.null(model_u_sigmas)) model_u_sigmas <- purrr::map(specs, ~as.numeric(.$sigma))
     if (is.null(model_beta_mus)) model_beta_mus <- purrr::map(specs, ~.$beta)
-    if(is.null(model_u_corrs)) model_u_corrs <- purrr::map(specs, ~Correlator$new()$set_hyper_p(.$hp, .$delta))
+    if(is.null(model_u_corrs)) model_u_corrs <- purrr::map(specs, ~Correlator$new(corr_name, hp = .$hp, nug = .$delta))
   }
   model_us <- purrr::map(seq_along(model_u_corrs), ~list(sigma = model_u_sigmas[[.]], corr = model_u_corrs[[.]]))
   model_betas <- purrr::map(seq_along(model_beta_mus), ~list(mu = model_beta_mus[[.]], sigma = model_beta_sigmas[[.]]))
@@ -562,10 +620,10 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
 #'
 #' @examples
 #'  \dontrun{
-#'   Use the stochastic SIR dataset
+#'   # Use the stochastic SIR dataset
 #'   SIR_ranges <- list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05))
 #'   SIR_names <- c("I10", "I25", "I50", "R10", "R25", "R50")
-#'   b_ems <- bimodal_emulator_from_data(stochastic_SIR$training, SIR_names, SIR_ranges)
+#'   b_ems <- bimodal_emulator_from_data(SIR_stochastic$training, SIR_names, SIR_ranges)
 #'  }
 #'
 bimodal_emulator_from_data <- function(data, output_names, ranges, input_names = names(ranges), verbose = interactive(), ...) {

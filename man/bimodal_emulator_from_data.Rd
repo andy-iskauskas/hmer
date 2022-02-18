@@ -56,10 +56,10 @@ while \code{prop} has the form of an \code{emulator_from_data} output.
 }
 \examples{
  \dontrun{
-  Use the stochastic SIR dataset
+  # Use the stochastic SIR dataset
   SIR_ranges <- list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05))
   SIR_names <- c("I10", "I25", "I50", "R10", "R25", "R50")
-  b_ems <- bimodal_emulator_from_data(stochastic_SIR$training, SIR_names, SIR_ranges)
+  b_ems <- bimodal_emulator_from_data(SIR_stochastic$training, SIR_names, SIR_ranges)
  }
 
 }

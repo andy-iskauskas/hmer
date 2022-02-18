@@ -125,3 +125,54 @@ get_truncation <- function(e, v, mu = TRUE, nu = 6, a = 0, b = Inf) {
   new_v <- m2-m1^2
   return(eff_v*new_v)
 }
+
+#' Subsetting for Bimodal/Variance Emulators
+#'
+#' Takes a collection of bimodal or stochastic emulators and subsets by output name.
+#'
+#' It can be useful to consider only a subset of outputs. In the normal case, this can be
+#' easily achieved; however, when the emulators are in a nested structure such as that
+#' provided by variance_emulator_from_data or bimodal_emulator_from_data, it can be more
+#' involved. This function allows the easy selecting of emulators by name, returning a
+#' subset of them in the same form as the original object.
+#'
+#' This function is compatible with 'standard' emulators; that is, those in a simple
+#' list, equivalent to subsetting over the collection of output names of the emulators
+#' that exist in \code{output_names}.
+#'
+#' @param emulators A set of emulators, often in nested form
+#' @param output_names The names of the desired outputs
+#'
+#' @return An object of the same form as `emulators`.
+#' @export
+subset_emulators <- function(emulators, output_names) {
+  if (!is.null(emulators$mode1)) {
+    m1exp <- emulators$mode1$expectation[purrr::map_chr(emulators$mode1$expectation, ~.$output_name) %in% output_names]
+    m1var <- emulators$mode1$variance[purrr::map_chr(emulators$mode1$variance, ~.$output_name) %in% output_names]
+    m2exp <- emulators$mode2$expectation[purrr::map_chr(emulators$mode2$expectation, ~.$output_name) %in% output_names]
+    m2var <- emulators$mode2$variance[purrr::map_chr(emulators$mode2$variance, ~.$output_name) %in% output_names]
+    collated <- list(
+      mode1 = list(
+        variance = m1var,
+        expectation = m1exp
+      ),
+      mode2 = list(
+        variance = m2var,
+        expectation = m2exp
+      ),
+      prop = emulators$prop
+    )
+  }
+  else if (!is.null(emulators$variance)) {
+    mexp <- emulators$expectation[purrr::map_chr(emulators$expectation, ~.$output_name) %in% output_names]
+    mvar <- emulators$variance[purrr::map_chr(emulators$variance, ~.$output_name) %in% output_names]
+    collated <- list(
+      expectation = mexp,
+      variance = mvar
+    )
+  }
+  else {
+    collated <- emulators[purrr::map(emulators, ~.$output_name) %in% output_names]
+  }
+  return(collated)
+}

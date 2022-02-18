@@ -21,7 +21,10 @@ emulator_from_data(
   discrepancies = NULL,
   has.hierarchy = FALSE,
   verbose = interactive(),
-  na.rm = TRUE
+  na.rm = FALSE,
+  check.ranges = FALSE,
+  corr_name = "exp_sq",
+  ...
 )
 }
 \arguments{
@@ -58,6 +61,12 @@ emulator_from_data(
 \item{verbose}{Should status updates be printed?}
 
 \item{na.rm}{If NAs exist in the dataset, should those rows be removed?}
+
+\item{check.ranges}{Should the ranges be modified in light of the data provided?}
+
+\item{corr_name}{What correlation function to use. Defaults to exp_sq}
+
+\item{...}{Any additional parameters (eg for custom correlation functions)}
 }
 \value{
 A list of \code{\link{Emulator}} objects.
@@ -95,6 +104,15 @@ term \code{delta}.
 
 If \code{ev} is provided, then the ensemble variability is taken into account in the
 determination of the nugget term via a two-stage training process.
+
+Some rudimentary data handling functionality is available but should be approached with
+caution. The `na.rm` option will strip out rows of the training data that have NA values
+in them; this of course may leave too few points to train to, and any consistent occurence
+of NAs in model data should be investigated. The `check.ranges` option allows a redefinition
+of the ranges of the input parameters for emulator training; this is a common practice in
+later waves in order to maximise the predictive power of the emulators, but should only be
+used here if one is sure that the training set is representative of (and certainly spanning)
+the full minimum enclosing hyperrectangle.
 }
 \examples{
 # Use the \code{\link{SIRSample}} training dataset as an example.

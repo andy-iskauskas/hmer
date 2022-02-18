@@ -25,7 +25,7 @@ to its regression surface. It can be instructive to examine the differences in a
 for a give collection of emulators. The plot here produces an nxp grid for n emulators in p
 inputs; a square is blacked out if that variable does not contribute to that output.
 
-Both the outputs and inputs can be restricted to colelctions of interest, if desired, with the
+Both the outputs and inputs can be restricted to collections of interest, if desired, with the
 optional \code{output_names} and \code{input_names} parameters.
 }
 \examples{

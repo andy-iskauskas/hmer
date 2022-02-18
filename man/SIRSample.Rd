@@ -27,8 +27,11 @@ and 0 recovered (R). The final values are taken at time t=10.
 }
 \details{
 The model operates using simple differential equations, where
+
 S' = aSR*R - aSI*S*R/(S+I+R)
+
 I' = aSI*S*R/(S+I+R) - aIR*I
+
 R' = aIR*I - aSR*R.
 }
 \keyword{datasets}
