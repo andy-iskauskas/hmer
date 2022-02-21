@@ -151,6 +151,18 @@ ems_linear # Printout of the key information.
   )
   ems3 <- emulator_from_data(SIRSample$training, out_vars, ranges,
                              u = corr_structs)
+  # Using alternative correlation functions and c_lengths
+  # Allow code to choose hyperparameters
+  ems_matern <- emulator_from_data(SIRSample$training, out_vars, ranges,
+                                   corr_name = 'matern')
+  # Providing hyperparameters to the function directly, via c_lengths
+  matern_hp <- list(list(theta = 0.8, nu = 1.5), list(theta = 0.6, nu = 2.5),
+   list(theta = 1.2, nu = 0.5))
+  ems_matern2 <- emulator_from_data(SIRSample$training, out_vars, ranges,
+                                    corr_name = 'matern', c_lengths = matern_hp)
+  # If only one set of hyperparameters are provided to c_lengths, they are used for all
+  ems_matern3 <- emulator_from_data(SIRSample$training, out_vars, ranges,
+                                    corr_name = 'matern', c_lengths = matern_hp[[1]])
 }
 
 }

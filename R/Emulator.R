@@ -485,6 +485,9 @@ Emulator <- R6Class(
       cat("\t Expectation: ", self$u_mu(rep(0, length(ranges))), "\n")
       self$corr$print(prepend = "\t")
       cat("Mixed covariance: ", self$beta_u_cov(rep(0, length(ranges))), "\n")
+    },
+    plot = function(...) {
+      emulator_plot(self, ...)
     }
   )
 )
