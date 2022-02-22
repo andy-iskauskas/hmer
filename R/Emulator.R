@@ -41,6 +41,8 @@ Emulator <- R6Class(
       else self$u_sigma <- function(x) self$multiplier * (u$sigma)(x)
       self$corr <- u$corr
       if (!is.null(out_name)) self$output_name <- out_name
+      if (is.null(ranges)) stop("Ranges for the parameters must be specified.")
+      self$ranges <- ranges
       if (is.null(a_vars)) {
         self$active_vars <- purrr::map_lgl(seq_along(ranges), function(x) {
           point_vec <- c(rep(0, x-1), 1, rep(0, length(ranges)-x))
@@ -49,14 +51,12 @@ Emulator <- R6Class(
         })
       }
       else self$active_vars <- a_vars
-      if (all(self$active_vars == FALSE)) self$active_vars <- c(TRUE)
+      if (all(self$active_vars == FALSE)) self$active_vars <- rep(TRUE, length(ranges))
       if (!is.null(discs)) {
         self$disc$internal <- ifelse(!is.null(discs$internal), discs$internal, 0)
         self$disc$external <- ifelse(!is.null(discs$external), discs$external, 0)
       }
       self$beta_u_cov <- function(x) rep(0, length(self$beta_mu))
-      if (is.null(ranges)) stop("Ranges for the parameters must be specified.")
-      self$ranges <- ranges
       if (!is.null(data)) {
         self$in_data <- data.matrix(eval_funcs(scale_input, data[,names(self$ranges)], self$ranges))
         self$out_data <- data[, !names(data) %in% names(self$ranges)]
