@@ -33,9 +33,11 @@
 #' \code{\link{SIRSample}} training dataset) for each of the outputs
 #' nS, nI, nR, and the maximum implausibility is included.
 #' The target values used in calculating implausibility were:
-#' nS: between 324 and 358;
-#' nI: mean 143 (sigma 7.15);
-#' nR: between 490 and 542
+#' \describe{
+#'   \item{nS}{between 324 and 358}
+#'   \item{nI}{mean 143 (sigma 7.15)}
+#'   \item{nR}{between 490 and 542}
+#' }
 #'
 #' @format A data frame with 1000 rows and 7 variables:
 #' \describe{
@@ -66,7 +68,7 @@
 #' Sample Multi-wave Results
 #'
 #' An rda object containing four data.frames: an initial set of points
-#' alos provided in \code{\link{SIRSample}}, and
+#' also provided in \code{\link{SIRSample}}, and
 #' the 90 points generated at each of three subsequent waves. The trained
 #' emulators are provided in \code{\link{SIRMultiWaveEmulators}}.
 #'
@@ -89,7 +91,7 @@
 #' @format A list containing two objects:
 #' \describe{
 #'  \item{ems}{The trained \code{\link{Emulator}} objects.}
-#'  \item{targets}{The targets to match to, as a set of val-sigma pairs.}
+#'  \item{targets}{The targets to match to, as a named list.}
 #' }
 "SIREmulators"
 

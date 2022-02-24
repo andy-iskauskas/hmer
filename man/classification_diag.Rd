@@ -34,5 +34,6 @@ For details of the function, see \code{\link{get_diagnostic}} and for the plot
 see \code{\link{analyze_diagnostic}}.
 }
 \seealso{
-\code{get_diagnostic}, \code{analyze_diagnostic}, \code{validation_diagnostic}
+\code{\link{get_diagnostic}}, \code{\link{analyze_diagnostic}},
+ \code{\link{validation_diagnostics}}
 }

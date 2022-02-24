@@ -79,7 +79,7 @@
 #'      \code{rat_quad_d(x1, x2, hp = list(alpha, theta), dx1, dx2)}
 #'
 #'     If defining a custom correlation function, care should be taken with hyperparameter
-#'     estimation.
+#'     estimation - see \code{\link{emulator_from_data}} examples for details.
 #'
 #' @export
 #'

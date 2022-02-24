@@ -57,5 +57,5 @@ on the diagnostic, a set of summary measures. It returns a data.frame of any poi
 the diagnostic.
 }
 \seealso{
-\code{link{get_diagnostic}}
+\code{\link{get_diagnostic}}
 }

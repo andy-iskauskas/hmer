@@ -109,6 +109,8 @@ Creates a univariate emulator object.
    equivalent to Cov[df/dp1, df/dp2].
 
    \code{print(...)} Returns a summary of the emulator specifications.
+
+   \code{plot(...)} A wrapper for \code{\link{emulator_plot}} for a single Emulator object.
 }
 
 \section{Object Methods}{

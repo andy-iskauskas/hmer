@@ -328,7 +328,9 @@ output_plot <- function(ems, targets, points = NULL, npoints = 1000) {
 
 #' Plot Lattice of Emulator Implausibilities
 #'
-#' Plots a set of projections of the full-dimensional input space. The plots are:
+#' Plots a set of projections of the full-dimensional input space.
+#'
+#' The plots are:
 #'
 #' One dimensional optical depth plots (diagonal);
 #'

@@ -27,17 +27,18 @@ variance_emulator_from_data(
 A list of lists: one for the variance emulators and one for the function emulators.
 }
 \description{
+Trains hierarchical emulators to stochastic systems
+}
+\details{
 For stochastic systems, it can be helpful to emulate the variance as well as the function.
 This is particularly true if one expects the variance to be very different in different
 areas of the parameter space (for example, in an epidemic model). This function performs
 the requisite two-stage Bayes Linear update.
-}
-\details{
+
 All observations are required (including replicates at points) - this function collects
 them into the required chunks and calculates the summary statistics as required.
 
 All other parameters passed to this function are equivalent to those in
-\code{\link{emulator_from_data}} - one notable absence is that by default, the returned
 emulators are the Bayes Linear adjusted forms.
 }
 \examples{

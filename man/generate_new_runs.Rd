@@ -88,7 +88,7 @@ The option \code{seek} determines how many points should be chosen that have a h
 probability of matching targets, as opposed to not missing targets. Due to the danger of
 such an approach in terms of obtaining a representative space-filling design over the
 space, this value should not be too high: a rough guide is that it should be no larger
-than 10% of the desired number of points. The default is \code{seek = 0}.
+than 10\% of the desired number of points. The default is \code{seek = 0}.
 
 The default behaviour is as follows. A set of initial points are generated from an LHD;
 line sampling is performed to find the boundaries; and finally this collection of points
@@ -102,8 +102,9 @@ proposal, a subset of lower-implausibility points are selected. This process ite
 until either the desired implausibility has been reached or the process has reached a
 barrier to further reductions in implausibility.
 
-These methods may not work if the target space is very small comparative to the current
-not-yet-ruled-out space, or it may miss small disconnected regions of parameter space.
+These methods may not work, or may work slowly, if the target space is very small
+compared to the current not-yet-ruled-out space, or it may miss small disconnected
+regions of parameter space.
 }
 \examples{
 \donttest{

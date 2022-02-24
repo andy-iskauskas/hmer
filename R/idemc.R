@@ -161,7 +161,7 @@ IDEMC_step <- function(ems, points, imp_func, imp_levels, s, pm = 0.9, M = 10) {
 #'
 #' The burn-in phase starts with a rung defined over the full space (i.e. the implausibility
 #' for this rung is simply the maximum implausibility over the space). The implausibility of
-#' the next rung is chosen to be such that 30% of the previous points are below this threshold.
+#' the next rung is chosen to be such that 30\% of the previous points are below this threshold.
 #' A full complement of points are generated at this new level, and the process is repeated
 #' using these new points to find the next rung of the ladder. This iterates until the desired
 #' final implausibility, \code{imp} has been reached as a ladder rung.

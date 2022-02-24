@@ -17,8 +17,8 @@ rat_quad(x, xp, hp)
 The rational quadratic correlation between x and xp.
 }
 \description{
-For points \code{x}, \code{xp}, and a pair of hyperparameters \code{nu} and \code{rho}, gives
-the rational quadratic correlation between the two points.
+For points \code{x}, \code{xp}, and a pair of hyperparameters \code{alpha} and \code{theta},
+gives the rational quadratic correlation between the two points.
 }
 \details{
 This correlation function, for d = |x-x'|, has the form

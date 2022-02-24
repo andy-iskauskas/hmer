@@ -319,7 +319,7 @@ get_diagnostic <- function(emulator, targets = NULL, validation = NULL, which_di
 #' @return A data.frame of failed points
 #' @export
 #'
-#' @seealso \code{link{get_diagnostic}}
+#' @seealso \code{\link{get_diagnostic}}
 analyze_diagnostic <- function(in_data, output_name, targets = NULL, plt = interactive(), cutoff = 3, ...) {
   output_points <- in_data[,output_name]
   input_points <- in_data[, !names(in_data) %in% c(output_name, 'error', 'em', 'sim', 'exp', 'unc')]
@@ -632,7 +632,8 @@ individual_errors <- function(em, validation, errtype = "normal", xtype = "index
 #' @return A data.frame of failed points
 #' @export
 #'
-#' @seealso \code{get_diagnostic}, \code{analyze_diagnostic}, \code{validation_diagnostic}
+#' @seealso \code{\link{get_diagnostic}}, \code{\link{analyze_diagnostic}},
+#'  \code{\link{validation_diagnostics}}
 #'
 classification_diag <- function(emulator, targets, validation, cutoff = 3, plt = interactive()) {
   analyze_diagnostic(get_diagnostic(emulator, targets, validation, 'ce'), emulator$output_name, targets, plt, cutoff)
@@ -654,7 +655,8 @@ classification_diag <- function(emulator, targets, validation, cutoff = 3, plt =
 #' @return A data.frame of failed points
 #' @export
 #'
-#' @seealso \code{get_diagnostic}, \code{analyze_diagnostic}, \code{validation_diagnostic}
+#' @seealso \code{\link{get_diagnostic}}, \code{\link{analyze_diagnostic}},
+#'  \code{\link{validation_diagnostics}}
 #'
 comparison_diag <- function(emulator, targets, validation, sd = 3, plt = interactive()) {
   analyze_diagnostic(get_diagnostic(emulator, targets, validation, 'cd', sd), emulator$output_name, targets, plt)
@@ -675,7 +677,8 @@ comparison_diag <- function(emulator, targets, validation, sd = 3, plt = interac
 #' @return A data.frame of failed points
 #' @export
 #'
-#' @seealso \code{get_diagnostic}, \code{analyze_diagnostic}, \code{validation_diagnostic}
+#' @seealso \code{\link{get_diagnostic}}, \code{\link{analyze_diagnostic}},
+#'  \code{\link{validation_diagnostics}}
 #'
 standard_errors <- function(emulator, targets = NULL, validation = NULL, plt = interactive()) {
   analyze_diagnostic(get_diagnostic(emulator, targets, validation, 'se'), emulator$output_name, targets, plt)

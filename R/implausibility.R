@@ -22,10 +22,12 @@ sequential_imp <- function(ems, x, z, n = 1, cutoff = 3) {
 
 #' nth Maximum Implausibility
 #'
+#' Computes the nth-maximum implausibility of points relative to a set of emulators.
+#'
 #' For a collection of emulators, it can be helpful to combine the implausibility
 #' measures for a given set of observations. The maximum implausibility of a point,
 #' given a set of univariate emulators and an associated collection of target values,
-#' is the largest implausibility of the collected set of implasusibilities. The 2nd
+#' is the largest implausibility of the collected set of implausibilities. The 2nd
 #' maximum is the maximum of the set without the largest value, and so on.
 #'
 #' If \code{sequential = TRUE} and a specific \code{cutoff} has been provided, then the

@@ -17,8 +17,8 @@ gamma_exp(x, xp, hp)
 The gamma-exponential correlation between x and xp.
 }
 \description{
-For points \code{x}, \code{xp}, and a pair of hyperparameters \code{nu} and \code{rho}, gives
-the gamma-exponential correlation between the two points.
+For points \code{x}, \code{xp}, and a pair of hyperparameters \code{gamma} and \code{theta},
+gives the gamma-exponential correlation between the two points.
 }
 \details{
 The gamma-exponential correlation function, for d = |x-x'|, is given by

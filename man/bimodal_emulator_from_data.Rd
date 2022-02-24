@@ -41,7 +41,7 @@ mode separately.
 This function first tries to identify bimodality. If detected, it determines which of the
 outputs in the data exhibits the bimodality: to these two separate emulators are trained, one
 to each mode. The emulators are provided with any data that is relevant to their training; for
-example, bimodality can exist in some regions of parameter space but not others - points where
+example, bimodality can exist in some regions of parameter space but not others. Points where
 bimodality is present have their realisations allocated between the two modes while points
 where no bimodality exists have their realisations provided to both modes. Targets that do not
 exhibit bimodality are trained as a normal stochastic output: that is, using the default of
@@ -51,7 +51,7 @@ The function also estimates the proportion of realisations in each mode for the 
 This value is also emulated as a deterministic emulator and included in the output.
 
 The output of the function is a list, containing three objects: \code{mode1}, \code{mode2}, and
-\code{prop}. The first two objects havethe form produced by \code{variance_emulator_from_data}
+\code{prop}. The first two objects have the form produced by \code{variance_emulator_from_data}
 while \code{prop} has the form of an \code{emulator_from_data} output.
 }
 \examples{

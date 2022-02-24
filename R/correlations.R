@@ -25,7 +25,7 @@ exp_sq_d <- function(x, xp, hp, xi, xpi = NULL) {
 
 #' Matern correlation function
 #'
-#' For points \code{x}, \code{xp}, and a pair of hyperparameters \code{nu} and \code{rho}, gives
+#' For points \code{x}, \code{xp}, and a pair of hyperparameters \code{nu} and \code{theta}, gives
 #' the Matern correlation between the two points.
 #'
 #' At present, only half-integer arguments for nu are supported.
@@ -67,11 +67,11 @@ matern_d <- function(x, xp, hp, xi, xpi = NULL) {
 
 #' Ornstein-Uhlenbeck correlation function
 #'
-#' For points \code{x}, \code{xp}, and a pair of hyperparameters \code{nu} and \code{rho}, gives
+#' For points \code{x}, \code{xp}, and a hyperparameter \code{theta}, gives
 #' the Ornstein-Uhlenbeck correlation between the two points.
 #'
 #' This correlation function can be seen as a specific case of the Matern correalation function
-#' when nu = 1/2
+#' when nu = 1/2.
 #'
 #' @param x A numeric position vector
 #' @param xp A numeric position vector
@@ -84,14 +84,16 @@ matern_d <- function(x, xp, hp, xi, xpi = NULL) {
 #' #> 4.539993e-05
 #' orn_uhl(c(1,2,-1), c(1.5, 2.9,-0.7), list(theta = 0.2))
 #' #> 0.00469197
+#' orn_uhl(c(1,1,1), c(1.2, 0.9, 0.6), list(theta = 0.2)) ==
+#'  matern(c(1,1,1), c(1.2, 0.9, 0.6), list(theta = 0.2, nu = 0.5)) #> TRUE
 orn_uhl <- function(x, xp, hp) {
   exp(-sqrt(sum((x-xp)^2))/hp$theta)
 }
 
 #' Gamma-exponential correlation function
 #'
-#' For points \code{x}, \code{xp}, and a pair of hyperparameters \code{nu} and \code{rho}, gives
-#' the gamma-exponential correlation between the two points.
+#' For points \code{x}, \code{xp}, and a pair of hyperparameters \code{gamma} and \code{theta},
+#' gives the gamma-exponential correlation between the two points.
 #'
 #' The gamma-exponential correlation function, for d = |x-x'|, is given by
 #' exp(-(d/l)^gamma). Gamma must be between 0 (exclusive) and 2 (inclusive).
@@ -114,8 +116,8 @@ gamma_exp <- function(x, xp, hp) {
 
 #' Rational Quadratic correlation function
 #'
-#' For points \code{x}, \code{xp}, and a pair of hyperparameters \code{nu} and \code{rho}, gives
-#' the rational quadratic correlation between the two points.
+#' For points \code{x}, \code{xp}, and a pair of hyperparameters \code{alpha} and \code{theta},
+#' gives the rational quadratic correlation between the two points.
 #'
 #' This correlation function, for d = |x-x'|, has the form
 #' (1+d^2/(2 alpha theta^2))^(-alpha), and can be seen as a superposition of exponential-squared

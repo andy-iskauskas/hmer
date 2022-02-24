@@ -32,8 +32,8 @@ Creates a univariate emulator with hierarchical structure.
 \section{Constructor Details}{
 
 
-   See \code{\link{Emulator}}: the constructor structure is the same save for the two
-   new arguments.
+   See \code{\link{Emulator}}: the constructor structure is the same save for the
+   new arguments discussed above.
 }
 
 \section{Accessor Methods}{

@@ -176,3 +176,33 @@ subset_emulators <- function(emulators, output_names) {
   }
   return(collated)
 }
+
+
+collect_emulators <- function(emulators) {
+  if ("Emulator" %in% class(emulators)) return(setNames(emulators, emulators$output_name))
+  if (all(purrr::map_lgl(emulators, ~"Emulator" %in% class(.)))) {
+    em_names <- purrr::map_chr(emulators, ~.$output_name)
+    return(setNames(emulators, em_names))
+  }
+  if (!is.null(emulators[[1]]$expectation)) {
+    exp_ems <- purrr::map(emulators, ~.$expectation)
+    var_ems <- purrr::map(emulators, ~.$variance)
+    return(list(expectation = collect_emulators(exp_ems), variance = collect_emulators(var_ems)))
+  }
+  if (!is.null(emulators[[1]]$mode1)) {
+    m1ems <- purrr::map(emulators, ~.$mode1)
+    m2ems <- purrr::map(emulators, ~.$mode2)
+    prop_ems <- purrr::map(emulators, ~.$prop)
+    return(list(mode1 = collect_emulators(m1ems), mode2 = collect_emulators(m2ems), prop = collect_emulators(prop_ems)))
+  }
+  return(unlist(emulators))
+}
+
+getRanges <- function(emulators, minimal = TRUE) {
+  emulators <- collect_emulators(emulators)
+  if (!is.null(emulators$expectation)) emulators <- emulators$expectation
+  if (!is.null(emulators$mode1)) emulators <- c(emulators$mode1$expectation, emulators$mode2$expectation)
+  range_widths <- data.frame(do.call('rbind', purrr::map(emulators, ~purrr::map(.$ranges, diff))))
+  which_choose <- if (minimal) apply(range_widths, 2, which.min) else apply(range_widths, 2, which.max)
+  return(purrr::map(names(range_widths), ~emulators[[which_choose[[.]]]]$ranges[[.]]) |> setNames(names(range_widths)))
+}

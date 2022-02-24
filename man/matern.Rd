@@ -17,7 +17,7 @@ matern(x, xp, hp)
 The Matern correlation between x and xp.
 }
 \description{
-For points \code{x}, \code{xp}, and a pair of hyperparameters \code{nu} and \code{rho}, gives
+For points \code{x}, \code{xp}, and a pair of hyperparameters \code{nu} and \code{theta}, gives
 the Matern correlation between the two points.
 }
 \details{

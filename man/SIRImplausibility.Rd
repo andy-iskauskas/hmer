@@ -26,8 +26,10 @@ Implausibility has been calculated (for emulators trained on the
 \code{\link{SIRSample}} training dataset) for each of the outputs
 nS, nI, nR, and the maximum implausibility is included.
 The target values used in calculating implausibility were:
-nS: between 324 and 358;
-nI: mean 143 (sigma 7.15);
-nR: between 490 and 542
+\describe{
+  \item{nS}{between 324 and 358}
+  \item{nI}{mean 143 (sigma 7.15)}
+  \item{nR}{between 490 and 542}
+}
 }
 \keyword{datasets}

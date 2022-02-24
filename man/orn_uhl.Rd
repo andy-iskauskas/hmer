@@ -17,16 +17,18 @@ orn_uhl(x, xp, hp)
 The Ornstein-Uhlenbeck correlation between x and xp.
 }
 \description{
-For points \code{x}, \code{xp}, and a pair of hyperparameters \code{nu} and \code{rho}, gives
+For points \code{x}, \code{xp}, and a hyperparameter \code{theta}, gives
 the Ornstein-Uhlenbeck correlation between the two points.
 }
 \details{
 This correlation function can be seen as a specific case of the Matern correalation function
-when nu = 1/2
+when nu = 1/2.
 }
 \examples{
 orn_uhl(1, 2, list(theta = 0.1))
 #> 4.539993e-05
 orn_uhl(c(1,2,-1), c(1.5, 2.9,-0.7), list(theta = 0.2))
 #> 0.00469197
+orn_uhl(c(1,1,1), c(1.2, 0.9, 0.6), list(theta = 0.2)) ==
+ matern(c(1,1,1), c(1.2, 0.9, 0.6), list(theta = 0.2, nu = 0.5)) #> TRUE
 }

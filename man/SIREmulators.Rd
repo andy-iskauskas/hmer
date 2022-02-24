@@ -8,7 +8,7 @@
 A list containing two objects:
 \describe{
  \item{ems}{The trained \code{\link{Emulator}} objects.}
- \item{targets}{The targets to match to, as a set of val-sigma pairs.}
+ \item{targets}{The targets to match to, as a named list.}
 }
 }
 \usage{

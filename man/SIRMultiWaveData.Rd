@@ -18,7 +18,7 @@ SIRMultiWaveData
 }
 \description{
 An rda object containing four data.frames: an initial set of points
-alos provided in \code{\link{SIRSample}}, and
+also provided in \code{\link{SIRSample}}, and
 the 90 points generated at each of three subsequent waves. The trained
 emulators are provided in \code{\link{SIRMultiWaveEmulators}}.
 }

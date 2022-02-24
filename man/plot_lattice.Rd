@@ -23,9 +23,11 @@ plot_lattice(ems, targets, ppd = 20, cb = FALSE, cutoff = 3, maxpoints = 50000)
 A ggplot object
 }
 \description{
-Plots a set of projections of the full-dimensional input space. The plots are:
+Plots a set of projections of the full-dimensional input space.
 }
 \details{
+The plots are:
+
 One dimensional optical depth plots (diagonal);
 
 Two dimensional optical depth plots (lower triangle);

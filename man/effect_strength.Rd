@@ -40,8 +40,9 @@ function extracts the relevant information from a list of emulator objects.
 
 The parameter \code{quadratic} controls whether quadratic effect strength is
 calculated and plotted (an unecessary plot if, say, linear emulators have been trained).
-The remaining options control visual aspects of the plots: \code{line_plot} determines
-whether a line or bar (default) plot should be produced, and \code{labels} determines
+The remaining options control visual aspects of the plots: \code{line.plot} determines
+whether a line or bar (default) plot should be produced, \code{grid.plot} determines
+whether the results are plotted as a graph or a grid, and \code{labels} determines
 if a legend should be provided with the plot (for large numbers of emulators, it is
 advisable to set this to \code{FALSE}).
 }
