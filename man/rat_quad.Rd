@@ -7,9 +7,9 @@
 rat_quad(x, xp, hp)
 }
 \arguments{
-\item{x}{A numeric position vector}
+\item{x}{A data.frame of rows corresponding to position vectors}
 
-\item{xp}{A numeric position vector}
+\item{xp}{A data.frame of rows corresponding to position vectors}
 
 \item{hp}{The hyperparameters alpha (exponent and scale) and theta (correlation length)}
 }
@@ -26,8 +26,8 @@ This correlation function, for d = |x-x'|, has the form
 correlation functions.
 }
 \examples{
-rat_quad(1, 2, list(alpha = 1.5, rho = 0.1))
+rat_quad(data.frame(a=1), data.frame(a=2), list(alpha = 1.5, rho = 0.1))
 #> 0.110858
-rat_quad(c(1,2,-1), c(1.5, 2.9,-0.7), list(alpha = 1.5, rho = 0.2))
+rat_quad(data.frame(a=1,b=2,c=-1),data.frame(a=1.5,b=2.9,c=-0.7), list(alpha = 1.5, rho = 0.2))
 #> 0.2194183
 }

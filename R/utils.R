@@ -182,7 +182,8 @@ collect_emulators <- function(emulators) {
   if ("Emulator" %in% class(emulators)) return(setNames(emulators, emulators$output_name))
   if (all(purrr::map_lgl(emulators, ~"Emulator" %in% class(.)))) {
     em_names <- purrr::map_chr(emulators, ~.$output_name)
-    return(setNames(emulators, em_names))
+    em_range_prods <- purrr::map_dbl(emulators, ~prod(purrr::map_dbl(.$ranges, diff)))
+    return(setNames(emulators[order(em_range_prods)], em_names))
   }
   if (!is.null(emulators[[1]]$expectation)) {
     exp_ems <- purrr::map(emulators, ~.$expectation)
@@ -195,7 +196,7 @@ collect_emulators <- function(emulators) {
     prop_ems <- purrr::map(emulators, ~.$prop)
     return(list(mode1 = collect_emulators(m1ems), mode2 = collect_emulators(m2ems), prop = collect_emulators(prop_ems)))
   }
-  return(unlist(emulators))
+  return(collect_emulators(unlist(emulators)))
 }
 
 getRanges <- function(emulators, minimal = TRUE) {

@@ -63,9 +63,9 @@ Emulator <- R6Class(
       }
       if (!is.null(self$in_data)) {
         if (is.numeric(self$u_sigma))
-          d_corr <- self$u_sigma^2 * apply(self$in_data, 1, function(y) apply(self$in_data, 1, self$corr$get_corr, y, self$active_vars))
+          d_corr <- self$u_sigma^2 * self$corr$get_corr(self$in_data, actives = self$active_vars)
         else
-          d_corr <- diag(apply(self$in_data, 1, self$u_sigma)^2, nrow = nrow(self$in_data)) %*% apply(self$in_data, 1, function(y) apply(self$in_data, 1, self$corr$get_corr, y, self$active_vars))
+          d_corr <- diag(apply(self$in_data, 1, self$u_sigma)^2, nrow = nrow(self$in_data)) %*% self$corr$get_corr(self$in_data, actives = self$active_vars)
         private$data_corrs <- tryCatch(
           private$data_corrs <- chol2inv(chol(d_corr)),
           error = function(e) {
@@ -89,7 +89,7 @@ Emulator <- R6Class(
       else beta_part <- g %*% self$beta_mu
       u_part <- apply(x, 1, self$u_mu)
       if (!is.null(self$in_data)) {
-        c_data <- matrix(apply(self$in_data, 1, function(y) apply(x, 1, self$corr$get_corr, y, self$active_vars)), nrow = nrow(x))
+        c_data <- self$corr$get_corr(self$in_data, x, self$active_vars)
         if (is.numeric(self$u_sigma)) {
           if (length(self$beta_mu) == 1)
             u_part <- t(u_part + (t(bu) %*% t(private$design_matrix) + self$u_sigma^2 * c_data) %*% private$u_exp_modifier)
@@ -130,7 +130,7 @@ Emulator <- R6Class(
         bupart_xp <- apply(xp, 1, self$beta_u_cov)
       }
       if (full || nrow(x) != nrow(xp)) {
-        x_xp_c <- matrix(apply(xp, 1, function(y) apply(x, 1, self$corr$get_corr, y, self$active_vars)), nrow = nrow(x))
+        x_xp_c <- self$corr$get_corr(xp, x, self$active_vars)
         if (is.null(nrow(g_x))) beta_part <- g_x %*% self$beta_sigma %*% g_xp
         else beta_part <- t(g_x) %*% self$beta_sigma %*% g_xp
         if (is.numeric(self$u_sigma))
@@ -138,8 +138,8 @@ Emulator <- R6Class(
         else
           u_part <- sweep(sweep(x_xp_c, 2, apply(xp, 1, self$u_sigma), "*"), 1, apply(x, 1, self$u_sigma), "*")
         if (!is.null(self$in_data)) {
-          c_x <- apply(self$in_data, 1, function(y) apply(x, 1, self$corr$get_corr, y, self$active_vars))
-          c_xp <- if(null_flag) c_x else apply(self$in_data, 1, function(y) apply(xp, 1, self$corr$get_corr, y, self$active_vars))
+          c_x <- self$corr$get_corr(self$in_data, x, self$active_vars)
+          c_xp <- if(null_flag) c_x else self$corr$get_corr(self$in_data, xp, self$active_vars)
           if(nrow(x) == 1) {
             c_x <- t(c_x)
             c_xp <- t(c_xp)
@@ -169,12 +169,12 @@ Emulator <- R6Class(
         if (is.null(nrow(g_x))) beta_part <- diag(diag(self$beta_sigma) * outer(g_x, g_xp))
         else beta_part <- purrr::map_dbl(point_seq, ~g_x[,.] %*% self$beta_sigma %*% g_xp[,.])
         if (is.numeric(self$u_sigma))
-          u_part <- self$u_sigma^2 * purrr::map_dbl(point_seq, ~self$corr$get_corr(x[.,], xp[.,], self$active_vars))
+          u_part <- self$u_sigma^2 * diag(self$corr$get_corr(x, xp, self$active_vars))
         else
-          u_part <- purrr::map_dbl(point_seq, ~self$corr$get_corr(x[.,], xp[.,], self$active_vars) * self$u_sigma(x[.,]) * self$u_sigma(xp[.,]))
+          u_part <- purrr::map_dbl(point_seq, ~self$u_sigma(x[.,]) * self$u_sigma(xp[.,])) * diag(self$corr$get_corr(x, xp, self$active_vars))
         if (!is.null(self$in_data)) {
-          c_x <- apply(self$in_data, 1, function(y) apply(x, 1, self$corr$get_corr, y, self$active_vars))
-          c_xp <- if(null_flag) c_x else apply(self$in_data, 1, function(y) apply(xp, 1, self$corr$get_corr, y, self$active_vars))
+          c_x <- self$corr$get_corr(self$in_data, x, self$active_vars)
+          c_xp <- if(null_flag) c_x else self$corr$get_corr(self$in_data, xp, self$active_vars)
           if (nrow(x) == 1) {
             c_x <- t(c_x)
             c_xp <- t(c_xp)
@@ -230,7 +230,7 @@ Emulator <- R6Class(
       else beta_part <- g %*% self$beta_mu
       u_part <- apply(x, 1, self$u_mu)
       if (!is.null(self$in_data)) {
-        c_data <- apply(self$in_data, 1, function(b) apply(x, 1, function(a) self$corr$get_corr_d(a, b, p_ind, actives = self$active_vars)))
+        c_data <- self$corr$get_corr_d(x, self$in_data, p_ind, actives = self$active_vars)
         c_data <- matrix(c_data/range_scale, nrow = nrow(x))
         if (is.numeric(self$u_sigma)) {
           if (length(self$beta_mu) == 1)
@@ -295,7 +295,7 @@ Emulator <- R6Class(
       g_x <- g_x/range_scale1
       gp_x <- gp_x/range_scale2
       if (full || nrow(x) != nrow(xp)) {
-          x_xp_c <- matrix(apply(xp, 1, function(b) apply(x, 1, function(a) self$corr$get_corr_d(a, b, p1_ind, p2_ind, self$active_vars)))/(range_scale1*range_scale2), nrow = nrow(x))
+          x_xp_c <- self$corr$get_corr_d(x, xp, p1_ind, p2_ind, self$active_vars)/(range_scale1*range_scale2)
         if (is.null(nrow(g_x))) beta_part <- g_x %*% self$beta_sigma %*% gp_x
         else beta_part <- t(g_x) %*% self$beta_sigma %*% gp_x
         if (is.numeric(self$u_sigma))
@@ -303,11 +303,11 @@ Emulator <- R6Class(
         else
           u_part <- sweep(sweep(x_xp_c, 2, apply(xp, 1, self$u_sigma), "*"), 1, apply(x, 1, self$u_sigma), "*")
         if (!is.null(self$in_data)) {
-          c_x <- apply(self$in_data, 1, function(b) apply(x, 1, function(a) self$corr$get_corr_d(a, b, p1_ind, p2_ind, self$active_vars)))/(range_scale1*range_scale2)
+          c_x <- self$corr$get_corr_d(x, self$in_data, p1_ind, p2_ind, self$active_vars)/(range_scale1*range_scale2)
           c_xp <- if(null_flag)
             -1*c_x
           else
-            -1*apply(self$in_data, 1, function(b) apply(xp, 1, function(a) self$corr$get_corr_d(a, b, p1_ind, p2_ind, self$active_vars)))/(range_scale1*range_scale2)
+            -1*self$corr$get_corr_d(xp, self$in_data, p1_ind, p2_ind, active_vars)/(range_scale1*range_scale2)
           if(nrow(x) == 1) {
             c_x <- t(c_x)
             c_xp <- t(c_xp)
@@ -335,14 +335,14 @@ Emulator <- R6Class(
         point_seq <- 1:nrow(x)
         if (is.null(nrow(g_x))) beta_part <- diag(diag(self$beta_sigma) * outer(g_x, gp_x))
         else beta_part <- purrr::map_dbl(point_seq, ~g_x[,.] %*% self$beta_sigma %*% gp_x[,.])
-        if (is.numeric(self$u_sigma)) u_part <- purrr::map_dbl(point_seq, ~self$u_sigma^2 * self$corr$get_corr_d(x[.,], xp[.,], p1_ind, p2_ind, self$active_vars))/(range_scale1*range_scale2)
-        else u_part <- purrr::map_dbl(point_seq, ~self$u_sigma(x[.,]) * self$u_sigma(xp[.,]) * self$corr$get_corr_d(x[.,], xp[.,], p1_ind, p2_ind, self$active_vars))/(range_scale1*range_scale2)
+        if (is.numeric(self$u_sigma)) u_part <- self$u_sigma^2 * diag(self$corr$get_corr_d(x, xp, p1_ind, p2_ind, self$active_vars))/(range_scale1*range_scale2)
+        else u_part <- purrr::map_dbl(point_seq, ~self$u_sigma(x[.,])*self$u_sigma(x[.,])) * diag(self$corr$get_corr_d(x, xp, p1_ind, p2_ind, self$active_vars))/(range_scale1*range_scale2)
         if (!is.null(self$in_data)) {
-          c_x <- apply(self$in_data, 1, function(b) apply(x, 1, function(a) self$corr$get_corr_d(a, b, p1_ind, p2_ind, self$active_vars)))/(range_scale1*range_scale2)
+          c_x <- self$corr$get_corr_d(self$in_data, x, p1_ind, p2_ind, self$active_vars)/(range_scale1*range_scale2)
           c_xp <- if(null_flag)
             -1*c_x
           else
-            -1*apply(self$in_data, 1, function(b) apply(xp, 1, function(a) self$corr$get_corr_d(a, b, p1_ind, p2_ind, self$active_vars)))/(range_scale1*range_scale2)
+            -1*self$corr$get_corr_d(self$in_data, xp, p1_ind, p2_ind, self$active_vars)/(range_scale1*range_scale2)
           if (nrow(x) == 1) {
             c_x <- t(c_x)
             c_xp <- t(c_xp)
@@ -404,7 +404,7 @@ Emulator <- R6Class(
       }
       else {
         G <- apply(this_data_in, 1, function(x) purrr::map_dbl(self$basis_f, purrr::exec, x))
-        Ot <- apply(this_data_in, 1, function(x) apply(this_data_in, 1, self$corr$get_corr, x, self$active_vars))
+        Ot <- self$corr$get_corr(this_data_in, actives = self$active_vars)
         O <- tryCatch(
           chol2inv(chol(Ot)),
           error = function(x) {

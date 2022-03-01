@@ -91,8 +91,7 @@ get_coefficient_model <- function(data, ranges, output_name, add = FALSE, order 
     quad_names <- row.names(mod_coeffs)[!row.names(mod_coeffs) %in% names(ranges)]
     quad_remove <- quad_names[quad_sos < 0.01]
     final_terms <- row.names(mod_coeffs)[!row.names(mod_coeffs) %in% quad_remove]
-    if (length(final_terms) == 0) final_terms = c("1")
-    model <- lm(data = data, formula = as.formula(paste(output_name, "~", paste0(final_terms, collapse = "+"))))
+    model <- lm(data = data, formula = as.formula(paste(output_name, "~", paste0(c('1', final_terms), collapse = "+"))))
   }
   return(model)
 }
@@ -133,7 +132,7 @@ likelihood_estimate <- function(inputs, outputs, h, corr_name = 'exp_sq', hp_ran
   if (all(av == FALSE)) av <- c(TRUE)
   corr_mat <- function(points, hp, delta) {
     this_corr <- corr$set_hyper_p(hp, delta)
-    apply(points, 1, function(a) apply(points, 1, this_corr$get_corr, a, av))
+    this_corr$get_corr(points, actives = av)
   }
   func_to_opt <- function(params, log_lik = TRUE, b = beta, return_stats = FALSE) {
     hp <- params[1:length(hp_range)]
@@ -553,11 +552,11 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
         variance_em <- HierarchicalEmulator$new(basis_f = c(function(x) 1), beta = list(mu = c(point[1,i]), sigma = matrix(0, nrow = 1, ncol = 1)), u = list(sigma = point[1,i]^2, corr = temp_corr), ranges = ranges, out_name = i)
       }
       else {
-        variance_em <- emulator_from_data(var_df, i, ranges, quadratic = FALSE, adjusted = FALSE, has.hierarchy = TRUE, ...)[[1]]
+        variance_em <- emulator_from_data(var_df, i, ranges, quadratic = FALSE, adjusted = FALSE, has.hierarchy = TRUE, verbose = FALSE, ...)[[1]]
       }
     }
     else {
-      variance_em <- emulator_from_data(all_var, i, ranges, quadratic = FALSE, adjusted = FALSE, has.hierarchy = TRUE, ...)[[1]]
+      variance_em <- emulator_from_data(all_var, i, ranges, quadratic = FALSE, adjusted = FALSE, has.hierarchy = TRUE, verbose = FALSE, ...)[[1]]
     }
     if (round(variance_em$u_sigma, 10) <= 0) {
       s_vars <- all_var[is_high_rep, i]
@@ -582,6 +581,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
     variance_emulators <- c(variance_emulators, v_em)
   }
   variance_emulators <- setNames(variance_emulators, output_names)
+  print("Completed variance emulators. Training mean emulators...")
   exp_mods <- purrr::map(variance_emulators, ~function(x, n) .$get_exp(x)/n)
   exp_data <- setNames(collected_df[,c(input_names, paste0(output_names, 'mean'))], c(input_names, output_names))
   exp_em <- emulator_from_data(exp_data, output_names, ranges, input_names, adjusted = FALSE, has.hierarchy = TRUE, ...)

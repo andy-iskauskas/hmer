@@ -36,8 +36,8 @@
 #'
 #'     \code{get_corr(x, xp = NULL, actives = TRUE)} Returns the correlation
 #'     between two points. If \code{xp} is \code{NULL}, then this is correlation
-#'     between a point and itself (i.e. 1). All variables are assumed to be active
-#'     unless otherwise stated in \code{actives}.
+#'     between a set of points and themselves (i.e. 1 on the diagonal). All variables
+#'     are assumed to be active unless otherwise stated in \code{actives}.
 #'
 #'     \code{get_hyper_p()} Returns the list of hyperparameters.
 #'
@@ -68,8 +68,9 @@
 #'     own correlation functions and using them with \code{emulator_from_data}.
 #'
 #'     A user-defined correlation function can be provided to the Correlator: the requirements
-#'     are that the function be vectorized in its first two argument, return a single value,
-#'     and accept a named list of hyperparameters as its third argument. If a derivative also
+#'     are that the function accept data.matrix objects as its first and second arguments,
+#'     and accept a named list of hyperparameters as its third argument, and return a matrix
+#'     of correlations between rows of the data.matrices. If a derivative also
 #'     exists, it should take the same name as the correlation function with "_d" appended to
 #'     it, and the directions to differentiate wite respect to should come after the
 #'     hyperparameter argument. For example, the rational quadratic functions have the form
@@ -86,8 +87,8 @@
 #' @examples
 #' test_corr <- Correlator$new(nug = 0.1)
 #' test_corr
-#' point1 <- c(a = 0.1, b = 0.2, c = 0.3)
-#' point2 <- c(a = 0.15, b = 0.18, c = 0.295)
+#' point1 <- data.frame(a = 0.1, b = 0.2, c = 0.3)
+#' point2 <- data.frame(a = 0.15, b = 0.18, c = 0.295)
 #' test_corr$get_corr(point1) #> 1
 #' test_corr$get_corr(point1, point2) #> 0.6717557
 #' test_corr$get_corr(point1, point2, actives = c(TRUE, TRUE, FALSE)) #> 0.6734372

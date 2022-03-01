@@ -7,9 +7,9 @@
 exp_sq(x, xp, hp)
 }
 \arguments{
-\item{x}{A numeric position vector}
+\item{x}{A data.frame of rows corresponding to position vectors}
 
-\item{xp}{A numeric position vector}
+\item{xp}{A data.frame of rows corresponding to position vectors}
 
 \item{hp}{The hyperparameter theta (correlation length)}
 }
@@ -21,8 +21,8 @@ For points \code{x}, \code{xp} and a correlation length \code{theta}, gives the 
 of the squared distance between \code{x} and \code{xp}, weighted by \code{theta} squared.
 }
 \examples{
-exp_sq(1,2, list(theta = 0.1))
+exp_sq(data.frame(a=1), data.frame(a=2), list(theta = 0.1))
 #> 3.720076e-44
-exp_sq(c(1,2,-1),c(1.5,2.9,-0.7), list(theta = 0.2))
+exp_sq(data.frame(a=1,b=2,c=-1),data.frame(a=1.5,b=2.9,c=-0.7), list(theta = 0.2))
 #> 3.266131e-13
 }

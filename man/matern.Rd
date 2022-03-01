@@ -7,9 +7,9 @@
 matern(x, xp, hp)
 }
 \arguments{
-\item{x}{A numeric position vector}
+\item{x}{A data.frame of rows corresponding to position vectors}
 
-\item{xp}{A numeric position vector}
+\item{xp}{A data.frame of rows corresponding to position vectors}
 
 \item{hp}{The hyperparameters nu (smoothness) and theta (correlation length), as a named list}
 }
@@ -24,8 +24,8 @@ the Matern correlation between the two points.
 At present, only half-integer arguments for nu are supported.
 }
 \examples{
-matern(1, 2, list(nu = 1.5, theta = 0.1))
+matern(data.frame(a=1), data.frame(a=2), list(nu = 1.5, theta = 0.1))
 #> 5.504735e-07
-matern(c(1,2,-1), c(1.5, 2.9,-0.7), list(nu = 1.5, theta = 0.2))
+matern(data.frame(a=1,b=2,c=-1),data.frame(a=1.5,b=2.9,c=-0.7), list(nu = 1.5, theta = 0.2))
 #> 0.0009527116
 }

@@ -65,7 +65,7 @@ are permitted; this can be tuned by supplying a value of \code{iteration.steps}.
 }
 \examples{
  # Take a point from the SIR system at later waves with low (but >3) implausibility
- start_point <- SIRMultiWaveData[[2]][59,1:3]
+ start_point <- SIRMultiWaveData[[2]][54,1:3]
  ems <- SIRMultiWaveEmulators[[3]]
  targs <- SIREmulators$targets
  # Using expected error as measure
@@ -74,4 +74,5 @@ are permitted; this can be tuned by supplying a value of \code{iteration.steps}.
  new_point2 <- directional_proposal(ems, start_point, targs, iteration.measure = 'imp')
  all_points <- do.call('rbind.data.frame', list(start_point, new_point1, new_point2))
  nth_implausible(ems, all_points, targs)
+
 }

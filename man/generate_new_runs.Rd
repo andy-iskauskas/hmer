@@ -16,6 +16,8 @@ generate_new_runs(
   cluster = FALSE,
   resample = 1,
   seek = 0,
+  c_tol = 0.1,
+  i_tol = 0.001,
   ...
 )
 }
@@ -41,6 +43,10 @@ generate_new_runs(
 \item{resample}{Number of times to resample using line and/or importance sampling.}
 
 \item{seek}{How many 'good' points to search for}
+
+\item{c_tol}{The tolerance with which to determine that best implausibility has been reached.}
+
+\item{i_tol}{The tolerance on final desired implausibility}
 
 \item{...}{Any parameters to pass to individual sampling functions, eg \code{distro} for importance sampling.}
 }
@@ -100,7 +106,11 @@ the function will start at a higher implausibility where it can find a space-fil
 design; using this as a starting point any other methods are performed. From this new
 proposal, a subset of lower-implausibility points are selected. This process iterates
 until either the desired implausibility has been reached or the process has reached a
-barrier to further reductions in implausibility.
+barrier to further reductions in implausibility. The argument \code{c_tol} is used to
+determine if the improvement in implausibility is small enough to justify stopping the
+process; by default this is 0.1. The process will also stop if it has produced points
+'close to' the desired implausibility: the level of closeness is defined using the
+\code{i_tol} argument.
 
 These methods may not work, or may work slowly, if the target space is very small
 compared to the current not-yet-ruled-out space, or it may miss small disconnected
@@ -109,7 +119,7 @@ regions of parameter space.
 \examples{
 \donttest{
  # A simple example that uses a number of the native and ... parameter options
- pts <- generate_new_runs(SIREmulators$ems, 20, SIREmulators$targets,
+ pts <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
  measure.method = 'maximin', distro = 'sphere', resample = 0)
  pts_optical <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
   method = c('optical'), plausible_set = pts)

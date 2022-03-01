@@ -7,9 +7,9 @@
 orn_uhl(x, xp, hp)
 }
 \arguments{
-\item{x}{A numeric position vector}
+\item{x}{A data.frame of rows corresponding to position vectors}
 
-\item{xp}{A numeric position vector}
+\item{xp}{A data.frame of rows corresponding to position vectors}
 
 \item{hp}{The hyperparameter theta (correlation length) in a named list}
 }
@@ -21,14 +21,14 @@ For points \code{x}, \code{xp}, and a hyperparameter \code{theta}, gives
 the Ornstein-Uhlenbeck correlation between the two points.
 }
 \details{
-This correlation function can be seen as a specific case of the Matern correalation function
+This correlation function can be seen as a specific case of the Matern correlation function
 when nu = 1/2.
 }
 \examples{
-orn_uhl(1, 2, list(theta = 0.1))
+orn_uhl(data.frame(a=1), data.frame(a=2), list(theta = 0.1))
 #> 4.539993e-05
-orn_uhl(c(1,2,-1), c(1.5, 2.9,-0.7), list(theta = 0.2))
+orn_uhl(data.frame(a=1,b=2,c=-1),data.frame(a=1.5,b=2.9,c=-0.7), list(theta = 0.2))
 #> 0.00469197
-orn_uhl(c(1,1,1), c(1.2, 0.9, 0.6), list(theta = 0.2)) ==
- matern(c(1,1,1), c(1.2, 0.9, 0.6), list(theta = 0.2, nu = 0.5)) #> TRUE
+orn_uhl(data.frame(a=1,b=1,c=1), data.frame(a=1.2,b=0.9,c=0.6), list(theta = 0.2)) ==
+ matern(data.frame(a=1,b=1,c=1), data.frame(a=1.2,b=0.9,c=0.6), list(theta = 0.2, nu = 0.5)) #> TRUE
 }

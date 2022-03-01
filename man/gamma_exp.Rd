@@ -7,9 +7,9 @@
 gamma_exp(x, xp, hp)
 }
 \arguments{
-\item{x}{A numeric position vector}
+\item{x}{A data.frame of rows corresponding to position vectors}
 
-\item{xp}{A numeric position vector}
+\item{xp}{A data.frame of rows corresponding to position vectors}
 
 \item{hp}{The hyperparameters theta (correlation length) and gamma (exponent), as a named list}
 }
@@ -25,8 +25,8 @@ The gamma-exponential correlation function, for d = |x-x'|, is given by
 exp(-(d/l)^gamma). Gamma must be between 0 (exclusive) and 2 (inclusive).
 }
 \examples{
-gamma_exp(1, 2, list(gamma = 1.5, theta = 0.1))
+gamma_exp(data.frame(a=1), data.frame(a=2), list(gamma = 1.5, theta = 0.1))
 #> 1.846727e-14
-gamma_exp(c(1,2,-1), c(1.5, 2.9,-0.7), list(gamma = 1.3, theta = 0.2))
-#> 6.020197e-05
+gamma_exp(data.frame(a=1,b=2,c=-1),data.frame(a=1.5,b=2.9,c=-0.7), list(gamma = 1.3, theta = 0.2))
+#> 0.0001399953
 }
