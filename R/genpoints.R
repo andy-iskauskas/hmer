@@ -143,6 +143,7 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
     else this_cutoff <- round(optimal_cut, 3)
     points <- plausible_set[point_imps <= this_cutoff,]
   }
+  if (length(ranges) == 1) points <- data.frame(temp = points) |> setNames(names(ranges))
   n_current <- nrow(points)
   if (nrow(points) == 0) {
     warning("No non-implausible points found from initial step.")
