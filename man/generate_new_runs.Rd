@@ -16,8 +16,9 @@ generate_new_runs(
   cluster = FALSE,
   resample = 1,
   seek = 0,
-  c_tol = 0.1,
-  i_tol = 0.001,
+  c_tol = 0.5,
+  i_tol = 0.01,
+  to_file = NULL,
   ...
 )
 }
@@ -47,6 +48,8 @@ generate_new_runs(
 \item{c_tol}{The tolerance with which to determine that best implausibility has been reached.}
 
 \item{i_tol}{The tolerance on final desired implausibility}
+
+\item{to_file}{The filename to write to sequentially during proposal. Default is NULL (no writing)}
 
 \item{...}{Any parameters to pass to individual sampling functions, eg \code{distro} for importance sampling.}
 }

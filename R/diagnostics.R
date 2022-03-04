@@ -152,6 +152,51 @@ residual_diag <- function(emulator, histogram = FALSE, ...) {
   return(in_points[abs(standardised_residuals) > 3,])
 }
 
+#' Percentage of Space Removed
+#'
+#' For a wave of emulators, estimates the proportion of space removed at this wave.
+#'
+#' Given a collection of emulators corresponding to a wave, we can look at an estimate of
+#' the proportion of points from previous waves that will be accepted at this wave, either
+#' on an emulator-by-emulator basis (to see which outputs are most restrictive) or as an all-wave
+#' determination.
+#'
+#' Naturally, such a statement will be an estimate of the restriction on the full space (which will
+#' become more unreliable for higher dimensions), but it can give an order-of-magnitude statement,
+#' or useful comparators between different emulators in a wave.
+#'
+#' If no points are provided, the training points for the emulators are used. For best results, a
+#' good number of points should be given: typically one should consider using as many points as one
+#' knows to be in the NROY space (including any validation points, if accessible).
+#'
+#' @param ems The emulators to compute over, as a list
+#' @param targets The output target values
+#' @param points The points to test against
+#' @param cutoff The cutoff value for implausibility
+#' @param individual If true, gives emulator-by-emulator results; otherwise works with maximum implausibility
+#'
+#' @return A numeric corresponding to the proportions of points accepted.
+#' @export
+#'
+#' @examples
+#'  space_removal(SIREmulators$ems, SIREmulators$targets,
+#'   rbind(SIRSample$training, SIRSample$validation))
+#'  space_removal(SIREmulators$ems, SIREmulators$targets,
+#'   rbind(SIRSample$training, SIRSample$validation), individual = FALSE)
+space_removal <- function(ems, targets, points = NULL, cutoff = 3, individual = TRUE) {
+  if (is.null(points)) {
+    input_points <- eval_funcs(scale_input, data.frame(ems[[1]]$in_data), ems[[1]]$ranges, FALSE)
+    output_points <- setNames(do.call('cbind.data.frame', purrr::map(ems, ~.$out_data)), purrr::map_chr(ems, ~.$output_name))
+    points <- data.frame(cbind(input_points, output_points))
+  }
+  if (individual) {
+    imps <- setNames(do.call('cbind.data.frame', purrr::map(ems, ~.$implausibility(points, targets[[.$output_name]], cutoff = cutoff))), purrr::map_chr(ems, ~.$output_name))
+    return(apply(imps, 2, sum)/nrow(points))
+  }
+  nth_imps <- nth_implausible(ems, points, targets, cutoff = cutoff)
+  return(sum(nth_imps)/nrow(points))
+}
+
 #' Diagnostic Tests for Emulators
 #'
 #' Given an emulator, return a diagnostic measure.

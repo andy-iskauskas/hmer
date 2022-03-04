@@ -43,13 +43,15 @@ convertRanges <- function(object) {
 #' @param add Should stepwise addition or deletion be performed?
 #' @param order To what polynomial order should the model by fitted?
 #' @param u_form An upper form for the model fit. Used internally.
+#' @param printing Should the name of the output be printed?
 #'
 #' @keywords internal
 #' @noRd
 #'
 #' @return The fitted \code{lm} model object
 #'
-get_coefficient_model <- function(data, ranges, output_name, add = FALSE, order = 2, u_form = NULL) {
+get_coefficient_model <- function(data, ranges, output_name, add = FALSE, order = 2, u_form = NULL, printing = NULL) {
+  if (!is.null(printing)) print(printing)
   lower_form <- as.formula(paste(output_name, "1", sep = " ~ "))
   if (is.null(u_form)) {
     if (order == 1)
@@ -114,12 +116,14 @@ get_coefficient_model <- function(data, ranges, output_name, add = FALSE, order 
 #' @param hp_range The allowed range for the hyperparameters
 #' @param beta If provided, the regression coefficients will be treated as known.
 #' @param delta The value of the nugget term. If \code{NULL}, it is treated as a hyperparameter.
+#' @param printing Should the output name be printed?
 #'
 #' @keywords internal
 #' @noRd
 #'
 #' @return A list of hyperparameter values
-likelihood_estimate <- function(inputs, outputs, h, corr_name = 'exp_sq', hp_range, beta = NULL, delta = NULL, nsteps = 30) {
+likelihood_estimate <- function(inputs, outputs, h, corr_name = 'exp_sq', hp_range, beta = NULL, delta = NULL, nsteps = 30, printing = NULL) {
+  if (!is.null(printing)) print(printing)
   corr <- Correlator$new(corr_name, hp = setNames(purrr::map(names(hp_range), ~hp_range[[.]][[1]]), names(hp_range)))
   if (!"data.frame" %in% class(inputs)) inputs <- data.frame(inputs)
   H <- t(eval_funcs(h, inputs))
@@ -347,15 +351,16 @@ emulator_from_data <- function(input_data, output_names, ranges,
   }
   data <- setNames(cbind(eval_funcs(scale_input, input_data[,names(ranges)], ranges), input_data[,output_names]), c(names(ranges), output_names))
   if (!"data.frame" %in% class(data)) data <- setNames(data.frame(data), c(names(ranges), output_names))
+  more_verbose <- if (length(output_names) > 10) TRUE else FALSE
   if (missing(funcs)) {
     if (verbose) print("Fitting regression surfaces...")
     if (quadratic) {
       does_add <- (choose(length(input_names)+2, length(input_names)) > nrow(data))
-      models <- purrr::map(output_names, ~get_coefficient_model(data, ranges, ., add = does_add))
+      models <- purrr::map(output_names, ~get_coefficient_model(data, ranges, ., add = does_add, printing = (if(more_verbose) . else NULL)))
     }
     else {
       does_add <- (length(input_names)+1 > nrow(data))
-      models <- purrr::map(output_names, ~get_coefficient_model(data, ranges, ., add = does_add, order = 1))
+      models <- purrr::map(output_names, ~get_coefficient_model(data, ranges, ., add = does_add, order = 1, printing = (if(more_verbose) . else NULL)))
     }
     all_funcs <- c(function(x) 1, purrr::map(seq_along(input_names), ~function(x) x[[.]]))
     all_coeffs <- c("(Intercept)", input_names)
@@ -435,7 +440,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
           theta_ranges <- purrr::map(1:length(model_basis_funcs), ~c_lengths)
       }
     }
-    specs <- purrr::map(seq_along(model_basis_funcs), ~likelihood_estimate(data[,input_names], data[,output_names[[.]]], model_basis_funcs[[.]], corr_name = corr_name, hp_range = theta_ranges[[.]], beta = model_beta_mus[[.]], delta = model_deltas[[.]]))
+    specs <- purrr::map(seq_along(model_basis_funcs), ~likelihood_estimate(data[,input_names], data[,output_names[[.]]], model_basis_funcs[[.]], corr_name = corr_name, hp_range = theta_ranges[[.]], beta = model_beta_mus[[.]], delta = model_deltas[[.]], printing = (if (more_verbose) output_names[[.]] else NULL)))
     if (is.null(model_u_sigmas)) model_u_sigmas <- purrr::map(specs, ~as.numeric(.$sigma))
     if (is.null(model_beta_mus)) model_beta_mus <- purrr::map(specs, ~.$beta)
     if(is.null(model_u_corrs)) model_u_corrs <- purrr::map(specs, ~Correlator$new(corr_name, hp = .$hp, nug = .$delta))

@@ -91,6 +91,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #' @param seek How many 'good' points to search for
 #' @param c_tol The tolerance with which to determine that best implausibility has been reached.
 #' @param i_tol The tolerance on final desired implausibility
+#' @param to_file The filename to write to sequentially during proposal. Default is NULL (no writing)
 #' @param ... Any parameters to pass to individual sampling functions, eg \code{distro} for importance sampling.
 #'
 #' @return A data.frame containing the set of new points to run the model at.
@@ -109,7 +110,16 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #'  pts_no_importance <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
 #'   method = c('line'))
 #' }
-generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'importance'), cutoff = 3, nth = 1, plausible_set, verbose = interactive(), cluster = FALSE, resample = 1, seek = 0, c_tol = 0.1, i_tol = 0.001, ...) {
+generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'importance'), cutoff = 3, nth = 1, plausible_set, verbose = interactive(), cluster = FALSE, resample = 1, seek = 0, c_tol = 0.5, i_tol = 0.01, to_file = NULL, ...) {
+  if (!is.null(to_file)) {
+    tryCatch(
+      write.csv(data.frame(), file = to_file, row.names = FALSE),
+      error = function(e) {
+        warning("Cannot open directory provided in to_file; output will not be saved.")
+        to_file <<- NULL
+      }
+    )
+  }
   ems <- collect_emulators(ems)
   ranges <- getRanges(ems)
   if (n_points < 10*length(ranges)) np <- 10*length(ranges)
@@ -137,6 +147,7 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
     optimal_cut <- sort(point_imps)[5*length(ranges)]
     if (optimal_cut > cutoff && (optimal_cut - sort(point_imps)[1] < c_tol)) {
       print(paste("Point proposal seems to be asymptoting around implausibility", round(optimal_cut, 3), "- terminating."))
+      if (!is.null(to_file)) write.csv(plausible_set[point_imps <= optimal_cut,], file = to_file, row.names = FALSE)
       return(list(points = plausible_set[point_imps <= optimal_cut,], cutoff = optimal_cut))
     }
     if (optimal_cut < cutoff) this_cutoff <- cutoff
@@ -150,6 +161,7 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
     return(points)
   }
   if (verbose) print(paste0(n_current, " initial valid points generated for I=", round(this_cutoff, 3)))
+  if (!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
   if ("slice" %in% which_methods || nrow(points) == 1) {
     if (verbose) print("Performing slice sampling...")
     starter_point <- points[sample(nrow(points), 1),]
@@ -161,26 +173,30 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
     points <- rbind(points, spoints[-1,])
     n_current <- nrow(points)
   }
+  if (!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
   if ("optical" %in% which_methods && nrow(points) < n_points) {
     if (verbose) print("Performing optical depth sampling...")
     points <- op_depth_gen(ems, ranges, n_points, z, cutoff = this_cutoff, nth = nth, plausible_set = points, verbose = verbose, ...)
     if (verbose) print(paste("Optical depth sampling generated", nrow(points)-n_current, "more points."))
     n_current <- nrow(points)
   }
+  if (!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
   if ("line" %in% which_methods && nrow(points) < n_points) {
     if (verbose) print("Performing line sampling...")
     points <- line_sample(ems, ranges, z, points, cutoff = this_cutoff, nth = nth, ...)
     if (verbose) print(paste("Line sampling generated", nrow(points)-n_current, "more points."))
     n_current <- nrow(points)
   }
+  if (!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
   if ("importance" %in% which_methods && nrow(points) < n_points) {
     if (verbose) print("Performing importance sampling...")
-    points <- importance_sample(ems, n_points, z, points, this_cutoff, nth, ...)
+    points <- importance_sample(ems, n_points, z, points, this_cutoff, nth, to_file = to_file, ...)
     if (verbose) print(paste("Importance sampling generated", nrow(points)-n_current, "more points."))
     n_current <- nrow(points)
   }
   if (this_cutoff - cutoff > i_tol) {
-    points <- generate_new_runs(ems, n_points, z, which_methods[!which_methods %in% c('lhs')], cutoff = cutoff, nth = nth, plausible_set = points, verbose = verbose, resample = 0, c_tol = c_tol, i_tol = i_tol, chain.call = TRUE, ...)
+    if (!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
+    points <- generate_new_runs(ems, n_points, z, which_methods[!which_methods %in% c('lhs')], cutoff = cutoff, nth = nth, plausible_set = points, verbose = verbose, resample = 0, c_tol = c_tol, i_tol = i_tol, to_file = to_file, chain.call = TRUE, ...)
   }
   else if (this_cutoff != cutoff) {
     if (verbose) print(paste("Point implausibilities within tolerance. Proposed points have maximum implausibility", round(this_cutoff, 3)))
@@ -189,6 +205,7 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
     cutoff <- points$cutoff
     points <- points$points
   }
+  if(!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
   if (("importance" %in% which_methods || "line" %in% which_methods) && resample > 0) {
     for (nsamp in 1:resample) {
       if (verbose) print(paste("Resample", nsamp))
@@ -208,11 +225,12 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
         if (verbose) print("Performing line sampling...")
         points <- line_sample(ems, ranges, z, points, cutoff = cutoff, nth = nth, ...)
         if (verbose) print(paste("Line sampling generated", nrow(points)-n_current, "more points."))
+        if (!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
         n_current <- nrow(points)
       }
       if ("importance" %in% which_methods && nrow(points) < n_points) {
         if (verbose) print("Performing importance sampling...")
-        points <- importance_sample(ems, n_points, z, points, cutoff, nth, ...)
+        points <- importance_sample(ems, n_points, z, points, cutoff, nth, to_file = to_file, ...)
         if (verbose) print(paste("Importance sampling generated", nrow(points)-n_current, "more points."))
         n_current <- nrow(points)
       }
@@ -239,6 +257,7 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
   }
   chained <- list(...)[['chain.call']]
   if (!is.null(chained)) return(list(points = rbind(points, extra_points), cutoff = cutoff))
+  if(!is.null(to_file)) write.csv(rbind(points, extra_points), file = to_file, row.names = FALSE)
   return(rbind(points, extra_points))
 }
 
@@ -384,7 +403,7 @@ line_sample <- function(ems, ranges, z, s_points, n_lines = 20, ppl = 50, cutoff
 }
 
 # Importance Sampling function
-importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, nth = 1, distro = 'sphere', sd = NULL, ...) {
+importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, nth = 1, distro = 'sphere', sd = NULL, to_file = NULL, ...) {
   if (nrow(s_points) >= n_points)
     return(s_points)
   m_points <- n_points - nrow(s_points)
@@ -441,6 +460,7 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, nth = 1, d
     new_points <- rbind(new_points, prop_points)
     uniqueness <- row.names(unique(signif(new_points, 7)))
     new_points <- new_points[uniqueness,]
+    if (!is.null(to_file)) write.csv(new_points, file = to_file, row.names = FALSE)
     accept_rate <- nrow(prop_points)/how_many
   }
   while (nrow(new_points) < n_points) {
@@ -448,6 +468,7 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, nth = 1, d
     new_points <- rbind(new_points, prop_points)
     uniqueness <- row.names(unique(signif(new_points, 7)))
     new_points <- new_points[uniqueness,]
+    if (!is.null(to_file)) write.csv(new_points, file = to_file, row.names = FALSE)
   }
   return(new_points)
 }

@@ -492,7 +492,8 @@ plot_actives <- function(ems, output_names = NULL, input_names = NULL) {
     geom_tile(colour = 'black') +
     scale_fill_manual(values = c('black', 'green'), labels = c("FALSE", "TRUE"), name = "Active?") +
     labs(title = "Active variables", x = "Parameter", y = "Output") +
-    theme_minimal()
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
   return(g)
 }
 
