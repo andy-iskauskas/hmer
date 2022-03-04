@@ -259,7 +259,7 @@ get_diagnostic <- function(emulator, targets = NULL, validation = NULL, which_di
     else
       denom <- sqrt(em_vars + emulator$disc$internal^2 + emulator$disc$external^2)
     errors <- num/denom
-    out_data <- do.call('cbind.data.frame', list(input_points, output_points, errors)) |> setNames(c(names(input_points), emulator$output_name, 'error'))
+    out_data <- setNames(do.call('cbind.data.frame', list(input_points, output_points, errors)), c(names(input_points), emulator$output_name, 'error'))
   }
   if (which_diag == 'cd') {
     if (is.null(stdev)) stdev <- 3
@@ -267,7 +267,7 @@ get_diagnostic <- function(emulator, targets = NULL, validation = NULL, which_di
       emulator_unc <- stdev * sqrt(em_vars + point_vars + emulator$disc$internal^2 + emulator$disc$external^2)
     else
       emulator_unc <- stdev * sqrt(em_vars + emulator$disc$internal^2 + emulator$disc$external^2)
-    out_data <- do.call('cbind.data.frame', list(input_points, output_points, em_exps, emulator_unc)) |> setNames(c(names(input_points), emulator$output_name, 'exp', 'unc'))
+    out_data <- setNames(do.call('cbind.data.frame', list(input_points, output_points, em_exps, emulator_unc)), c(names(input_points), emulator$output_name, 'exp', 'unc'))
   }
   if (which_diag == 'ce') {
     this_target <- targets[[emulator$output_name]]
@@ -275,7 +275,7 @@ get_diagnostic <- function(emulator, targets = NULL, validation = NULL, which_di
       sim_imp <- abs(output_points - rep(mean(this_target), length(output_points)))/rep(diff(this_target)/2, length(output_points))
     else
       sim_imp <- purrr::map_dbl(output_points, ~sqrt((this_target$val-.)^2/this_target$sigma^2))
-    out_data <- do.call('cbind.data.frame', list(input_points, output_points, em_imp, sim_imp)) |> setNames(c(names(input_points), emulator$output_name, 'em', 'sim'))
+    out_data <- setNames(do.call('cbind.data.frame', list(input_points, output_points, em_imp, sim_imp)), c(names(input_points), emulator$output_name, 'em', 'sim'))
   }
   return(out_data)
 }
@@ -462,23 +462,23 @@ validation_diagnostics <- function(emulators, targets = NULL, validation = NULL,
       })
       cluster1 <- purrr::map(seq_along(m1_ems), ~list(emulator = m1_ems[[.]], validation = list(valid_one, valid_two)[[match_modes[.]]]))
       cluster2 <- purrr::map(seq_along(m2_ems), ~list(emulator = m2_ems[[.]], validation = list(valid_two, valid_one)[[match_modes[.]]]))
-      res_one <- unlist(purrr::map(cluster1, function(x) {
+      res_one <- setNames(unlist(purrr::map(cluster1, function(x) {
         suppressWarnings(validation_diagnostics(x$emulator, targets, x$validation, which_diag, analyze = FALSE, ...))
-      }), recursive = FALSE) |> setNames(purrr::map_chr(cluster1, ~.$emulator$output_name))
-      res_two <- unlist(purrr::map(cluster2, function(x) {
+      }), recursive = FALSE), purrr::map_chr(cluster1, ~.$emulator$output_name))
+      res_two <- setNames(unlist(purrr::map(cluster2, function(x) {
         suppressWarnings(validation_diagnostics(x$emulator, targets, x$validation, which_diag, analyze = FALSE, ...))
-      }), recursive = FALSE) |> setNames(purrr::map_chr(cluster2, ~.$emulator$output_name))
+      }), recursive = FALSE), purrr::map_chr(cluster2, ~.$emulator$output_name))
     }
     else {
-      res_one <- unlist(purrr::map(m1_ems, ~suppressWarnings(validation_diagnostics(., targets, validation, which_diag, analyze = FALSE, ...))), recursive = FALSE) |> setNames(purrr::map_chr(m1_ems, ~.$output_name))
-      res_two <- unlist(purrr::map(m2_ems, ~suppressWarnings(validation_diagnostics(., targets, validation, which_diag, analyze = FALSE, ...))), recursive = FALSE) |> setNames(purrr::map_chr(m2_ems, ~.$output_name))
+      res_one <- setNames(unlist(purrr::map(m1_ems, ~suppressWarnings(validation_diagnostics(., targets, validation, which_diag, analyze = FALSE, ...))), recursive = FALSE), purrr::map_chr(m1_ems, ~.$output_name))
+      res_two <- setNames(unlist(purrr::map(m2_ems, ~suppressWarnings(validation_diagnostics(., targets, validation, which_diag, analyze = FALSE, ...))), recursive = FALSE), purrr::map_chr(m2_ems, ~.$output_name))
     }
-    diag_results <- purrr::map(unique(c(names(res_one), names(res_two))), function(x) {
+    diag_results <- setNames(purrr::map(unique(c(names(res_one), names(res_two))), function(x) {
       if (!is.null(res_one[[x]]) && !is.null(res_two[[x]]))
         return(purrr::map(seq_along(res_one[[x]]), ~rbind(res_one[[x]][[.]], res_two[[x]][[.]])))
       if (is.null(res_one[[x]])) return(res_two[[x]])
       return(res_one[[x]])
-    }) |> setNames(unique(c(names(res_one), names(res_two))))
+    }), unique(c(names(res_one), names(res_two))))
   }
   else {
     if (!is.null(emulators$expectation)) {
@@ -494,7 +494,7 @@ validation_diagnostics <- function(emulators, targets = NULL, validation = NULL,
     }
     else {
       cleaning_dat <- NULL
-      kfolded <- purrr::map(emulators, function(x) k_fold_measure(x, targets[[x$output_name]], ...)) |> setNames(purrr::map_chr(emulators, ~.$output_name))
+      kfolded <- setNames(purrr::map(emulators, function(x) k_fold_measure(x, targets[[x$output_name]], ...)), purrr::map_chr(emulators, ~.$output_name))
     }
     diag_results <- purrr::map(emulators, function(x) purrr::map(actual_diag, function(y) get_diagnostic(x, targets, validation, y, cleaned = cleaning_dat[[x$output_name]], kfold = kfolded[[x$output_name]], ...)))
   }

@@ -108,7 +108,7 @@ wave_values <- function(waves, targets, output_names = names(targets), surround 
   }
   total_data <- do.call('rbind', out_list)
   total_data$wave <- factor(total_data$wave)
-  output_ranges <- purrr::map(output_names, ~range(subset(total_data, wave == which_wave)[,.])) |> setNames(output_names)
+  output_ranges <- setNames(purrr::map(output_names, ~range(subset(total_data, wave == which_wave)[,.])), output_names)
   if (restrict) {
     targets_grid <- expand.grid(names(targets), names(targets), stringsAsFactors = FALSE)
     targets_grid <- targets_grid[targets_grid$Var1 != targets_grid$Var2,]

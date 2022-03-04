@@ -177,7 +177,7 @@ likelihood_estimate <- function(inputs, outputs, h, corr_name = 'exp_sq', hp_ran
       else return(func_to_opt(c(x, delta)))
     })
     maximin_distance <- max(apply(diag(Inf, nrow(inputs)) + as.matrix(dist(inputs, diag = TRUE, upper = TRUE)), 1, min))
-    best_point <- as.list(c(grid_search[which.max(grid_liks),])) |> setNames(names(hp_range))
+    best_point <- setNames(as.list(c(grid_search[which.max(grid_liks),])), names(hp_range))
     if (maximin_distance < hp_range[['theta']][2])
       best_point$theta <- max(maximin_distance, grid_search[which.max(grid_liks), 'theta'])
     if (sum(av) == length(inputs)) delta <- 0
@@ -192,7 +192,7 @@ likelihood_estimate <- function(inputs, outputs, h, corr_name = 'exp_sq', hp_ran
     #     return(initial_params)
     #   }
     # )
-    #best_hp <- list(best_params[-length(best_params)]) |> setNames(names(hp_range))
+    #best_hp <- setNames(list(best_params[-length(best_params)]), names(hp_range))
     #best_delta <- min(best_params[length(best_params)], 0.05)
   }
   # if (all(unlist(best_hp, use.names = FALSE) - purrr::map_dbl(hp_range, ~.[[1]]) < 1e-5)) {

@@ -372,7 +372,7 @@ output_plot <- function(ems, targets, points = NULL, npoints = 1000) {
 plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE, cutoff = 3, maxpoints = 5e4) {
   ranges <- if ("Emulator" %in% class(ems)) ems$ranges else ems[[1]]$ranges
   if (ppd^length(ranges) > maxpoints) {
-    point_grid <- data.frame(do.call('cbind', purrr::map(ranges, ~runif(maxpoints, .[[1]], .[[2]])))) |> setNames(names(ranges))
+    point_grid <- setNames(data.frame(do.call('cbind', purrr::map(ranges, ~runif(maxpoints, .[[1]], .[[2]])))), names(ranges))
     nbins <- 19
   }
   else {
@@ -388,7 +388,7 @@ plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE, cutoff = 3, maxpoin
       how_many_valid <- if (nrow(valid_points) == 0) NA else sum(valid_points$I <= cutoff)/nrow(valid_points)
       return(c(param_seq[x], how_many_valid))
     })
-    do.call('rbind.data.frame', collection) |> setNames(c(parameter, 'op'))
+    setNames(do.call('rbind.data.frame', collection), c(parameter, 'op'))
   }
   two_dim <- function(data, parameters, op = FALSE) {
     param_seqs <- purrr::map(ranges[parameters], ~seq(.[[1]], .[[2]], length.out = ppd + 1))
@@ -405,7 +405,7 @@ plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE, cutoff = 3, maxpoin
         param_list[[length(param_list)+1]] <- c(param_seqs[[1]][i], param_seqs[[2]][j], rel_stat)
       }
     }
-    return(do.call('rbind.data.frame', param_list) |> setNames(c(parameters, if(op) "op" else "imp")))
+    return(setNames(do.call('rbind.data.frame', param_list), c(parameters, if(op) "op" else "imp")))
   }
   cols <- if(cb) colourblind else redgreen
   imp_breaks <- c(0, 0.3, 0.7, 1, 1.3, 1.7, 2, 2.3, 2.7, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 10, 15, 100)

@@ -205,5 +205,5 @@ getRanges <- function(emulators, minimal = TRUE) {
   if (!is.null(emulators$mode1)) emulators <- c(emulators$mode1$expectation, emulators$mode2$expectation)
   range_widths <- data.frame(do.call('rbind', purrr::map(emulators, ~purrr::map(.$ranges, diff))))
   which_choose <- if (minimal) apply(range_widths, 2, which.min) else apply(range_widths, 2, which.max)
-  return(purrr::map(names(range_widths), ~emulators[[which_choose[[.]]]]$ranges[[.]]) |> setNames(names(range_widths)))
+  return(setNames(purrr::map(names(range_widths), ~emulators[[which_choose[[.]]]]$ranges[[.]]), names(range_widths)))
 }
