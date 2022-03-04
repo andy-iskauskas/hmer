@@ -77,6 +77,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #'
 #' @importFrom mvtnorm dmvnorm rmvnorm
 #' @importFrom stats setNames runif dist cov
+#' @importFrom utils write.csv
 #'
 #' @param ems A list of \code{\link{Emulator}} objects, trained on previous design points.
 #' @param n_points The desired number of points to propose for the next wave.
