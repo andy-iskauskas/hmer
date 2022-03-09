@@ -163,18 +163,6 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
   }
   if (verbose) print(paste0(n_current, " initial valid points generated for I=", round(this_cutoff, 3)))
   if (!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
-  if ("slice" %in% which_methods || nrow(points) == 1) {
-    if (verbose) print("Performing slice sampling...")
-    starter_point <- points[sample(nrow(points), 1),]
-    if (nrow(points) == 1)
-      spoints <- slice_gen(ems, ranges, floor(n_points)/10, z, this_cutoff, nth, x1 = starter_point, ...)
-    else
-      spoints <- slice_gen(ems, ranges, n_points-nrow(points), z, this_cutoff, nth, x1 = starter_point, ...)
-    if (verbose) print(paste("Slice sampling generated", nrow(spoints)-nrow(points), "more points."))
-    points <- rbind(points, spoints[-1,])
-    n_current <- nrow(points)
-  }
-  if (!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
   if ("optical" %in% which_methods && nrow(points) < n_points) {
     if (verbose) print("Performing optical depth sampling...")
     points <- op_depth_gen(ems, ranges, n_points, z, cutoff = this_cutoff, nth = nth, plausible_set = points, verbose = verbose, ...)
@@ -188,6 +176,14 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
     if (verbose) print(paste("Line sampling generated", nrow(points)-n_current, "more points."))
     n_current <- nrow(points)
   }
+  if ("slice" %in% which_methods) {
+    if (verbose) print("Performing slice sampling...")
+    spoints <- slice_gen(ems, ranges, n_points, z, points, this_cutoff, nth, ...)
+    if (verbose) print(paste("Slice sampling generated", nrow(spoints)-nrow(points), "more points."))
+    points <- spoints
+    n_current <- nrow(points)
+  }
+  if (!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
   if (!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
   if ("importance" %in% which_methods && nrow(points) < n_points) {
     if (verbose) print("Performing importance sampling...")
@@ -207,12 +203,12 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
     points <- points$points
   }
   if(!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
-  if (("importance" %in% which_methods || "line" %in% which_methods) && resample > 0) {
+  if (("importance" %in% which_methods || "line" %in% which_methods || "slice" %in% which_methods) && resample > 0) {
     for (nsamp in 1:resample) {
       if (verbose) print(paste("Resample", nsamp))
       c_measure <- op <- NULL
       for (i in 1:1000) {
-        tp <- points[sample(nrow(points), nrow(points)/2),]
+        tp <- points[sample(nrow(points), ceiling(n_points/2)),]
         if (!"data.frame" %in% class(tp)) tp <- setNames(data.frame(tp), names(ranges))
         measure <- min(dist(tp))
         if (is.null(c_measure) || measure > c_measure) {
@@ -226,6 +222,14 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
         if (verbose) print("Performing line sampling...")
         points <- line_sample(ems, ranges, z, points, cutoff = cutoff, nth = nth, ...)
         if (verbose) print(paste("Line sampling generated", nrow(points)-n_current, "more points."))
+        if (!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
+        n_current <- nrow(points)
+      }
+      if ("slice" %in% which_methods) {
+        if (verbose) print("Performing slice sampling...")
+        spoints <- slice_gen(ems, ranges, n_points, z, points, this_cutoff, nth, ...)
+        if (verbose) print(paste("Slice sampling generated", nrow(spoints)-nrow(points), "more points."))
+        points <- spoints
         if (!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
         n_current <- nrow(points)
       }
@@ -428,7 +432,7 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, nth = 1, d
     wp <- sp_trafo[sample(nrow(sp_trafo), how_many, replace = TRUE), ]
     if (distro == "normal") pp <- t(apply(wp, 1, function(x) mvtnorm::rmvnorm(1, mean = unlist(x, use.names = F), sigma = sd)))
     else pp <- t(apply(wp, 1, function(x) runifs(1, length(s_points), unlist(x, use.names = F), r = sd)))
-    prop_points <- setNames(data.frame(pp), names(ranges))
+    prop_points <- data.frame(pp)
     back_traf <- setNames(data.frame(pca_transform(pp, FALSE)), names(ranges))
     valid <- in_range(back_traf, ranges) & nth_implausible(ems, back_traf, z, n = nth, cutoff = cutoff)
     if (distro == "normal") {
@@ -456,7 +460,7 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, nth = 1, d
       if (accept_rate > upper_accept) sd <- sd * 1.1
       else sd <- sd * 0.9
     }
-    how_many <- max(n_points, 250)
+    how_many <- max(floor(n_points/4), 250)
     prop_points <- propose_points(s_points, sd, how_many)
     new_points <- rbind(new_points, prop_points)
     uniqueness <- row.names(unique(signif(new_points, 7)))
@@ -475,23 +479,53 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, nth = 1, d
 }
 
 # Slice sampling point generation
-slice_gen <- function(ems, ranges, n_points, z, cutoff = 3, nth = 1, x1, ...) {
-  out_points <- x1
-  x0 <- x_new <- as.numeric(c(out_points, use.names = FALSE))
-  for (i in 1:n_points) {
-    for (j in 1:length(ranges)) {
-      xl <- ranges[[j]][1]
-      xr <- ranges[[j]][2]
+slice_gen <- function(ems, ranges, n_points, z, points, cutoff = 3, nth = 1, ...) {
+  in_range <- function(data, ranges) {
+    apply(data, 1, function(x) all(purrr::map_lgl(seq_along(ranges), ~x[.] >= ranges[[.]][1] && x[.] <= ranges[[.]][2])))
+  }
+  pca_transform <- function(x, points, forward = TRUE) {
+    if (forward) x <- sweep(sweep(x, 2, apply(points, 2, mean), "-"), 2, apply(points, 2, sd), "/")
+    if ("data.frame" %in% class(x)) x <- data.matrix(x)
+    if (forward) return(x %*% s_estruct$vectors %*% diag(1/sqrt(s_estruct$values)))
+    pre_traf <- x %*% diag(sqrt(s_estruct$values)) %*% t(s_estruct$vectors)
+    return(sweep(sweep(pre_traf, 2, apply(points, 2, sd), "*"), 2, apply(points, 2, mean), "+"))
+  }
+  slice_function <- function(x, x_ranges, orig_ranges) {
+    x0 <- x_new <- as.numeric(c(x, use.names = FALSE))
+    broke_out <- FALSE
+    for (j in 1:length(x_ranges)) {
+      xl <- x_ranges[[j]][1]
+      xr <- x_ranges[[j]][2]
+      n_attempts <- 0
       repeat {
+        n_attempts <- n_attempts + 1
         x_new[j] <- runif(1, xl, xr)
-        if (nth_implausible(ems, setNames(data.frame(matrix(x_new, nrow = 1)), names(ranges)), z, n = nth, cutoff = cutoff)) break
-        if(x_new[j] < x0[j]) xl <- x_new[j] else xr <- x_new[j]
+        if (nth_implausible(ems, setNames(data.frame(matrix(pca_transform(x_new, points, FALSE), nrow = 1)), names(orig_ranges)), z, n = nth, cutoff = cutoff)) break
+        if (x_new[j] < x0[j]) xl <- x_new[j] else xr <- x_new[j]
+        if (n_attempts > 5) break
+      }
+      if (n_attempts > 5) {
+        broke_out <- TRUE
+        break
       }
     }
-    out_points <- rbind(out_points, x_new)
-    x0 <- x_new
+    if (broke_out) return(NULL)
+    return(x_new)
   }
-  return(setNames(data.frame(out_points), names(ranges)))
+  while (nrow(points) < n_points) {
+    s_trafo <- sweep(sweep(points, 2, apply(points, 2, mean), "-"), 2, apply(points, 2, sd), "/")
+    s_estruct <- eigen(cov(s_trafo))
+    s_estruct$values <- purrr::map_dbl(s_estruct$values, function(x) {if(x < 1e-10) 1e-10 else x})
+    pca_lower <- pca_transform(matrix(purrr::map_dbl(ranges, ~.[[1]]), nrow = 1), points)
+    pca_upper <- pca_transform(matrix(purrr::map_dbl(ranges, ~.[[2]]), nrow = 1), points)
+    pca_ranges <- purrr::map(1:length(pca_lower), ~sort(c(pca_lower[.], pca_upper[.])))
+    which_points <- sample(1:nrow(points), min(nrow(points), n_points-nrow(points)), replace = TRUE)
+    prop_points <- pca_transform(points[which_points,], points)
+    new_pca_points <- do.call('rbind.data.frame', purrr::map(1:nrow(prop_points), ~slice_function(prop_points[.,], pca_ranges, ranges)))
+    new_points <- setNames(data.frame(pca_transform(new_pca_points, points, FALSE)), names(ranges))
+    points <- rbind(points, new_points[in_range(new_points, ranges),])
+  }
+  return(points)
 }
 
 # Optical depth point generation

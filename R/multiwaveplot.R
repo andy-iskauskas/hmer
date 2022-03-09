@@ -22,6 +22,9 @@
 #' @examples
 #'  wave_points(SIRMultiWaveData, c('aSI', 'aIR', 'aSR'))
 #'  wave_points(SIRMultiWaveData, c('aSI', 'aIR', 'aSR'), TRUE, 0.8)
+#'  # For many plots, it may be helpful to manually modify the font size
+#'  wave_points(SIRMultiWaveData, c('aSI', 'aIR', 'aSR')) +
+#'   ggplot2::theme(text = ggplot2::element_text(size = 5))
 wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5, zero_in = TRUE, wave_numbers = ifelse(zero_in, 0, 1):(length(waves)-ifelse(zero_in, 1, 0)), ...) {
   wave <- NULL
   out_list <- list()
@@ -92,6 +95,9 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5, zero
 #'  wave_values(SIRMultiWaveData, SIREmulators$targets, c('nS', 'nI'), l_wid = 0.8)
 #'  wave_values(SIRMultiWaveData, SIREmulators$targets, l_wid = 0.8,
 #'   wave_numbers = c(0, 1, 3), which_wave = 2, upper_scale =  1.5)
+#'  # For many plots, it may be helpful to manually modify the font size
+#'  wave_values(SIRMultiWaveData, SIREmulators$targets) +
+#'   ggplot2::theme(text = ggplot2::element_text(size = 5))
 wave_values <- function(waves, targets, output_names = names(targets), surround = FALSE, restrict = FALSE, p_size = 1.5, l_wid = 1.5, zero_in = TRUE,
                         wave_numbers = ifelse(zero_in, 0, 1):(length(waves)-ifelse(zero_in, 1, 0)), which_wave = ifelse(zero_in, 0, 1), upper_scale = 1, ...) {
   if (!which_wave %in% wave_numbers) {
@@ -200,7 +206,9 @@ wave_values <- function(waves, targets, output_names = names(targets), surround 
 #' @examples
 #'  wave_dependencies(SIRMultiWaveData, SIREmulators$targets, l_wid = 0.8, p_size = 0.8)
 #'  wave_dependencies(SIRMultiWaveData, SIREmulators$targets, c('nS', 'nI'), c('aIR', 'aSI'))
-#'
+#'  # For many plots, it may be helpful to manually modify the font size
+#'  wave_dependencies(SIRMultiWaveData, SIREmulators$targets) +
+#'   ggplot2::theme(text = ggplot2::element_text(size = 5))
 wave_dependencies <- function(waves, targets, output_names = names(targets), input_names = names(waves[[1]])[!names(waves[[1]]) %in% names(targets)], p_size = 1.5, l_wid = 1.5, normalize = FALSE, zero_in = TRUE, wave_numbers = ifelse(zero_in, 0, 1):(length(waves)-ifelse(zero_in, 1, 0)), ...) {
   input_names <- input_names
   for (i in 1:length(targets)) {

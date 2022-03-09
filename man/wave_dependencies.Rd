@@ -61,5 +61,7 @@ unsuitable for matching the target.
 \examples{
  wave_dependencies(SIRMultiWaveData, SIREmulators$targets, l_wid = 0.8, p_size = 0.8)
  wave_dependencies(SIRMultiWaveData, SIREmulators$targets, c('nS', 'nI'), c('aIR', 'aSI'))
-
+ # For many plots, it may be helpful to manually modify the font size
+ wave_dependencies(SIRMultiWaveData, SIREmulators$targets) +
+  ggplot2::theme(text = ggplot2::element_text(size = 5))
 }

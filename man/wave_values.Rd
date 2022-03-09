@@ -74,4 +74,7 @@ the closest available wave to the value of \code{which_wave}.
  wave_values(SIRMultiWaveData, SIREmulators$targets, c('nS', 'nI'), l_wid = 0.8)
  wave_values(SIRMultiWaveData, SIREmulators$targets, l_wid = 0.8,
   wave_numbers = c(0, 1, 3), which_wave = 2, upper_scale =  1.5)
+ # For many plots, it may be helpful to manually modify the font size
+ wave_values(SIRMultiWaveData, SIREmulators$targets) +
+  ggplot2::theme(text = ggplot2::element_text(size = 5))
 }

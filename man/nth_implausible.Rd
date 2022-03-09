@@ -9,7 +9,7 @@ nth_implausible(
   x,
   z,
   n = 1,
-  max_imp = 20,
+  max_imp = Inf,
   cutoff = NULL,
   sequential = FALSE,
   get_raw = FALSE

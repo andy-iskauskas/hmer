@@ -9,6 +9,7 @@ variance_emulator_from_data(
   output_names,
   ranges,
   input_names = names(ranges),
+  verbose = interactive(),
   ...
 )
 }
@@ -20,6 +21,8 @@ variance_emulator_from_data(
 \item{ranges}{A named list of parameter ranges}
 
 \item{input_names}{The names of the parameters (if \code{ranges} is not provided).}
+
+\item{verbose}{Should status updates be printed to console?}
 
 \item{...}{Optional parameters that can be passed to \code{link{emulator_from_data}}.}
 }

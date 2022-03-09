@@ -19,11 +19,11 @@ knitr::opts_chunk$set(
 ```{r setup}
 library(hmer)
 library(ggplot2)
-set.seed(123)
+set.seed(1)
 ```
 
 # Introducing hmer
-This vignette briefly outlines the main functionality of the hmer package. It can be seen as a quick reference to the main functions and usage of the package and will not detail the mathematical framework of emulation and history matching: for a more in-depth treatment, see the other vignettes in the package.
+This vignette briefly outlines the main functionality of the `hmer` package. It can be seen as a quick reference to the main functions and usage of the package and will not detail the mathematical framework of emulation and history matching: for a more in-depth treatment, see the other vignettes in the package.
 
 We use a set of (included) model run datasets to demonstrate the functionality - all have been generated from an SIRS model using a system of differential equations. The stochastic equivalent (using the Gillespie algorithm) will be dealt with in a later vignette.
 
@@ -55,6 +55,12 @@ Any of these default behaviours can be modified; for instance, manually setting 
 ```{r}
 custom_emulators <- emulator_from_data(SIRSample$training, output_names, input_ranges, c_lengths = c(0.6, 0.7, 0.85))
 custom_emulators$nR$corr
+```
+
+One could instead specify a different correlation function, for instance Matern:
+
+```{r}
+matern_emulators <- emulator_from_data(SIRSample$training, output_names, input_ranges, corr_name = "matern")
 ```
 
 In any event, having trained emulators it is crucial to ensure that they are accurately representing the model behaviour, at the very least over the region of potential interest. The `validation_diagnostics` function produces some simple plots to check this. It requires a separate hold-out or validation set of model runs. Some of the diagnostic functions also require a set of targets - values which we expect the model to match to. These can be specified as a named list, each element consisting of an observation value `val` and an associated uncertainty `sigma`; alternatively we can provide an upper and lower bound $[a,b]$ corresponding to the target range. A combination thereof can be provided in a given set of targets.
@@ -134,25 +140,15 @@ This shows the evolution of the point proposals as the waves go on.
 
 ## Multi-wave plotting
 
-For these plots, we will use the `GillespieMultiWaveData` dataset provided. This contains a list of four waves of points (including wave 0), along with the model evaluation. We can use this to look at dependencies of the outputs on the inputs (`wave_dependencies`), the evolution of the output values obtained (`wave_values`), and the overall behaviour of the model runs (`simulator_plot`).
+For these plots, we will use the `SIRMultiWaveData` dataset provided. This contains a list of four waves of points (including wave 0), along with the model evaluation. We can use this to look at dependencies of the outputs on the inputs (`wave_dependencies`), the evolution of the output values obtained (`wave_values`), and the overall behaviour of the model runs (`simulator_plot`).
 
 ```{r, fig.height = 7, fig.width = 7}
 wave_values(SIRMultiWaveData, targets)
 wave_dependencies(SIRMultiWaveData, targets)
-simulator_plot(SIRMultiWaveData, targets)
+simulator_plot(SIRMultiWaveData, targets, barcol = 'white')
 ```
 
-All of these plots, as well as `wave_points`, are wrapped into a single function, `diagnostic_wrap`. Normalisation options are available for target values (log-scaled or normalising all targets to the range $[-1,1]$), but we suppress those plots here using `include.norm = FALSE` and `include.log = FALSE`.
-
-```{r, fig.height = 7, fig.width = 7}
-diagnostic_wrap(SIRMultiWaveData, targets, include.norm = FALSE, include.log = FALSE)
-```
-
-Given an equivalent list of emulators (here using `SIRMultiWaveEmulators`), we can see the evolution of the emulator variance across the waves. Note that only three rows, each corresponding to a wave, are produced, since the first element of the MultiWaveData contains wave '0' points, to which no emulators are associated.
-
-```{r, fig.height = 7, fig.width = 7}
-wave_variance(SIRMultiWaveEmulators, names(targets))
-```
+All of these plots, as well as `wave_points`, are wrapped into a single function, `diagnostic_wrap`. This will also produce log-transformed and normalised versions of the simulator plot, for situations where the outputs have vastly different magnitudes (for example, when matching to a proportion of infected people as well as raw case numbers).
 
 ## Hands-off Emulation and History Matching
 

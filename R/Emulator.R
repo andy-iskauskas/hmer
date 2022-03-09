@@ -80,6 +80,12 @@ Emulator <- R6Class(
       }
     },
     get_exp = function(x, include_c = TRUE) {
+      if (nrow(x) > 1000) {
+        k <- ceiling(nrow(x)/1000)
+        m <- ceiling(nrow(x)/k)
+        s_df <- split(x, rep(1:k, each = m, length.out = nrow(x)))
+        return(unlist(purrr::map(s_df, ~self$get_exp(., include_c)), use.names = FALSE))
+      }
       x <- x[, names(self$ranges)[names(self$ranges) %in% names(x)]]
       x <- eval_funcs(scale_input, x, self$ranges)
       g <- t(apply(x, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y)))
@@ -112,6 +118,12 @@ Emulator <- R6Class(
       return(beta_part)
     },
     get_cov = function(x, xp = NULL, full = FALSE, include_c = TRUE) {
+      if (nrow(x) > 1000 && !full) {
+        k <- ceiling(nrow(x)/1000)
+        m <- ceiling(nrow(x)/k)
+        s_df <- split(x, rep(1:k, each = m, length.out = nrow(x)))
+        return(unlist(purrr::map(s_df, ~self$get_cov(., xp, FALSE, include_c)), use.names = FALSE))
+      }
       x <- eval_funcs(scale_input, x[, names(self$ranges)[names(self$ranges) %in% names(x)]], self$ranges)
       g_x <- apply(x, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y))
       x <- data.matrix(x)
@@ -204,6 +216,12 @@ Emulator <- R6Class(
     },
     ## This derivative form assumes u_sigma is constant.
     get_exp_d = function(x, p) {
+      if (nrow(x) > 1000) {
+        k <- ceiling(nrow(x)/1000)
+        m <- ceiling(nrow(x)/k)
+        s_df <- split(x, rep(1:k, each = m, length.out = nrow(x)))
+        return(unlist(purrr::map(s_df, ~self$get_exp_d(., p)), use.names = FALSE))
+      }
       deriv_func <- tryCatch(
         get(paste0(self$corr$corr_name, "_d")),
         error = function(e) return(NULL)
@@ -250,6 +268,12 @@ Emulator <- R6Class(
     },
     get_cov_d = function(x, p1, xp = NULL, p2 = NULL, full = FALSE) {
       # I am not convinced that this is doing what it should (it's hard to know). Keep thinking on this.
+      if (nrow(x) > 1000 && !full) {
+        k <- ceiling(nrow(x)/1000)
+        m <- ceiling(nrow(x)/k)
+        s_df <- split(x, rep(1:k, each = m, length.out = nrow(x)))
+        return(unlist(purrr::map(s_df, ~self$get_cov_d(., p1, xp, p2, FALSE)), use.names = FALSE))
+      }
       deriv_func <- tryCatch(
         get(paste0(self$corr$corr_name, "_d")),
         error = function(e) return(NULL)
