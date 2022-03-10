@@ -484,48 +484,54 @@ slice_gen <- function(ems, ranges, n_points, z, points, cutoff = 3, nth = 1, ...
     apply(data, 1, function(x) all(purrr::map_lgl(seq_along(ranges), ~x[.] >= ranges[[.]][1] && x[.] <= ranges[[.]][2])))
   }
   pca_transform <- function(x, points, forward = TRUE) {
+    s_trafo <- sweep(sweep(points, 2, apply(points, 2, mean), "-"), 2, apply(points, 2, sd), "/")
+    s_estruct <- eigen(cov(s_trafo))
+    s_estruct$values <- purrr::map_dbl(s_estruct$values, function(x) {if(x < 1e-10) 1e-10 else x})
     if (forward) x <- sweep(sweep(x, 2, apply(points, 2, mean), "-"), 2, apply(points, 2, sd), "/")
     if ("data.frame" %in% class(x)) x <- data.matrix(x)
     if (forward) return(x %*% s_estruct$vectors %*% diag(1/sqrt(s_estruct$values)))
     pre_traf <- x %*% diag(sqrt(s_estruct$values)) %*% t(s_estruct$vectors)
     return(sweep(sweep(pre_traf, 2, apply(points, 2, sd), "*"), 2, apply(points, 2, mean), "+"))
   }
-  slice_function <- function(x, x_ranges, orig_ranges) {
-    x0 <- x_new <- as.numeric(c(x, use.names = FALSE))
-    broke_out <- FALSE
-    for (j in 1:length(x_ranges)) {
-      xl <- x_ranges[[j]][1]
-      xr <- x_ranges[[j]][2]
-      n_attempts <- 0
-      repeat {
-        n_attempts <- n_attempts + 1
-        x_new[j] <- runif(1, xl, xr)
-        if (nth_implausible(ems, setNames(data.frame(matrix(pca_transform(x_new, points, FALSE), nrow = 1)), names(orig_ranges)), z, n = nth, cutoff = cutoff)) break
-        if (x_new[j] < x0[j]) xl <- x_new[j] else xr <- x_new[j]
-        if (n_attempts > 5) break
+  make_slice <- function(points, ranges, indices) {
+    new_coords <- sapply(ranges, function(x) runif(1, x[1], x[2]))
+    old_values <- rep(0, nrow(points))
+    for (i in 1:length(indices)) {
+      old_values[i] <- points[i, indices[i]]
+      points[i, indices[i]] <- new_coords[i]
+    }
+    return(list(p = points, o = old_values))
+  }
+  complete_points <- pca_base <- points
+  points <- pca_transform(points, pca_base)
+  p_low <- pca_transform(matrix(purrr::map_dbl(ranges, ~.[[1]]), nrow = 1), pca_base)
+  p_hi <- pca_transform(matrix(purrr::map_dbl(ranges, ~.[[2]]), nrow = 1), pca_base)
+  pca_ranges <- purrr::map(1:length(p_low), ~sort(c(p_low[.], p_hi[.])))
+  index_list <- rep(1, nrow(points))
+  while(nrow(complete_points) < n_points) {
+    range_list <- purrr::map(1:length(index_list), ~pca_ranges[[index_list[.]]])
+    new_slice <- make_slice(points, range_list, index_list)
+    points <- new_slice$p
+    old_vals <- new_slice$o
+    imps <- nth_implausible(ems, setNames(data.frame(matrix(pca_transform(points, pca_base, FALSE), nrow = nrow(points))), names(ranges)), z, n = nth, cutoff = cutoff)
+    in_ranges <- in_range(pca_transform(points, pca_base, FALSE), ranges)
+    for (i in 1:length(imps)) {
+      if (imps[i] && in_ranges[i]) {
+        range_list[[index_list[i]]] <- pca_ranges[[index_list[i]]]
+        if (index_list[i] == length(pca_ranges)) {
+          complete_points <- rbind(complete_points, setNames(data.frame(matrix(pca_transform(points[i,], pca_base, FALSE), nrow = 1)), names(ranges)))
+          index_list[i] <- 1
+        }
+        else
+          index_list[i] <- index_list[i]+1
       }
-      if (n_attempts > 5) {
-        broke_out <- TRUE
-        break
+      else {
+        if (points[i, index_list[i]] < old_vals[i]) range_list[[i]][1] <- points[i, index_list[i]]
+        else range_list[[i]][2] <- points[i, index_list[i]]
       }
     }
-    if (broke_out) return(NULL)
-    return(x_new)
   }
-  while (nrow(points) < n_points) {
-    s_trafo <- sweep(sweep(points, 2, apply(points, 2, mean), "-"), 2, apply(points, 2, sd), "/")
-    s_estruct <- eigen(cov(s_trafo))
-    s_estruct$values <- purrr::map_dbl(s_estruct$values, function(x) {if(x < 1e-10) 1e-10 else x})
-    pca_lower <- pca_transform(matrix(purrr::map_dbl(ranges, ~.[[1]]), nrow = 1), points)
-    pca_upper <- pca_transform(matrix(purrr::map_dbl(ranges, ~.[[2]]), nrow = 1), points)
-    pca_ranges <- purrr::map(1:length(pca_lower), ~sort(c(pca_lower[.], pca_upper[.])))
-    which_points <- sample(1:nrow(points), min(nrow(points), n_points-nrow(points)), replace = TRUE)
-    prop_points <- pca_transform(points[which_points,], points)
-    new_pca_points <- do.call('rbind.data.frame', purrr::map(1:nrow(prop_points), ~slice_function(prop_points[.,], pca_ranges, ranges)))
-    new_points <- setNames(data.frame(pca_transform(new_pca_points, points, FALSE)), names(ranges))
-    points <- rbind(points, new_points[in_range(new_points, ranges),])
-  }
-  return(points)
+  return(complete_points)
 }
 
 # Optical depth point generation

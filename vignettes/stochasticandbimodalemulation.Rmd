@@ -105,14 +105,14 @@ $\emptyset \overset{\lambda}\to Y,\hspace{5mm}Y \overset{\mu}\to \emptyset.$
 
 Including in the package is a dataset, generated using the Gillespie algorithm, for this system. This dataset is split into two parts: a training set and a validation set, much like the deterministic example used before. However, it differs in that the dataset contains duplicate input points corresponding to repetitions of the model. The training dataset consists of $5$ points in the very centre and at each of the four corners of the $(\lambda, \mu)$ space, each of which has $100$ repetitions; a further $15$ points are sampled uniformly from the space and each receives only $10$ repetitions. This mirrors a common feature of stochastic systems, where some regions of parameter space are quicker to run the model at than others, and we therefore have access to a set of 'high-rep' runs and some 'low-rep' ones. The output value is of the population $Y$ at time $t=15$; the initial condition was that $Y(0)=100$.
 
-```{r fig.height = 7, fig.width = 7}
+```{r birth-death-plot, fig.height = 7, fig.width = 7}
 plot(unique(BirthDeath$training[,1:2]), pch = 16, col = c(rep('red', 5), rep('black', 15)))
 legend('top', legend = c("High rep", "Low rep"), col = c('red', 'black'), pch = 16, inset = c(0.1, 0.1))
 ```
 
 As always, we start by defining parameters, ranges, and targets:
 
-```{r}
+```{r define-ranges}
 ranges <- list(
   lambda = c(0, 0.08),
   mu = c(0.04, 0.13)
@@ -124,7 +124,7 @@ targets = list(
 
 We can train stochastic emulators to this data by passing the whole training dataset, with repetitions, to `variance_emulator_from_data`. This works outwardly the same fashion as `emulator_from_data`, but the output has a different form. For details about how hierarchical emulators are constructed, see the section at the bottom of this document.
 
-```{r}
+```{r make-variance-em}
 stochastic_em <- variance_emulator_from_data(BirthDeath$training, names(targets), ranges)
 stochastic_em
 ```
@@ -133,7 +133,7 @@ Here we see that, despite providing one output to emulate, we have obtained two 
 
 Variance emulators share much of the structure with their deterministic equivalents; however, the means by which quantities are calculated differ and we can determine that we (and functions within the package) are dealing with a stochastic emulator by checking its class.
 
-```{r}
+```{r print-class}
 class(stochastic_em$expectation$Y)
 ```
 
@@ -141,14 +141,14 @@ Along with the usual "R6" and "Emulator" designations, the stochastic emulator i
 
 Details aside, we can treat these emulators in much the same way as we can with deterministic ones: the plotting functionality and diagnostic checks work as we would expect.
 
-```{r fig.width = 7, fig.height = 7}
+```{r plot-stoch-ems, fig.width = 7, fig.height = 7}
 emulator_plot(stochastic_em$expectation$Y)
 emulator_plot(stochastic_em$variance$Y)
 ```
 
 We can see exactly the sort of behaviour we anticipated - the variance increases more or less linearly with increasing birth rate, representing the greater stochasticity when many individuals are present in the model. This feeds into the emulation of the output itself, and while there is little of note in the plot of the mean emulator's expectation, we see something interesting in that of its uncertainty:
 
-```{r fig.width = 7, fig.height = 7}
+```{r plot-stoch-var, fig.width = 7, fig.height = 7}
 emulator_plot(stochastic_em$expectation$Y, 'sd') + geom_point(data = BirthDeath$training, aes(x = lambda, y = mu))
 ```
 
@@ -156,7 +156,7 @@ Unlike in the deterministic case, where we stated that the variance at a 'known'
 
 The usual plots still apply: we can of course consider the implausibility across the space:
 
-```{r fig.width = 7, fig.height = 7}
+```{r plot-stoch-imp, fig.width = 7, fig.height = 7}
 emulator_plot(stochastic_em$expectation$Y, 'imp', targets = targets)
 ```
 
@@ -164,7 +164,7 @@ Of interest here is the fact that the very-lowest right section of the space has
 
 We may also perform diagnostics on the emulators, for both the mean and variance emulators: we use the validation set provided in `BirthDeath`, though as always in the absence of a validation dataset k-fold cross-validation will be performed.
 
-```{r fig.height = 7/3, fig.width = 7}
+```{r validate-stoch-em, fig.height = 7/3, fig.width = 7}
 # Mean emulator: familiar code
 mean_em_validation <- validation_diagnostics(stochastic_em$expectation, targets, BirthDeath$validation, plt = TRUE, row = 1)
 # Variance emulator (no targets; see below)
@@ -175,14 +175,14 @@ no_validation <- validation_diagnostics(stochastic_em$expectation, targets, plt 
 
 It is worth noting that we do not associate targets to the variance of our output. It is uncommon in scientific fields to wish to match to the stochasticity of outputs as well as their values, occuring only in a few limited situations; nevertheless, were we to include a target we could proceed in the usual fashion.
 
-```{r fig.width = 7, fig.height = 7/3}
+```{r validate-var-em, fig.width = 7, fig.height = 7/3}
 fake_var_targ <- list(Y = c(30, 50))
 var_em_fake_target <- validation_diagnostics(stochastic_em$variance, fake_var_targ, BirthDeath$validation, plt = TRUE, row = 1)
 ```
 
 Finally, we briefly mention that point generation operates in the same manner as before: in the usual absence of targets for the variance emulator we simply provide `generate_new_runs` with the emulators and the targets for the output.
 
-```{r fig.height = 7, fig.width = 7}
+```{r propose-var-em, fig.height = 7, fig.width = 7}
 new_points <- generate_new_runs(stochastic_em, 30, targets, resample = 0)
 plot_wrap(new_points, ranges)
 ```
@@ -193,7 +193,7 @@ The previous example displayed the stochastic behaviour we wished to consider, b
 
 We may revisit the 'deterministic' example touched upon before - the SIRS model. In the previous examples, we started the simulation with an adequate number of infected people to avoid bimodality: 5% of the population started out infected. Here we will instead start with 0.5% of the population infected. Even in a simple model such as this, we can still find bimodality.
 
-```{r fig.height = 7, fig.width = 7}
+```{r bimodal-demo, fig.height = 7, fig.width = 7}
 example_params <- c(0.45, 0.25, 0.025)
 model_result <- get_results(example_params, raw = TRUE)
 plot(0:60, ylim=c(0,600), ty="n")
@@ -204,7 +204,7 @@ We can clearly see in the R compartment that, even at a single point (the midpoi
 
 We will emulate six outputs - three from the Infected compartment, and three from the Recovered compartment. The times at which we observe these compartments will be $t=10, 25, 50$, which display varying levels of bimodality. The data we will use is pre-generated using the same code as was used to generate the above plot: we have $30$ points on which to train and $20$ to validate with; each point has had $100$ repetitions. We will also define some targets.
 
-```{r}
+```{r define-bimodal}
 SIR_ranges <- list(
   aSI = c(0.1, 0.8),
   aIR = c(0, 0.5),
@@ -226,7 +226,7 @@ The data has a similar form to that of the variance emulation discussed above, a
 
 In any event, if we feel that the model exhibits strong bimodality, we may use the (imaginatively titled) `bimodal_emulator_from_data`. The usage follows the standard behaviour of the `emulator_from_data` family.
 
-```{r}
+```{r train-bimodal}
 bim_ems <- bimodal_emulator_from_data(training, names(bim_targets), SIR_ranges)
 names(bim_ems)
 ```
@@ -235,14 +235,14 @@ The structure of the output is different again to the output of either of the pr
 
 We can quickly see the difference in the modes by simply plotting the expectation of a time point within each mode:
 
-```{r fig.width = 7, fig.height = 7}
+```{r plot-bimodal, fig.width = 7, fig.height = 7}
 emulator_plot(bim_ems$mode1$expectation$R50)
 emulator_plot(bim_ems$mode2$expectation$R50)
 ```
 
 We can validate in the same fashion as always, using the validation set generated. The output bears strong similarity to previous plots, but for one subtlety.
 
-```{r fig.width = 7, fig.height = 7}
+```{r validate-bimodal, fig.width = 7, fig.height = 7}
 bim_invalid <- validation_diagnostics(bim_ems, bim_targets, validation)
 ```
 
@@ -250,27 +250,27 @@ Close inspection reveals that, despite providing $20$ validation points to the e
 
 We can also consider implausibility for the emulators. The usual plotting functions (expectation, variance, standard deviation) work in the same manner as for non-bimodal emulators, with the caveat that one must specify which mode we wish to plot:
 
-```{r fig.width = 7, fig.height = 7}
+```{r plot-modes, fig.width = 7, fig.height = 7}
 emulator_plot(bim_ems$mode1)
 emulator_plot(bim_ems$mode2)
 ```
 
 The 'nimp' option to `emulator_plot` works slightly differently, due to how nth implausibilities are calculated with multiple modes. Since we would regard a point as non-implausible for a given target if it is valid with respect to either mode, the `nth_implausible` function calculates mode-wise minimum implausibility for each output, then checks the nth maximum over this collection. Correspondingly, the 'nimp' option takes the full set of emulators.
 
-```{r fig.width = 7, fig.height = 7}
+```{r bimodal-imp, fig.width = 7, fig.height = 7}
 emulator_plot(bim_ems, 'nimp', targets = bim_targets)
 ```
 
 By comparing with the individual nth-implausibility plots for each mode, we can see that regions of parameter space that would otherwise be dismissed are retained.
 
-```{r fig.width = 7, fig.height = 7}
+```{r bimodal-indiv-imp, fig.width = 7, fig.height = 7}
 emulator_plot(bim_ems$mode1, 'nimp', targets = bim_targets)
 emulator_plot(bim_ems$mode2, 'nimp', targets = bim_targets)
 ```
 
 Finally, generating new points from bimodal emulators has an identical form to in any other circumstance, via the `generate_new_runs` function.
 
-```{r fig.width = 7, fig.height = 7}
+```{r propose-bimodal, fig.width = 7, fig.height = 7}
 new_points <- generate_new_runs(bim_ems, 100, bim_targets, resample = 0)
 plot_wrap(new_points, SIR_ranges)
 ```
