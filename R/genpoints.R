@@ -196,6 +196,10 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
   }
   if (this_cutoff - cutoff > i_tol) {
     if (!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
+    if (which_methods == c('lhs')) {
+      warning("Could not generate points to desired target implausibility.")
+      return(points)
+    }
     points <- generate_new_runs(ems, n_points, z, which_methods[!which_methods %in% c('lhs')], cutoff = cutoff, nth = nth, plausible_set = points, verbose = verbose, resample = 0, c_tol = c_tol, i_tol = i_tol, to_file = to_file, chain.call = TRUE, ...)
   }
   else if (this_cutoff != cutoff) {
