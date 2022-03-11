@@ -138,8 +138,11 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
     else {
       recent_ems <- ems[!duplicated(purrr::map_chr(ems, ~.$output_name))]
       cluster_gen <- lhs_gen_cluster(recent_ems, ranges, max(n_points, 10*length(ranges)), z, cutoff, nth, verbose, c_tol = c_tol, ...)
-      leftover_imps <- nth_implausible(ems[duplicated(purrr::map_chr(ems, ~.$output_name))], cluster_gen$points, z, n = nth)
-      this_cutoff <- max(cluster_gen$cutoff, sort(leftover_imps)[5*length(ranges)])
+      if (length(recent_ems) != length(ems)) {
+        leftover_imps <- nth_implausible(ems[duplicated(purrr::map_chr(ems, ~.$output_name))], cluster_gen$points, z, n = nth)
+        this_cutoff <- max(cluster_gen$cutoff, sort(leftover_imps)[5*length(ranges)])
+      }
+      else this_cutoff <- cluster_gen$cutoff
       points <- cluster_gen$points[leftover_imps <= this_cutoff,]
     }
   }
@@ -227,7 +230,7 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
       }
       if ("slice" %in% which_methods) {
         if (verbose) print("Performing slice sampling...")
-        spoints <- slice_gen(ems, ranges, n_points, z, points, this_cutoff, nth, ...)
+        spoints <- slice_gen(ems, ranges, n_points, z, points, cutoff, nth, ...)
         if (verbose) print(paste("Slice sampling generated", nrow(spoints)-nrow(points), "more points."))
         points <- spoints
         if (!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
@@ -504,9 +507,7 @@ slice_gen <- function(ems, ranges, n_points, z, points, cutoff = 3, nth = 1, ...
   }
   complete_points <- pca_base <- points
   points <- pca_transform(points, pca_base)
-  p_low <- pca_transform(matrix(purrr::map_dbl(ranges, ~.[[1]]), nrow = 1), pca_base)
-  p_hi <- pca_transform(matrix(purrr::map_dbl(ranges, ~.[[2]]), nrow = 1), pca_base)
-  pca_ranges <- purrr::map(1:length(p_low), ~sort(c(p_low[.], p_hi[.])))
+  pca_ranges <- purrr::map(1:length(pca_base), ~c(-4, 4))
   index_list <- rep(1, nrow(points))
   while(nrow(complete_points) < n_points) {
     range_list <- purrr::map(1:length(index_list), ~pca_ranges[[index_list[.]]])
