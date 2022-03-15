@@ -1,7 +1,7 @@
 Package: hmer
 Type: Package
 Title: History Matching and Emulation Package
-Version: 0.9.93
+Version: 0.9.95
 Authors@R: c(person("Andrew", "Iskauskas", email = "andrew.iskauskas@durham.ac.uk", role = c('aut', 'cre')))
 Maintainer: Andrew Iskauskas <andrew.iskauskas@durham.ac.uk>
 Description: A set of objects and functions for Bayes Linear emulation and history matching.

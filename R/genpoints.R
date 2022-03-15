@@ -78,6 +78,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #' @importFrom mvtnorm dmvnorm rmvnorm
 #' @importFrom stats setNames runif dist cov
 #' @importFrom utils write.csv
+#' @importFrom tidyr pivot_longer
 #'
 #' @param ems A list of \code{\link{Emulator}} objects, trained on previous design points.
 #' @param n_points The desired number of points to propose for the next wave.
@@ -111,7 +112,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #'  pts_no_importance <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
 #'   method = c('line'))
 #' }
-generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'importance'), cutoff = 3, nth = 1, plausible_set, verbose = interactive(), cluster = FALSE, resample = 1, seek = 0, c_tol = 0.5, i_tol = 0.01, to_file = NULL, ...) {
+generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'slice'), cutoff = 3, nth = 1, plausible_set, verbose = interactive(), cluster = FALSE, resample = 1, seek = 0, c_tol = 0.5, i_tol = 0.01, to_file = NULL, ...) {
   if (!is.null(to_file)) {
     tryCatch(
       write.csv(data.frame(), file = to_file, row.names = FALSE),
@@ -123,27 +124,37 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
   }
   ems <- collect_emulators(ems)
   ranges <- getRanges(ems)
-  if (n_points < 10*length(ranges)) np <- 10*length(ranges)
   possible_methods <- c('lhs', 'line', 'importance', 'slice', 'optical')
   which_methods <- possible_methods[possible_methods %in% method]
   n_current <- 0
   if (any(!method %in% possible_methods)) warning(paste("Unrecognised method name(s)", method[!method %in% possible_methods], "ignored."))
   if (missing(plausible_set) || 'lhs' %in% which_methods) {
-    if (verbose) print("Proposing from LHS...")
-    if (!cluster) {
-      lh_gen <- lhs_gen(ems, ranges, max(n_points, 10*length(ranges)), z, cutoff, nth, ...)
-      points <- lh_gen$points
-      this_cutoff <- lh_gen$cutoff
+    if (verbose) print("Checking points from previous wave...")
+    scaled_points <- eval_funcs(scale_input, ems[[1]]$in_data, ems[[1]]$ranges, FALSE)
+    recent_ems <- ems[!duplicated(purrr::map_chr(ems, ~.$output_name))]
+    valid_points <- scaled_points[nth_implausible(recent_ems, scaled_points, z, n = nth) <= cutoff,]
+    if (!is.null(nrow(valid_points)) && nrow(valid_points) >= 5*length(ranges)) {
+      if (verbose) print(paste(nrow(valid_points), "points valid from previous wave."))
     }
     else {
-      recent_ems <- ems[!duplicated(purrr::map_chr(ems, ~.$output_name))]
-      cluster_gen <- lhs_gen_cluster(recent_ems, ranges, max(n_points, 10*length(ranges)), z, cutoff, nth, verbose, c_tol = c_tol, ...)
-      if (length(recent_ems) != length(ems)) {
-        leftover_imps <- nth_implausible(ems[duplicated(purrr::map_chr(ems, ~.$output_name))], cluster_gen$points, z, n = nth)
-        this_cutoff <- max(cluster_gen$cutoff, sort(leftover_imps)[5*length(ranges)])
+      if (verbose) print("Proposing from LHS...")
+      n_prev <- if (is.null(nrow(valid_points))) 0 else nrow(valid_points)
+      if (!cluster) {
+        lh_gen <- lhs_gen(ems, ranges, max(n_points, 10*length(ranges))-n_prev, z, cutoff, nth, ...)
+        points <- lh_gen$points
+        this_cutoff <- lh_gen$cutoff
       }
-      else this_cutoff <- cluster_gen$cutoff
-      points <- cluster_gen$points[leftover_imps <= this_cutoff,]
+      else {
+        recent_ems <- ems[!duplicated(purrr::map_chr(ems, ~.$output_name))]
+        cluster_gen <- lhs_gen_cluster(recent_ems, ranges, max(n_points, 10*length(ranges))-n_prev, z, cutoff, nth, verbose, c_tol = c_tol, ...)
+        if (length(recent_ems) != length(ems)) {
+          leftover_imps <- nth_implausible(ems[duplicated(purrr::map_chr(ems, ~.$output_name))], cluster_gen$points, z, n = nth)
+          this_cutoff <- max(cluster_gen$cutoff, sort(leftover_imps)[5*length(ranges)])
+        }
+        else this_cutoff <- cluster_gen$cutoff
+        points <- cluster_gen$points[leftover_imps <= this_cutoff,]
+      }
+      points <- rbind(points, valid_points)
     }
   }
   else {
@@ -151,6 +162,16 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
     optimal_cut <- sort(point_imps)[5*length(ranges)]
     if (optimal_cut > cutoff && (optimal_cut - sort(point_imps)[1] < c_tol)) {
       print(paste("Point proposal seems to be asymptoting around implausibility", round(optimal_cut, 3), "- terminating."))
+      recent_ems <- ems[!duplicated(purrr::map_chr(ems, ~.$output_name))]
+      recent_imps <- do.call('cbind.data.frame', purrr::map(recent_ems, ~.$implausibility(plausible_set, z[[.$output_name]])))
+      recent_exps <- do.call('cbind.data.frame', purrr::map(recent_ems, ~.$get_exp(plausible_set)))
+      preflight(cbind(plausible_set, recent_exps), z)
+      name <- value <- NULL
+      plot_imps <- tidyr::pivot_longer(recent_imps, cols = everything())
+      plot_imps$name <- factor(plot_imps$name, levels = names(recent_ems))
+      print(ggplot(data = plot_imps, aes(x = name, y = value)) +
+        geom_boxplot() +
+        labs(title = "Implausibility Boxplot", x = "Output", y = "Implausibility"))
       if (!is.null(to_file)) write.csv(plausible_set[point_imps <= optimal_cut,], file = to_file, row.names = FALSE)
       return(list(points = plausible_set[point_imps <= optimal_cut,], cutoff = optimal_cut))
     }
@@ -211,7 +232,7 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
       if (verbose) print(paste("Resample", nsamp))
       c_measure <- op <- NULL
       for (i in 1:1000) {
-        tp <- points[sample(nrow(points), ceiling(n_points/2)),]
+        tp <- points[sample(nrow(points), min(nrow(points), ceiling(n_points/2))),]
         if (!"data.frame" %in% class(tp)) tp <- setNames(data.frame(tp), names(ranges))
         measure <- min(dist(tp))
         if (is.null(c_measure) || measure > c_measure) {
@@ -393,6 +414,7 @@ line_sample <- function(ems, ranges, z, s_points, n_lines = 20, ppl = 50, cutoff
   })
   samp_pts <- samp_pts[!purrr::map_lgl(samp_pts, is.null)]
   samp_pts <- purrr::map(samp_pts, ~.[in_range(., ranges),])
+  samp_pts <- samp_pts[!purrr::map_lgl(samp_pts, ~is.null(nrow(.)) || is.null(.) || nrow(.) == 0)]
   imps <- purrr::map(samp_pts, ~nth_implausible(ems, ., z, n = nth, cutoff = cutoff))
   include_pts <- purrr::map(seq_along(samp_pts), function(x) {
     pts <- samp_pts[[x]]

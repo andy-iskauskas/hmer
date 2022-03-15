@@ -84,9 +84,9 @@ preflight <- function(data, targets, coff = 0.95, logging = NULL) {
       }
     }
   }
-  if (length(hom) >= 2) {
+  if (!is.null(nrow(hom)) && nrow(hom) >= 2) {
     checkPairs(hom)
-    if (length(hom) >= 3) {
+    if (!is.null(nrow(hom)) && nrow(hom) >= 3) {
       checkTriples(hom)
     }
   }
