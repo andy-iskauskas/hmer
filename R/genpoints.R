@@ -112,7 +112,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #'  pts_no_importance <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
 #'   method = c('line'))
 #' }
-generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'slice'), cutoff = 3, nth = 1, plausible_set, verbose = interactive(), cluster = FALSE, resample = 1, seek = 0, c_tol = 0.5, i_tol = 0.01, to_file = NULL, ...) {
+generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'importance'), cutoff = 3, nth = 1, plausible_set, verbose = interactive(), cluster = FALSE, resample = 1, seek = 0, c_tol = 0.5, i_tol = 0.01, to_file = NULL, ...) {
   if (!is.null(to_file)) {
     tryCatch(
       write.csv(data.frame(), file = to_file, row.names = FALSE),
@@ -533,7 +533,7 @@ slice_gen <- function(ems, ranges, n_points, z, points, cutoff = 3, nth = 1, ...
   }
   complete_points <- pca_base <- points
   points <- pca_transform(points, pca_base)
-  pca_ranges <- purrr::map(1:length(pca_base), ~c(-4, 4))
+  pca_ranges <- purrr::map(1:length(pca_base), ~c(-5, 5))
   index_list <- rep(1, nrow(points))
   while(nrow(complete_points) < n_points) {
     range_list <- purrr::map(1:length(index_list), ~pca_ranges[[index_list[.]]])
