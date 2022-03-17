@@ -351,7 +351,9 @@ emulator_from_data <- function(input_data, output_names, ranges,
   }
   data <- setNames(cbind(eval_funcs(scale_input, input_data[,names(ranges)], ranges), input_data[,output_names]), c(names(ranges), output_names))
   if (!"data.frame" %in% class(data)) data <- setNames(data.frame(data), c(names(ranges), output_names))
-  more_verbose <- if (length(output_names) > 10) TRUE else FALSE
+  if (is.null(list(...)[['more_verbose']]))
+    more_verbose <- if (length(output_names) > 10) TRUE else FALSE
+  else more_verbose = list(...)[['more_verbose']]
   if (missing(funcs)) {
     if (verbose) print("Fitting regression surfaces...")
     if (quadratic) {
@@ -517,6 +519,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
     input_data[apply(input_data[,names(ranges)], 1, hash) == x,]
   })
   data_by_point <- data_by_point[purrr::map_lgl(data_by_point, ~nrow(.)>1)]
+  if (verbose) print("Separated dataset by unique points...")
   collected_stats <- do.call('rbind', lapply(data_by_point, function(x) {
     n_points <- nrow(x)
     if (length(output_names) == 1) {
@@ -541,6 +544,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
     collected_df_var <- collected_df[!is.na(collected_df[,paste0(output_names, "var")]),]
   else
     collected_df_var <- collected_df[apply(collected_df[,paste0(output_names, "var")], 1, function(a) !any(is.na(a))),]
+  if (verbose) print("Computed summary statistics...")
   variance_emulators <- list()
   for (i in output_names) {
     is_high_rep <- !is.na(collected_df_var[,paste0(i,"kurt")])
@@ -555,14 +559,14 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
       if (sum(is_high_rep) == 1) {
         point <- all_var[is_high_rep,]
         temp_corr <- Correlator$new(hp = list(theta = 0.5))
-        variance_em <- HierarchicalEmulator$new(basis_f = c(function(x) 1), beta = list(mu = c(point[1,i]), sigma = matrix(0, nrow = 1, ncol = 1)), u = list(sigma = point[1,i]^2, corr = temp_corr), ranges = ranges, out_name = i)
+        variance_em <- HierarchicalEmulator$new(basis_f = c(function(x) 1), beta = list(mu = c(point[1,i]), sigma = matrix(0, nrow = 1, ncol = 1)), u = list(sigma = point[1,i]^2, corr = temp_corr), ranges = ranges, out_name = i, verbose = FALSE)
       }
       else {
-        variance_em <- emulator_from_data(var_df, i, ranges, quadratic = FALSE, adjusted = FALSE, has.hierarchy = TRUE, verbose = verbose, ...)[[1]]
+        variance_em <- emulator_from_data(var_df, i, ranges, quadratic = FALSE, adjusted = FALSE, has.hierarchy = TRUE, verbose = FALSE, ...)[[1]]
       }
     }
     else {
-      variance_em <- emulator_from_data(all_var, i, ranges, quadratic = FALSE, adjusted = FALSE, has.hierarchy = TRUE, verbose = verbose, ...)[[1]]
+      variance_em <- emulator_from_data(all_var, i, ranges, quadratic = FALSE, adjusted = FALSE, has.hierarchy = TRUE, verbose = FALSE, ...)[[1]]
     }
     if (round(variance_em$u_sigma, 10) <= 0) {
       s_vars <- all_var[is_high_rep, i]
@@ -590,7 +594,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
   if (verbose) print("Completed variance emulators. Training mean emulators...")
   exp_mods <- purrr::map(variance_emulators, ~function(x, n) .$get_exp(x)/n)
   exp_data <- setNames(collected_df[,c(input_names, paste0(output_names, 'mean'))], c(input_names, output_names))
-  exp_em <- emulator_from_data(exp_data, output_names, ranges, input_names, adjusted = FALSE, has.hierarchy = TRUE, verbose = verbose, ...)
+  exp_em <- emulator_from_data(exp_data, output_names, ranges, input_names, adjusted = FALSE, has.hierarchy = TRUE, verbose = verbose, more_verbose = FALSE, ...)
   for (i in 1:length(exp_em)) {
     exp_em[[i]]$s_diag <- exp_mods[[i]]
     exp_em[[i]]$samples <- collected_df$n
@@ -652,8 +656,9 @@ bimodal_emulator_from_data <- function(data, output_names, ranges, input_names =
     data[apply(data[,input_names], 1, hash) == x,]
   })
   if(verbose) print("Separated dataset by unique points.")
+  modNames = mclust.options("emModelNames")[!mclust.options("emModelNames") == "EEE"]
   proportion <- purrr::map_dbl(param_sets, function(x) {
-    prop_clust <- Mclust(x[, output_names], G = 1:2, verbose = FALSE, control = emControl(tol = 1e-3))$classification
+    prop_clust <- Mclust(x[, output_names], G = 1:2, verbose = FALSE, modelNames = modNames, control = emControl(tol = 1e-3))$classification
     return(sum(prop_clust ==1)/length(prop_clust))
   })
   prop_df <- setNames(data.frame(cbind(unique_points, proportion)), c(names(unique_points), 'prop'))

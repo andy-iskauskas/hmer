@@ -129,10 +129,13 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
   n_current <- 0
   if (any(!method %in% possible_methods)) warning(paste("Unrecognised method name(s)", method[!method %in% possible_methods], "ignored."))
   if (missing(plausible_set) || 'lhs' %in% which_methods) {
-    if (verbose) print("Checking points from previous wave...")
-    scaled_points <- eval_funcs(scale_input, ems[[1]]$in_data, ems[[1]]$ranges, FALSE)
-    recent_ems <- ems[!duplicated(purrr::map_chr(ems, ~.$output_name))]
-    valid_points <- scaled_points[nth_implausible(recent_ems, scaled_points, z, n = nth) <= cutoff,]
+    if (is.null(ems$mode1) && is.null(ems$expectation)) {
+      if (verbose) print("Checking points from previous wave...")
+      scaled_points <- eval_funcs(scale_input, ems[[1]]$in_data, ems[[1]]$ranges, FALSE)
+      recent_ems <- ems[!duplicated(purrr::map_chr(ems, ~.$output_name))]
+      valid_points <- scaled_points[nth_implausible(recent_ems, scaled_points, z, n = nth) <= cutoff,]
+    }
+    else valid_points <- NULL
     if (!is.null(nrow(valid_points)) && nrow(valid_points) >= 5*length(ranges)) {
       if (verbose) print(paste(nrow(valid_points), "points valid from previous wave."))
     }
@@ -181,7 +184,7 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
   }
   if (length(ranges) == 1) points <- setNames(data.frame(temp = points), names(ranges))
   n_current <- nrow(points)
-  if (nrow(points) == 0) {
+  if (is.null(nrow(points)) || nrow(points) == 0) {
     warning("No non-implausible points found from initial step.")
     return(points)
   }
