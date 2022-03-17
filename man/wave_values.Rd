@@ -8,12 +8,13 @@ wave_values(
   waves,
   targets,
   output_names = names(targets),
+  ems = NULL,
   surround = FALSE,
   restrict = FALSE,
   p_size = 1.5,
   l_wid = 1.5,
   zero_in = TRUE,
-  wave_numbers = ifelse(zero_in, 0, 1):(length(waves) - ifelse(zero_in, 1, 0)),
+  wave_numbers = ifelse(zero_in, 0, 1):(length(waves) - ifelse(zero_in, 0, 1)),
   which_wave = ifelse(zero_in, 0, 1),
   upper_scale = 1,
   ...
@@ -25,6 +26,8 @@ wave_values(
 \item{targets}{The output targets.}
 
 \item{output_names}{The outputs to plot.}
+
+\item{ems}{If provided, plots the emulator expectations and 3-standard deviations.}
 
 \item{surround}{As in \code{\link{wave_points}}.}
 
@@ -68,6 +71,11 @@ plot. If not provided, these default to \code{which_wave=0} (or 1 if no wave 0 i
 and \code{upper_scale = 1}. If the value provided to \code{which_wave} does not correspond
 to a provided wave (or one explicitly not included in \code{wave_numbers}), it defaults to
 the closest available wave to the value of \code{which_wave}.
+
+If \code{ems} is provided, it should follow the same structure as \code{waves}: at the very
+least, it should contain all emulators trained over the course of the waves. The emulator
+predictions for a target are made by the emulator for that target whose ranges are the
+smallest such that contain the point.
 }
 \examples{
  wave_values(SIRMultiWaveData, SIREmulators$targets, surround = TRUE, p_size = 1)

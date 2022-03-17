@@ -72,11 +72,17 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5, zero
 #' to a provided wave (or one explicitly not included in \code{wave_numbers}), it defaults to
 #' the closest available wave to the value of \code{which_wave}.
 #'
+#' If \code{ems} is provided, it should follow the same structure as \code{waves}: at the very
+#' least, it should contain all emulators trained over the course of the waves. The emulator
+#' predictions for a target are made by the emulator for that target whose ranges are the
+#' smallest such that contain the point.
+#'
 #' @importFrom GGally ggpairs ggally_densityDiag
 #'
 #' @param waves The list of data.frames, one for each set of outputs at that wave.
 #' @param targets The output targets.
 #' @param output_names The outputs to plot.
+#' @param ems If provided, plots the emulator expectations and 3-standard deviations.
 #' @param surround As in \code{\link{wave_points}}.
 #' @param restrict Should the plotting automatically restrict to failing target windows?
 #' @param p_size As in \code{\link{wave_points}}.
@@ -98,21 +104,43 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5, zero
 #'  # For many plots, it may be helpful to manually modify the font size
 #'  wave_values(SIRMultiWaveData, SIREmulators$targets) +
 #'   ggplot2::theme(text = ggplot2::element_text(size = 5))
-wave_values <- function(waves, targets, output_names = names(targets), surround = FALSE, restrict = FALSE, p_size = 1.5, l_wid = 1.5, zero_in = TRUE,
-                        wave_numbers = ifelse(zero_in, 0, 1):(length(waves)-ifelse(zero_in, 1, 0)), which_wave = ifelse(zero_in, 0, 1), upper_scale = 1, ...) {
+wave_values <- function(waves, targets, output_names = names(targets), ems = NULL, surround = FALSE,
+                        restrict = FALSE, p_size = 1.5, l_wid = 1.5, zero_in = TRUE,
+                        wave_numbers = ifelse(zero_in, 0, 1):(length(waves)-ifelse(zero_in, 0, 1)),
+                        which_wave = ifelse(zero_in, 0, 1), upper_scale = 1, ...) {
+  if (!is.null(ems)) ems <- collect_emulators(ems)
   if (!which_wave %in% wave_numbers) {
     which_wave <- wave_numbers[which.min(abs(wave_numbers - which_wave))]
   }
   for (i in 1:length(targets)) {
     if (!is.atomic(targets[[i]])) targets[[i]] <- c(targets[[i]]$val - 3*targets[[i]]$sigma, targets[[i]]$val + 3*targets[[i]]$sigma)
   }
+  in_range <- function(data, ranges) {
+    apply(data, 1, function(x) all(purrr::map_lgl(seq_along(ranges), ~x[.] >= ranges[[.]][1] && x[.] <= ranges[[.]][2])))
+  }
   wave <- NULL
   out_list <- list()
+  var_list <- list()
   for (i in ifelse(zero_in, 0, 1):(length(waves)-ifelse(zero_in, 1, 0))) {
-    if (i %in% wave_numbers)
-      out_list[[i+1]] <- setNames(cbind(waves[[i+1]][,output_names], rep(i, nrow(waves[[i+1]]))), c(output_names, 'wave'))
+    if (i %in% wave_numbers) {
+      if (!is.null(ems)) {
+        collected_ems <- collect_emulators(ems)
+        which_ems_fit <- do.call('cbind.data.frame', purrr::map(collected_ems, ~in_range(waves[[i+1]][,names(.$ranges)], .$ranges)))
+        which_em_use <- setNames(do.call('cbind.data.frame', purrr::map(names(targets), ~apply(t(apply(which_ems_fit, 1, function(x) names(x) == . & x)), 1, function(x) which(x)[1]))), names(targets))
+        em_exps <- do.call('cbind.data.frame', purrr::map(ems, ~.$get_exp(waves[[i+1]])))
+        em_vars <- do.call('cbind.data.frame', purrr::map(ems, ~sqrt(.$get_cov(waves[[i+1]]))))
+        out_exps <- setNames(do.call('rbind.data.frame', purrr::map(1:nrow(which_em_use), function(x) purrr::map_dbl(1:length(which_em_use), function(y) em_exps[x,y]))), names(targets))
+        out_vars <- setNames(do.call('rbind.data.frame', purrr::map(1:nrow(which_em_use), function(x) purrr::map_dbl(1:length(which_em_use), function(y) em_vars[x,y]))), names(targets))
+        out_list[[i+1]] <- setNames(cbind(out_exps, rep(i, nrow(waves[[i+1]]))), c(output_names, 'wave'))
+        var_list[[i+1]] <- setNames(cbind(out_vars, rep(i, nrow(waves[[i+1]]))), c(paste0(output_names, "V", sep = ""), 'wave'))
+      }
+      else{
+        out_list[[i+1]] <- setNames(cbind(waves[[i+1]][,output_names], rep(i, nrow(waves[[i+1]]))), c(output_names, 'wave'))
+      }
+    }
   }
   total_data <- do.call('rbind', out_list)
+  if (length(var_list) != 0) total_var <- do.call('rbind', var_list)
   total_data$wave <- factor(total_data$wave)
   output_ranges <- setNames(purrr::map(output_names, ~range(subset(total_data, wave == which_wave)[,.])), output_names)
   if (restrict) {
@@ -155,6 +183,27 @@ wave_values <- function(waves, targets, output_names = names(targets), surround 
     }
     return(g)
   }
+  lfun_var <- function(data, mapping, targets, var_data, zoom = F) {
+    xname <- rlang::quo_get_expr(mapping$x)
+    yname <- rlang::quo_get_expr(mapping$y)
+    g <- ggplot(data = data, mapping = mapping) +
+      geom_tile(aes(width = 6*var_data[,paste0(yname, 'V')], height = 6*var_data[,paste0(yname, 'V')], fill = data[,'wave']), colour = NA, alpha = 0.4) +
+      scale_fill_manual(values = pal) +
+      geom_point(cex = p_size/2) +
+      scale_colour_manual(values = pal) +
+      theme_bw()
+    if (surround) g <- g + geom_point(cex = p_size/2, pch = 1, colour = 'black')
+    g <- g + geom_rect(xmin = targets[[xname]][1], xmax = targets[[xname]][2], ymin = targets[[yname]][1], ymax = targets[[yname]][2], colour = 'red', fill = NA, lwd = l_wid)
+    if (zoom) {
+      xrange <- upper_scale*(targets[[xname]][2]-targets[[xname]][1])/2
+      yrange <- upper_scale*(targets[[yname]][2]-targets[[yname]][1])/2
+      g <- g + coord_cartesian(xlim = c(targets[[xname]][1] - xrange, targets[[xname]][2] + xrange), ylim = c(targets[[yname]][1] - yrange, targets[[yname]][2] + yrange))
+    }
+    else {
+      g <- g + coord_cartesian(xlim = output_ranges[[xname]], ylim = output_ranges[[yname]])
+    }
+    return(g)
+  }
   dfun <- function(data, mapping, targets) {
     xname = rlang::as_string(rlang::quo_get_expr(mapping$x))
     g <- ggally_densityDiag(data = data, mapping = mapping, alpha = 0.4) +
@@ -163,11 +212,21 @@ wave_values <- function(waves, targets, output_names = names(targets), surround 
       theme_bw()
     return(g)
   }
-  ggpairs(total_data, columns = 1:length(output_names), mapping = aes(colour = wave, group = wave),
-          lower = list(continuous = wrap(lfun, targets = targets)),
-          diag = list(continuous = wrap(dfun, targets = targets)),
-          upper = list(continuous = wrap(lfun, targets = targets, zoom = TRUE)), progress = FALSE,
-          title = "Output plots with Targets", legend = 1)
+  if (length(var_list) != 0) {
+    g <- ggpairs(total_data, columns = 1:length(output_names), mapping = aes(colour = wave, group = wave),
+                 lower = list(continuous = wrap(lfun_var, targets = targets, var_data = total_var)),
+                 diag = list(continuous = wrap(dfun, targets = targets)),
+                 upper = list(continuous = wrap(lfun_var, targets = targets, var_data = total_var, zoom = TRUE)), progress = FALSE,
+                 title = "Emulator plots with Targets", legend = 1)
+  }
+  else {
+    g <- ggpairs(total_data, columns = 1:length(output_names), mapping = aes(colour = wave, group = wave),
+                 lower = list(continuous = wrap(lfun, targets = targets)),
+                 diag = list(continuous = wrap(dfun, targets = targets)),
+                 upper = list(continuous = wrap(lfun, targets = targets, zoom = TRUE)), progress = FALSE,
+                 title = "Output plots with targets", legend = 1)
+  }
+  return(g)
 }
 
 #' Multiple Wave Inputs vs Outputs
