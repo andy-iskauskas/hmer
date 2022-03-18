@@ -403,11 +403,18 @@ Emulator <- R6Class(
       }
       else {
         pred <- self$get_exp(x)
-        bound_check <- purrr::map_dbl(pred, function(y) {
-          if (y <= z[2] && y >= z[1]) return(0)
-          if (y < z[1]) return(-1)
-          if (y > z[2]) return(1)
-        })
+        bound_check <- tryCatch(
+            {purrr::map_dbl(pred, function(y) {
+            if (y <= z[2] && y >= z[1]) return(0)
+            if (y < z[1]) return(-1)
+            if (y > z[2]) return(1)
+          })},
+          error = function(e) {
+            print(pred)
+            print(z)
+            stop(e)
+          }
+        )
         which_compare <- purrr::map_dbl(bound_check, function(y) {
           if (y < 1) return(z[1])
           return(z[2])

@@ -629,7 +629,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
 #' while \code{prop} has the form of an \code{emulator_from_data} output.
 #'
 #' @importFrom rlang hash
-#' @importFrom mclust Mclust mclustBIC emControl
+#' @importFrom mclust Mclust mclustBIC emControl mclust.options
 #'
 #' @param data The data to train emulators on (as in variance_emulator_from_data)
 #' @param output_names The names of the outputs to emulate
