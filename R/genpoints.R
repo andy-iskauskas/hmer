@@ -129,35 +129,21 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
   n_current <- 0
   if (any(!method %in% possible_methods)) warning(paste("Unrecognised method name(s)", method[!method %in% possible_methods], "ignored."))
   if (missing(plausible_set) || 'lhs' %in% which_methods) {
-    if (is.null(ems$mode1) && is.null(ems$expectation)) {
-      if (verbose) print("Checking points from previous wave...")
-      scaled_points <- eval_funcs(scale_input, ems[[1]]$in_data, ems[[1]]$ranges, FALSE)
-      recent_ems <- ems[!duplicated(purrr::map_chr(ems, ~.$output_name))]
-      valid_points <- scaled_points[nth_implausible(recent_ems, scaled_points, z, n = nth) <= cutoff,]
-    }
-    else valid_points <- NULL
-    if (!is.null(nrow(valid_points)) && nrow(valid_points) >= 5*length(ranges)) {
-      if (verbose) print(paste(nrow(valid_points), "points valid from previous wave."))
+    if (verbose) print("Proposing from LHS...")
+    if (!cluster) {
+      lh_gen <- lhs_gen(ems, ranges, max(n_points, 10*length(ranges)), z, cutoff, nth, ...)
+      points <- lh_gen$points
+      this_cutoff <- lh_gen$cutoff
     }
     else {
-      if (verbose) print("Proposing from LHS...")
-      n_prev <- if (is.null(nrow(valid_points))) 0 else nrow(valid_points)
-      if (!cluster) {
-        lh_gen <- lhs_gen(ems, ranges, max(n_points, 10*length(ranges))-n_prev, z, cutoff, nth, ...)
-        points <- lh_gen$points
-        this_cutoff <- lh_gen$cutoff
+      recent_ems <- ems[!duplicated(purrr::map_chr(ems, ~.$output_name))]
+      cluster_gen <- lhs_gen_cluster(recent_ems, ranges, max(n_points, 10*length(ranges)), z, cutoff, nth, verbose, c_tol = c_tol, ...)
+      if (length(recent_ems) != length(ems)) {
+        leftover_imps <- nth_implausible(ems[duplicated(purrr::map_chr(ems, ~.$output_name))], cluster_gen$points, z, n = nth)
+        this_cutoff <- max(cluster_gen$cutoff, sort(leftover_imps)[5*length(ranges)])
       }
-      else {
-        recent_ems <- ems[!duplicated(purrr::map_chr(ems, ~.$output_name))]
-        cluster_gen <- lhs_gen_cluster(recent_ems, ranges, max(n_points, 10*length(ranges))-n_prev, z, cutoff, nth, verbose, c_tol = c_tol, ...)
-        if (length(recent_ems) != length(ems)) {
-          leftover_imps <- nth_implausible(ems[duplicated(purrr::map_chr(ems, ~.$output_name))], cluster_gen$points, z, n = nth)
-          this_cutoff <- max(cluster_gen$cutoff, sort(leftover_imps)[5*length(ranges)])
-        }
-        else this_cutoff <- cluster_gen$cutoff
-        points <- cluster_gen$points[leftover_imps <= this_cutoff,]
-      }
-      points <- rbind(points, valid_points)
+      else this_cutoff <- cluster_gen$cutoff
+      points <- cluster_gen$points[leftover_imps <= this_cutoff,]
     }
   }
   else {

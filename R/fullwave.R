@@ -24,7 +24,9 @@
 #' @keywords internal
 #' @noRd
 preflight <- function(data, targets, coff = 0.95, logging = NULL) {
-  d_abridge <- data[,names(targets)]
+  applicable_targets <- intersect(names(data), names(targets))
+  d_abridge <- data[,applicable_targets]
+  targets <- targets[applicable_targets]
   for (i in 1:length(targets)) {
     if (!is.atomic(targets[[i]])) targets[[i]] <- c(targets[[i]]$val - 3*targets[[i]]$sigma, targets[[i]]$val + 3*targets[[i]]$sigma)
   }
