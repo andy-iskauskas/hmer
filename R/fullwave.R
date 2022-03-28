@@ -24,6 +24,7 @@
 #' @keywords internal
 #' @noRd
 preflight <- function(data, targets, coff = 0.95, logging = NULL) {
+  potential_problem <- FALSE
   applicable_targets <- intersect(names(data), names(targets))
   d_abridge <- data[,applicable_targets]
   targets <- targets[applicable_targets]
@@ -39,10 +40,12 @@ preflight <- function(data, targets, coff = 0.95, logging = NULL) {
   for (i in names(hom)) {
     if (all(hom[,i] == 0)) {
       if (all(data[,i] < targets[[i]][1])) {
+        potential_problem <- TRUE
         if (!is.null(logging)) logging(level = "WARN", msg = paste("All output values for target",i,"are underestimates. This may suggest model inadequacy."))
         else print(paste("Target", i, "consistently underestimated."))
       }
       else {
+        potential_problem <- TRUE
         if (!is.null(logging)) logging(level = "WARN", msg = paste("All output values for target",i,"are overestimates. This may suggest model inadequacy."))
         else print(paste("Target", i, "consistently overestimated."))
       }
@@ -92,7 +95,7 @@ preflight <- function(data, targets, coff = 0.95, logging = NULL) {
       checkTriples(hom)
     }
   }
-  return(NULL)
+  return(potential_problem)
 }
 
 #' Automatic Wave Calculation

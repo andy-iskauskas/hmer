@@ -186,7 +186,7 @@ likelihood_estimate <- function(inputs, outputs, h, corr_name = 'exp_sq', hp_ran
       best_point$theta <- max(maximin_distance, grid_search[which.max(grid_liks), 'theta'])
     if (sum(av) == length(inputs)) delta <- 0
     if(is.null(delta))
-      best_delta <- 0.01
+      best_delta <- 0.05
     else
       best_delta <- ifelse (delta == 0, 1e-10, delta)
     initial_params <- unlist(c(best_point, best_delta), use.names = FALSE)
@@ -271,6 +271,7 @@ likelihood_estimate <- function(inputs, outputs, h, corr_name = 'exp_sq', hp_ran
 #' @param na.rm If NAs exist in the dataset, should those rows be removed?
 #' @param check.ranges Should the ranges be modified in light of the data provided?
 #' @param corr_name What correlation function to use. Defaults to exp_sq
+#' @param targets If provided, outputs are checked for over/underestimation
 #' @param ... Any additional parameters (eg for custom correlation functions)
 #'
 #' @return A list of \code{\link{Emulator}} objects.
@@ -334,7 +335,14 @@ emulator_from_data <- function(input_data, output_names, ranges,
                                adjusted = TRUE, discrepancies = NULL,
                                has.hierarchy = FALSE, verbose = interactive(),
                                na.rm = FALSE, check.ranges = FALSE,
-                               corr_name = 'exp_sq', ...) {
+                               corr_name = 'exp_sq', targets = NULL, ...) {
+  if(!is.null(targets) && length(intersect(names(targets), output_names) == length(output_names))) {
+    do_preflight <- preflight(input_data, targets[output_names])
+    if (do_preflight) {
+      print("Some outputs may not be adequately emulated, due to consistent over/underestimation in training data.")
+      print("Consider looking at the outputs (using, eg, behaviour_plot); some outputs may require extra runs and/or transformation.")
+    }
+  }
   model_beta_mus <- model_u_sigmas <- model_u_corrs <- NULL
   if (missing(ranges)) {
     if (is.null(input_names)) stop("Input ranges or names of inputs must be provided.")
@@ -349,6 +357,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
   if (check.ranges) {
     ranges <- setNames(purrr::map(names(ranges), ~c(max(ranges[[.]][1], min(input_data[,.]) - 0.05 * diff(range(input_data[,.]))), min(ranges[[.]][2], max(input_data[,.]) + 0.05 * diff(range(input_data[,.]))))), names(ranges))
   }
+  if (nrow(input_data) < 10*length(ranges)) print(paste("Fewer than", 10*length(ranges), "non-NA points in", length(ranges), "dimensions - treat the emulated outputs with caution, or include more training points (minimum 10 times the number of input parameters)."))
   data <- setNames(cbind(eval_funcs(scale_input, input_data[,names(ranges)], ranges), input_data[,output_names]), c(names(ranges), output_names))
   if (!"data.frame" %in% class(data)) data <- setNames(data.frame(data), c(names(ranges), output_names))
   if (is.null(list(...)[['more_verbose']]))

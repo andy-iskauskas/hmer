@@ -161,6 +161,7 @@ generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'impor
       print(ggplot(data = plot_imps, aes(x = name, y = value)) +
         geom_boxplot() +
         labs(title = "Implausibility Boxplot", x = "Output", y = "Implausibility"))
+      print("Inspect implausibility boxplot for problematic outputs, and consider transforming them or removing them from this wave.")
       if (!is.null(to_file)) write.csv(plausible_set[point_imps <= optimal_cut,], file = to_file, row.names = FALSE)
       return(list(points = plausible_set[point_imps <= optimal_cut,], cutoff = optimal_cut))
     }
@@ -497,7 +498,7 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, nth = 1, d
 }
 
 # Slice sampling point generation
-slice_gen <- function(ems, ranges, n_points, z, points, cutoff = 3, nth = 1, ...) {
+slice_gen <- function(ems, ranges, n_points, z, points, cutoff = 3, nth = 1, pca = FALSE, ...) {
   in_range <- function(data, ranges) {
     apply(data, 1, function(x) all(purrr::map_lgl(seq_along(ranges), ~x[.] >= ranges[[.]][1] && x[.] <= ranges[[.]][2])))
   }
@@ -521,21 +522,34 @@ slice_gen <- function(ems, ranges, n_points, z, points, cutoff = 3, nth = 1, ...
     return(list(p = points, o = old_values))
   }
   complete_points <- pca_base <- points
-  points <- pca_transform(points, pca_base)
-  pca_ranges <- purrr::map(1:length(pca_base), ~c(-5, 5))
+  if (pca) {
+    points <- pca_transform(points, pca_base)
+    pca_ranges <- purrr::map(1:length(pca_base), ~c(-5, 5))
+  }
+  else
+    pca_ranges <- ranges
   index_list <- rep(1, nrow(points))
   while(nrow(complete_points) < n_points) {
     range_list <- purrr::map(1:length(index_list), ~pca_ranges[[index_list[.]]])
     new_slice <- make_slice(points, range_list, index_list)
     points <- new_slice$p
     old_vals <- new_slice$o
-    imps <- nth_implausible(ems, setNames(data.frame(matrix(pca_transform(points, pca_base, FALSE), nrow = nrow(points))), names(ranges)), z, n = nth, cutoff = cutoff)
-    in_ranges <- in_range(pca_transform(points, pca_base, FALSE), ranges)
+    if (pca) {
+      imps <- nth_implausible(ems, setNames(data.frame(matrix(pca_transform(points, pca_base, FALSE), nrow = nrow(points))), names(ranges)), z, n = nth, cutoff = cutoff)
+      in_ranges <- in_range(pca_transform(points, pca_base, FALSE), ranges)
+    }
+    else {
+      imps <- nth_implausible(ems, points, z, n = nth, cutoff = cutoff)
+      in_ranges <- in_range(points, ranges)
+    }
     for (i in 1:length(imps)) {
       if (imps[i] && in_ranges[i]) {
         range_list[[index_list[i]]] <- pca_ranges[[index_list[i]]]
         if (index_list[i] == length(pca_ranges)) {
-          complete_points <- rbind(complete_points, setNames(data.frame(matrix(pca_transform(points[i,], pca_base, FALSE), nrow = 1)), names(ranges)))
+          if (pca)
+            complete_points <- rbind(complete_points, setNames(data.frame(matrix(pca_transform(points[i,], pca_base, FALSE), nrow = 1)), names(ranges)))
+          else
+            complete_points <- rbind(complete_points, points[i,])
           index_list[i] <- 1
         }
         else

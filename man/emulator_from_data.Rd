@@ -24,6 +24,7 @@ emulator_from_data(
   na.rm = FALSE,
   check.ranges = FALSE,
   corr_name = "exp_sq",
+  targets = NULL,
   ...
 )
 }
@@ -65,6 +66,8 @@ emulator_from_data(
 \item{check.ranges}{Should the ranges be modified in light of the data provided?}
 
 \item{corr_name}{What correlation function to use. Defaults to exp_sq}
+
+\item{targets}{If provided, outputs are checked for over/underestimation}
 
 \item{...}{Any additional parameters (eg for custom correlation functions)}
 }
