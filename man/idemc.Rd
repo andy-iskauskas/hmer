@@ -100,7 +100,7 @@ of the algorithm are performed on all rungs to determine final clusters.
 
 }
 \references{
-Vernon, I. & Williamson, D. (2013) Efficient uniform designs for multi-wave computer experiments. arXiv:1309.3520
+Vernon & Williamson (2013) <arXiv:1309.3520>
 }
 \seealso{
 \code{\link{generate_new_runs}} for more standard point generation methods

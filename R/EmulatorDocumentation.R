@@ -129,6 +129,10 @@
 #'    Behaves in a similar way to \code{set_sigma} as regards trained emulators. See
 #'    the Correlator documentation for details of \code{hp} and \code{nugget}.
 #'
+#' @references
+#'  Goldstein & Wooff (2007) <ISBN: 9780470065662>
+#'  Craig, Goldstein, Seheult & Smith (1998) <doi:10.1111/1467-9884.00115>
+#'
 #' @export
 #'
 #' @examples

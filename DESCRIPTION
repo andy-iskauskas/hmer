@@ -1,13 +1,16 @@
 Package: hmer
 Type: Package
 Title: History Matching and Emulation Package
-Version: 0.9.95
-Authors@R: c(person("Andrew", "Iskauskas", email = "andrew.iskauskas@durham.ac.uk", role = c('aut', 'cre')))
+Version: 0.9.98
+Authors@R: c(person("Andrew", "Iskauskas", email = "andrew.iskauskas@durham.ac.uk", comment = c(ORCID = "0000-0003-2825-3651"), role = c('aut', 'cre')))
 Maintainer: Andrew Iskauskas <andrew.iskauskas@durham.ac.uk>
 Description: A set of objects and functions for Bayes Linear emulation and history matching.
-  For details on the mathematical background, there are many papers available on the topic;
-  for details of the functions in this package, consult the manual or help files.
-Suggests: knitr, rmarkdown
+  Core functionality includes automated training of emulators to data, diagnostic functions
+  to ensure suitability, and a variety of proposal methods for generating 'waves' of points.
+  For details on the mathematical background, there are many papers available on the topic
+  (see references attached to function help files); for details of the functions in this package,
+  consult the manual or help files.
+Suggests: knitr, rmarkdown, deSolve
 VignetteBuilder: knitr
 Depends: R (>= 4.0.0)
 Imports:

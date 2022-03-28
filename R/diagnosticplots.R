@@ -1,37 +1,100 @@
 #' Output Plotting
 #'
-#' A simple diagnostic plot to determine relationships between emulated outputs and
-#' each individual input dimension. If \code{points} is not provided, then a sample
-#' of points across the full space is created by uniform sampling.
+#' A simple diagnostic plot that compares the output values to input values, for
+#' each possible combination. If emulators are provided, the emulator predictions
+#' are plotted; otherwise the model outputs are plotted.
+#'
+#' If emulators are provided, then the \code{points} argument is optional: if given
+#' then the emulator predictions will correspond to those at the points provided. If
+#' no points are provided, 100*d (where d is the number of input parameters) are sampled
+#' uniformly from the space and used to predict at.
+#'
+#' If no emulators are provided, then points must be provided, along with the names of
+#' the outputs to plot; each named output must exist as a column in the points data.frame.
 #'
 #' @importFrom graphics plot par
 #' @importFrom stats setNames
 #'
 #' @param ems A set of \code{\link{Emulator}} objects.
 #' @param points A set of points at which to evaluate the emulator expectation
+#' @param model If TRUE, use the model outputs; else use emulator expectation
+#' @param out_names If no emulators are provided, use this argument to indicate outputs.
+#' @param targets If targets are provided, these are added into the plots.
 #'
 #' @return The dependency plots.
+#'
+#' @family visualisation tools
 #' @export
 #'
 #' @examples
-#'  behaviour_plot(SIREmulators$ems, SIRSample$training)
-#'  behaviour_plot(SIREmulators$ems$nS)
-behaviour_plot <- function(ems, points) {
-  if ("Emulator" %in% class(ems)) ems <- setNames(list(ems), ems$output_name)
+#'  behaviour_plot(SIREmulators$ems, model = FALSE)
+#'  behaviour_plot(points = SIRSample$training, out_names = names(SIREmulators$ems))
+#'  #> Throws a warning
+#'  behaviour_plot(SIRMultiWaveEmulators, model = TRUE, targets = SIREmulators$targets)
+behaviour_plot <- function(ems, points, model = missing(ems), out_names = unique(names(collect_emulators(ems))), targets = NULL) {
+  if (missing(ems) && missing(points))
+    stop("One of 'ems' or 'points' must be supplied.")
+  if (missing(points) && model) {
+    warning("Cannot do model output plots with no data points. Using emulator expectation.")
+    model <- FALSE
+  }
+  if (missing(ems) && !model)
+    stop("Cannot perform emulator expectation comparison with no emulators (should model = TRUE?).")
+  tryCatch(
+    out_names,
+    error = function(e) {
+      stop("No output names provided and no emulators to determine them from.")
+    }
+  )
+  if (!missing(ems))
+    ems <- collect_emulators(ems)
   if (missing(points)) {
     ranges <- ems[[1]]$ranges
-    points <- setNames(do.call('cbind.data.frame', purrr::map(ranges, ~runif(1000, .[1], .[2]))), names(ranges))
+    points <- setNames(do.call('cbind.data.frame', purrr::map(ranges, ~runif(length(ranges)*100, .[1], .[2]))), names(ranges))
   }
-  in_names <- names(ems[[1]]$ranges)
-  out_names <- purrr::map_chr(ems, ~.$output_name)
-  data <- setNames(cbind.data.frame(points, purrr::map(ems, ~.$get_exp(points))), c(in_names, out_names))
-  op <- par(mfrow = c(length(out_names), length(in_names)))
-  for (i in 1:length(ems)) {
+  if (model && !all(out_names %in% names(points))) {
+    warning("Not all outputs have a column in the data given by 'points'. Using emulator expectation.")
+    model <- FALSE
+  }
+  if (!missing(ems))
+    in_names <- names(ems[[1]]$ranges)
+  else
+    in_names <- names(points)[!names(points) %in% out_names]
+  if (model) {
+    data <- points[,c(in_names, out_names)]
+  }
+  else {
+    data <- setNames(cbind.data.frame(points, purrr::map(ems[!duplicated(purrr::map_chr(ems, ~.$output_name))], ~.$get_exp(points))), c(in_names, out_names))
+  }
+  if (!is.null(targets))
+    ylims <- setNames(purrr::map(out_names, function(i) {
+      if (is.numeric(targets[[i]])) {
+        ymin = min(data[,i], targets[[i]][1]-0.05*diff(targets[[i]]))
+        ymax <- max(data[,i], targets[[i]][2]+0.05*diff(targets[[i]]))
+        return(c(ymin, ymax))
+      }
+      else {
+        ymin = min(data[,i], targets[[i]]$val - 3.5*targets[[i]]$sigma)
+        ymax = max(data[,i], targets[[i]]$val + 3.5*targets[[i]]$sigma)
+        return(c(ymin, ymax))
+      }
+    }), out_names)
+  else
+    ylims <- setNames(purrr::map(out_names, ~c(min(data[,.]), max(data[,.]))), out_names)
+  for (i in 1:length(out_names)) {
+    op <- par(mfrow = c(min(4, ceiling(sqrt(length(in_names)))), min(4, ceiling(sqrt(length(in_names))))))
     for (j in 1:length(in_names)) {
-      plot(data[,in_names[j]], data[,out_names[i]], pch = 16, xlab = in_names[[j]], ylab = out_names[[i]])
+      plot(data[,in_names[j]], data[,out_names[i]], pch = 16, xlab = in_names[[j]], ylab = out_names[[i]],
+           ylim = ylims[[i]])
+      if (!is.null(targets[[out_names[i]]])) {
+        if(is.numeric(targets[[out_names[i]]]))
+          abline(h = targets[[out_names[i]]], lty = 2)
+        else
+          abline(h = c(targets[[i]]$val-3*targets[[out_names[i]]]$sigma, targets[[out_names[i]]]$val+3*targets[[out_names[i]]]$sigma))
+      }
     }
+    par(op)
   }
-  par(op)
 }
 
 #' Space Removal Diagnostics
@@ -72,7 +135,11 @@ behaviour_plot <- function(ems, points) {
 #' @param maxpoints The maximum number of points to evaluate at
 #'
 #' @return A ggplot object
+#'
+#' @family visualisation tools
 #' @export
+#'
+#' @seealso \code{\link{space_removal}} for a numeric representation of space removed.
 #'
 #' @examples
 #' space_removed(SIREmulators$ems, SIREmulators$targets, ppd = 5)
@@ -174,6 +241,7 @@ space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1
 #'
 #' @return A ggplot object.
 #'
+#' @family visualisation tools
 #' @export
 #'
 #' @examples
@@ -238,6 +306,7 @@ validation_pairs <- function(ems, points, targets, ranges, nth = 1, cb = FALSE) 
 #'
 #' @return A list of data.frames: the first is the linear strength, and the second quadratic.
 #'
+#' @family visualisation tools
 #' @export
 #'
 #' @examples

@@ -59,3 +59,23 @@ points deemed non-implausible is checked at a set of implausibility cutoffs defi
 \examples{
 space_removed(SIREmulators$ems, SIREmulators$targets, ppd = 5)
 }
+\seealso{
+\code{\link{space_removal}} for a numeric representation of space removed.
+
+Other visualisation tools: 
+\code{\link{behaviour_plot}()},
+\code{\link{diagnostic_wrap}()},
+\code{\link{effect_strength}()},
+\code{\link{emulator_plot}()},
+\code{\link{output_plot}()},
+\code{\link{plot_actives}()},
+\code{\link{plot_lattice}()},
+\code{\link{plot_wrap}()},
+\code{\link{simulator_plot}()},
+\code{\link{validation_pairs}()},
+\code{\link{wave_dependencies}()},
+\code{\link{wave_points}()},
+\code{\link{wave_values}()},
+\code{\link{wave_variance}()}
+}
+\concept{visualisation tools}

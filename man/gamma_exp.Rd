@@ -30,3 +30,6 @@ gamma_exp(data.frame(a=1), data.frame(a=2), list(gamma = 1.5, theta = 0.1))
 gamma_exp(data.frame(a=1,b=2,c=-1),data.frame(a=1.5,b=2.9,c=-0.7), list(gamma = 1.3, theta = 0.2))
 #> 0.0001399953
 }
+\references{
+Rasmussen & Williams (2005) <ISBN: 9780262182539>
+}

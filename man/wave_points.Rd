@@ -47,3 +47,21 @@ are also created on the diagonal .
  wave_points(SIRMultiWaveData, c('aSI', 'aIR', 'aSR')) +
   ggplot2::theme(text = ggplot2::element_text(size = 5))
 }
+\seealso{
+Other visualisation tools: 
+\code{\link{behaviour_plot}()},
+\code{\link{diagnostic_wrap}()},
+\code{\link{effect_strength}()},
+\code{\link{emulator_plot}()},
+\code{\link{output_plot}()},
+\code{\link{plot_actives}()},
+\code{\link{plot_lattice}()},
+\code{\link{plot_wrap}()},
+\code{\link{simulator_plot}()},
+\code{\link{space_removed}()},
+\code{\link{validation_pairs}()},
+\code{\link{wave_dependencies}()},
+\code{\link{wave_values}()},
+\code{\link{wave_variance}()}
+}
+\concept{visualisation tools}

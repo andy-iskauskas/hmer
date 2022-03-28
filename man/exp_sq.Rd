@@ -26,3 +26,6 @@ exp_sq(data.frame(a=1), data.frame(a=2), list(theta = 0.1))
 exp_sq(data.frame(a=1,b=2,c=-1),data.frame(a=1.5,b=2.9,c=-0.7), list(theta = 0.2))
 #> 3.266131e-13
 }
+\references{
+Rasmussen & Williams (2005) <ISBN: 9780262182539>
+}

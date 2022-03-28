@@ -4,22 +4,63 @@
 \alias{behaviour_plot}
 \title{Output Plotting}
 \usage{
-behaviour_plot(ems, points)
+behaviour_plot(
+  ems,
+  points,
+  model = missing(ems),
+  out_names = unique(names(collect_emulators(ems))),
+  targets = NULL
+)
 }
 \arguments{
 \item{ems}{A set of \code{\link{Emulator}} objects.}
 
 \item{points}{A set of points at which to evaluate the emulator expectation}
+
+\item{model}{If TRUE, use the model outputs; else use emulator expectation}
+
+\item{out_names}{If no emulators are provided, use this argument to indicate outputs.}
+
+\item{targets}{If targets are provided, these are added into the plots.}
 }
 \value{
 The dependency plots.
 }
 \description{
-A simple diagnostic plot to determine relationships between emulated outputs and
-each individual input dimension. If \code{points} is not provided, then a sample
-of points across the full space is created by uniform sampling.
+A simple diagnostic plot that compares the output values to input values, for
+each possible combination. If emulators are provided, the emulator predictions
+are plotted; otherwise the model outputs are plotted.
+}
+\details{
+If emulators are provided, then the \code{points} argument is optional: if given
+then the emulator predictions will correspond to those at the points provided. If
+no points are provided, 100*d (where d is the number of input parameters) are sampled
+uniformly from the space and used to predict at.
+
+If no emulators are provided, then points must be provided, along with the names of
+the outputs to plot; each named output must exist as a column in the points data.frame.
 }
 \examples{
- behaviour_plot(SIREmulators$ems, SIRSample$training)
- behaviour_plot(SIREmulators$ems$nS)
+ behaviour_plot(SIREmulators$ems, model = FALSE)
+ behaviour_plot(points = SIRSample$training, out_names = names(SIREmulators$ems))
+ #> Throws a warning
+ behaviour_plot(SIRMultiWaveEmulators, model = TRUE, targets = SIREmulators$targets)
 }
+\seealso{
+Other visualisation tools: 
+\code{\link{diagnostic_wrap}()},
+\code{\link{effect_strength}()},
+\code{\link{emulator_plot}()},
+\code{\link{output_plot}()},
+\code{\link{plot_actives}()},
+\code{\link{plot_lattice}()},
+\code{\link{plot_wrap}()},
+\code{\link{simulator_plot}()},
+\code{\link{space_removed}()},
+\code{\link{validation_pairs}()},
+\code{\link{wave_dependencies}()},
+\code{\link{wave_points}()},
+\code{\link{wave_values}()},
+\code{\link{wave_variance}()}
+}
+\concept{visualisation tools}

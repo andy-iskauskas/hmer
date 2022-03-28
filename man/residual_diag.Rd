@@ -30,3 +30,15 @@ residual_diag(SIREmulators$ems$nS)
 residual_diag(SIREmulators$ems$nI, TRUE)
 
 }
+\seealso{
+Other diagnostic functions: 
+\code{\link{analyze_diagnostic}()},
+\code{\link{classification_diag}()},
+\code{\link{comparison_diag}()},
+\code{\link{get_diagnostic}()},
+\code{\link{individual_errors}()},
+\code{\link{standard_errors}()},
+\code{\link{summary_diag}()},
+\code{\link{validation_diagnostics}()}
+}
+\concept{diagnostic functions}

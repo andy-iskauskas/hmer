@@ -54,3 +54,21 @@ palette. If more waves are required, then an alternative palette should be selec
   zero_in = FALSE, wave_numbers = c(1,3))
 
 }
+\seealso{
+Other visualisation tools: 
+\code{\link{behaviour_plot}()},
+\code{\link{diagnostic_wrap}()},
+\code{\link{effect_strength}()},
+\code{\link{emulator_plot}()},
+\code{\link{output_plot}()},
+\code{\link{plot_actives}()},
+\code{\link{plot_lattice}()},
+\code{\link{plot_wrap}()},
+\code{\link{space_removed}()},
+\code{\link{validation_pairs}()},
+\code{\link{wave_dependencies}()},
+\code{\link{wave_points}()},
+\code{\link{wave_values}()},
+\code{\link{wave_variance}()}
+}
+\concept{visualisation tools}

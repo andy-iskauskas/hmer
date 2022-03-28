@@ -51,3 +51,21 @@ advisable to set this to \code{FALSE}).
  effect_line <- effect_strength(SIREmulators$ems, line.plot = TRUE)
  effect_grid <- effect_strength(SIREmulators$ems, grid.plot = TRUE)
 }
+\seealso{
+Other visualisation tools: 
+\code{\link{behaviour_plot}()},
+\code{\link{diagnostic_wrap}()},
+\code{\link{emulator_plot}()},
+\code{\link{output_plot}()},
+\code{\link{plot_actives}()},
+\code{\link{plot_lattice}()},
+\code{\link{plot_wrap}()},
+\code{\link{simulator_plot}()},
+\code{\link{space_removed}()},
+\code{\link{validation_pairs}()},
+\code{\link{wave_dependencies}()},
+\code{\link{wave_points}()},
+\code{\link{wave_values}()},
+\code{\link{wave_variance}()}
+}
+\concept{visualisation tools}

@@ -32,3 +32,6 @@ orn_uhl(data.frame(a=1,b=2,c=-1),data.frame(a=1.5,b=2.9,c=-0.7), list(theta = 0.
 orn_uhl(data.frame(a=1,b=1,c=1), data.frame(a=1.2,b=0.9,c=0.6), list(theta = 0.2)) ==
  matern(data.frame(a=1,b=1,c=1), data.frame(a=1.2,b=0.9,c=0.6), list(theta = 0.2, nu = 0.5)) #> TRUE
 }
+\references{
+Rasmussen & Williams (2005) <ISBN: 9780262182539>
+}

@@ -96,6 +96,8 @@ k_fold_measure <- function(em, target = NULL, k = 1, ...) {
 #'
 #' @return Whether the observed value lies within 3-sigma of the expected value.
 #'
+#' @references Bastos & O'Hagan (2009) <doi:10.1198/TECH.2009.08019>
+#' @family diagnostic functions
 #' @export
 #'
 #' @examples
@@ -135,6 +137,8 @@ summary_diag <- function(emulator, validation, verbose = interactive()) {
 #' @param ... Any additional arguments (used internally)
 #'
 #' @return A set of residuals, standardised by the regression surface residual standard error.
+#'
+#' @family diagnostic functions
 #' @export
 #'
 #' @examples
@@ -176,6 +180,8 @@ residual_diag <- function(emulator, histogram = FALSE, ...) {
 #' @param individual If true, gives emulator-by-emulator results; otherwise works with maximum implausibility
 #'
 #' @return A numeric corresponding to the proportions of points accepted.
+#'
+#' @seealso \code{\link{space_removed}} for a visualisation of the space removal.
 #' @export
 #'
 #' @examples
@@ -242,6 +248,7 @@ space_removal <- function(ems, targets, points = NULL, cutoff = 3, individual = 
 #' @return A data.frame consisting of the input points, output values, and diagnostic measures.
 #' @export
 #'
+#' @family diagnostic functions
 #' @seealso validation_diagnostics
 #'
 #' @examples
@@ -362,6 +369,10 @@ get_diagnostic <- function(emulator, targets = NULL, validation = NULL, which_di
 #' @param ... Any other parameters to pass to subfunctions
 #'
 #' @return A data.frame of failed points
+#'
+#' @family diagnostic functions
+#'
+#' @references Jackson (2018) <http://etheses.dur.ac.uk/12826>
 #' @export
 #'
 #' @seealso \code{\link{get_diagnostic}}
@@ -450,6 +461,7 @@ analyze_diagnostic <- function(in_data, output_name, targets = NULL, plt = inter
 #'
 #' @return A data.frame containing points that failed one or more diagnostic tests.
 #'
+#' @family diagnostic functions
 #' @export
 #'
 #' @examples
@@ -599,8 +611,9 @@ validation_diagnostics <- function(emulators, targets = NULL, validation = NULL,
 #'
 #' @return The relevant plot.
 #'
-#' @references L. Bastos & A. O'Hagan: Diagnostics for Gaussian Process Emulators.
+#' @references Bastos & O'Hagan (2009) <doi:10.1198/TECH.2009.08019>
 #'
+#' @family diagnostic functions
 #' @export
 #'
 #' @examples
@@ -676,7 +689,11 @@ individual_errors <- function(em, validation, errtype = "normal", xtype = "index
 #' @param plt Whether to plot or not
 #'
 #' @return A data.frame of failed points
+#'
+#' @family diagnostic functions
 #' @export
+#'
+#' @references Jackson (2018) <http://etheses.dur.ac.uk/12826>
 #'
 #' @seealso \code{\link{get_diagnostic}}, \code{\link{analyze_diagnostic}},
 #'  \code{\link{validation_diagnostics}}
@@ -699,7 +716,11 @@ classification_diag <- function(emulator, targets, validation, cutoff = 3, plt =
 #' @param plt Whether to plot or not
 #'
 #' @return A data.frame of failed points
+#'
+#' @family diagnostic functions
 #' @export
+#'
+#' @references Jackson (2018) <http://etheses.dur.ac.uk/12826>
 #'
 #' @seealso \code{\link{get_diagnostic}}, \code{\link{analyze_diagnostic}},
 #'  \code{\link{validation_diagnostics}}
@@ -721,7 +742,11 @@ comparison_diag <- function(emulator, targets, validation, sd = 3, plt = interac
 #' @param plt Whether to plot or not
 #'
 #' @return A data.frame of failed points
+#'
+#' @family diagnostic functions
 #' @export
+#'
+#' @references Jackson (2018) <http://etheses.dur.ac.uk/12826>
 #'
 #' @seealso \code{\link{get_diagnostic}}, \code{\link{analyze_diagnostic}},
 #'  \code{\link{validation_diagnostics}}

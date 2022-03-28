@@ -54,3 +54,6 @@ Creates a univariate emulator with hierarchical structure.
    \code{adjust} returns a HierarchicalEmulator rather than a standard one.
 }
 
+\references{
+Goldstein & Vernon (2016), being prepared
+}

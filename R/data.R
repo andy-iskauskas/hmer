@@ -137,3 +137,20 @@
 #'  \item{R10 (25, 50)}{The number of recovered people at t = 10 (25, 50)}
 #' }
 "SIR_stochastic"
+
+#' Data for an interesting emulation problem
+#'
+#' An RData object consisting of four objects: a data.frame \code{data} of 208 points,
+#' a set \code{targets} of 19 targets for outputs, a set \code{ranges} of 21 ranges for inputs,
+#' and a data.frame \code{extra} of 26 additional points. This dataset is used to demonstrate
+#' some of the subtleties of emulation in the vignettes, where data transformations can be
+#' useful and careful attention should be paid to emulation at early waves.
+#'
+#' @format A list of objects:
+#' \describe{
+#'  \item{data}{The training data of 'space-filling' runs}
+#'  \item{targets}{The output targets to match to}
+#'  \item{ranges}{The input ranges over which the system is valid}
+#'  \item{extra}{A set of 'extra' points, generated around a known point of best fit.}
+#' }
+"problem_data"

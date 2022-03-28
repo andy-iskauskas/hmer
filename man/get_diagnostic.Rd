@@ -81,4 +81,15 @@ cross-validation.
 }
 \seealso{
 validation_diagnostics
+
+Other diagnostic functions: 
+\code{\link{analyze_diagnostic}()},
+\code{\link{classification_diag}()},
+\code{\link{comparison_diag}()},
+\code{\link{individual_errors}()},
+\code{\link{residual_diag}()},
+\code{\link{standard_errors}()},
+\code{\link{summary_diag}()},
+\code{\link{validation_diagnostics}()}
 }
+\concept{diagnostic functions}

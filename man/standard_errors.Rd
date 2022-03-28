@@ -30,7 +30,21 @@ Shorthand function for diagnostic test 'se'.
 For details of the function, see \code{\link{get_diagnostic}} and for the plot
 see \code{\link{analyze_diagnostic}}.
 }
+\references{
+Jackson (2018) <http://etheses.dur.ac.uk/12826>
+}
 \seealso{
 \code{\link{get_diagnostic}}, \code{\link{analyze_diagnostic}},
  \code{\link{validation_diagnostics}}
+
+Other diagnostic functions: 
+\code{\link{analyze_diagnostic}()},
+\code{\link{classification_diag}()},
+\code{\link{comparison_diag}()},
+\code{\link{get_diagnostic}()},
+\code{\link{individual_errors}()},
+\code{\link{residual_diag}()},
+\code{\link{summary_diag}()},
+\code{\link{validation_diagnostics}()}
 }
+\concept{diagnostic functions}

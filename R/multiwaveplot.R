@@ -17,6 +17,8 @@
 #' @param ... Optional parameters (not to be used directly)
 #'
 #' @return A ggplot object
+#'
+#' @family visualisation tools
 #' @export
 #'
 #' @examples
@@ -94,6 +96,8 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5, zero
 #' @param ... Optional parameters (not to be used directly)
 #'
 #' @return A ggplot object.
+#'
+#' @family visualisation tools
 #' @export
 #'
 #' @examples
@@ -260,6 +264,8 @@ wave_values <- function(waves, targets, output_names = names(targets), ems = NUL
 #' @param ... Optional parameters (not to be used directly)
 #'
 #' @return A grid of ggplot objects.
+#'
+#' @family visualisation tools
 #' @export
 #'
 #' @examples
@@ -333,6 +339,7 @@ wave_dependencies <- function(waves, targets, output_names = names(targets), inp
 #'
 #' @return A ggplot object.
 #'
+#' @family visualisation tools
 #' @export
 #'
 #' @examples
@@ -408,7 +415,9 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL, wave_
 #' @param include.log Should the log-scale version of simulator_plot be made?
 #' @param ... Optional parameters (eg \code{p_size}, \code{l_wid}, ...)
 #'
-#' @return The set of plots (either into console or saved)..
+#' @return The set of plots (either into console or saved).
+#'
+#' @family visualisation tools
 #' @export
 #'
 #' @examples
@@ -487,6 +496,7 @@ diagnostic_wrap <- function(waves, targets, output_names = names(targets), input
 #'
 #' @return The ggplot object(s).
 #'
+#' @family visualisation tools
 #' @export
 #'
 #' @examples

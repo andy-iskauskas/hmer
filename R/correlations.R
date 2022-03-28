@@ -9,6 +9,8 @@
 #'
 #' @return The exponential-squared correlation between x and xp.
 #' @export
+#'
+#' @references Rasmussen & Williams (2005) <ISBN: 9780262182539>
 #' @examples
 #' exp_sq(data.frame(a=1), data.frame(a=2), list(theta = 0.1))
 #' #> 3.720076e-44
@@ -39,6 +41,8 @@ exp_sq_d <- function(x, xp, hp, xi, xpi = NULL) {
 #'
 #' @return The Matern correlation between x and xp.
 #' @export
+#'
+#' @references Rasmussen & Williams (2005) <ISBN: 9780262182539>
 #' @examples
 #' matern(data.frame(a=1), data.frame(a=2), list(nu = 1.5, theta = 0.1))
 #' #> 5.504735e-07
@@ -84,6 +88,8 @@ matern_d <- function(x, xp, hp, xi, xpi = NULL) {
 #'
 #' @return The Ornstein-Uhlenbeck correlation between x and xp.
 #' @export
+#'
+#' @references Rasmussen & Williams (2005) <ISBN: 9780262182539>
 #' @examples
 #' orn_uhl(data.frame(a=1), data.frame(a=2), list(theta = 0.1))
 #' #> 4.539993e-05
@@ -109,7 +115,10 @@ orn_uhl <- function(x, xp, hp) {
 #' @param hp The hyperparameters theta (correlation length) and gamma (exponent), as a named list
 #'
 #' @return The gamma-exponential correlation between x and xp.
+#'
+#' @references Rasmussen & Williams (2005) <ISBN: 9780262182539>
 #' @export
+#'
 #' @examples
 #' gamma_exp(data.frame(a=1), data.frame(a=2), list(gamma = 1.5, theta = 0.1))
 #' #> 1.846727e-14
@@ -136,6 +145,8 @@ gamma_exp <- function(x, xp, hp) {
 #'
 #' @return The rational quadratic correlation between x and xp.
 #' @export
+#'
+#' @references Rasmussen & Williams (2005) <ISBN: 9780262182539>
 #' @examples
 #' rat_quad(data.frame(a=1), data.frame(a=2), list(alpha = 1.5, rho = 0.1))
 #' #> 0.110858

@@ -35,3 +35,21 @@ optional \code{output_names} and \code{input_names} parameters.
  # Note that we can equally restrict the emulator list...
  plot_actives(SIREmulators$ems[c('nS', 'nI')], input_names = c('aSI', 'aSR'))
 }
+\seealso{
+Other visualisation tools: 
+\code{\link{behaviour_plot}()},
+\code{\link{diagnostic_wrap}()},
+\code{\link{effect_strength}()},
+\code{\link{emulator_plot}()},
+\code{\link{output_plot}()},
+\code{\link{plot_lattice}()},
+\code{\link{plot_wrap}()},
+\code{\link{simulator_plot}()},
+\code{\link{space_removed}()},
+\code{\link{validation_pairs}()},
+\code{\link{wave_dependencies}()},
+\code{\link{wave_points}()},
+\code{\link{wave_values}()},
+\code{\link{wave_variance}()}
+}
+\concept{visualisation tools}

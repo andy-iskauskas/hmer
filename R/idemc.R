@@ -158,7 +158,7 @@ idemc_step <- function(ems, targets, points, point_imps, ladder, clusters, order
 #' @seealso \code{\link{generate_new_runs}} for more standard point generation methods
 #'
 #' @references
-#'  Vernon, I. & Williamson, D. (2013) Efficient uniform designs for multi-wave computer experiments. arXiv:1309.3520
+#'  Vernon & Williamson (2013) <arXiv:1309.3520>
 #'
 #' @examples
 #'  \dontrun{

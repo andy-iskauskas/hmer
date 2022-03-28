@@ -191,6 +191,8 @@ imp_plot <- function(em, z, plotgrid = NULL, ppd = 30, cb = FALSE, nth = NULL) {
 #' @param nth If plotting nth maximum implausibility, which level maximum to plot.
 #'
 #' @return A ggplot object, or collection thereof.
+#'
+#' @family visualisation tools
 #' @export
 #'
 #' @examples
@@ -299,6 +301,8 @@ emulator_plot <- function(ems, plot_type = 'exp', ppd = 30, targets = NULL, cb =
 #' @param npoints If no points are provided, the number of input points to evaluate at.
 #'
 #' @return A ggplot object
+#'
+#' @family visualisation tools
 #' @export
 #'
 #' @examples
@@ -362,7 +366,11 @@ output_plot <- function(ems, targets, points = NULL, npoints = 1000) {
 #' @param maxpoints The limit on the number of points to be evaluated.
 #'
 #' @return A ggplot object
+#'
+#' @family visualisation tools
 #' @export
+#'
+#' @references Bower, Goldstein & Vernon (2010) <doi:10.1214/10-BA524>
 #'
 #' @examples
 #' \donttest{
@@ -465,6 +473,7 @@ plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE, cutoff = 3, maxpoin
 #' @param input_names The names of the inputs to include in the plot, if not all
 #' @return A ggplot object corresponding to the plot
 #'
+#' @family visualisation tools
 #' @export
 #'
 #' @examples
@@ -511,6 +520,8 @@ plot_actives <- function(ems, output_names = NULL, input_names = NULL) {
 #' @param p_size The size of the plotted points (passed to \code{cex})
 #'
 #' @return The corresponding pairs plot
+#'
+#' @family visualisation tools
 #' @export
 #' @examples
 #'  plot_wrap(SIRSample$training[,1:3], SIREmulators$ems[[1]]$ranges)

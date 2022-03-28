@@ -39,7 +39,7 @@ diagnostic_wrap(
 \item{...}{Optional parameters (eg \code{p_size}, \code{l_wid}, ...)}
 }
 \value{
-The set of plots (either into console or saved)..
+The set of plots (either into console or saved).
 }
 \description{
 A wrapper function for the set of diagnostic plots for mutliple waves.
@@ -62,3 +62,21 @@ or \code{directory = "Plots/unique-identifier"} in the second event.
   p_size = 0.8, l_wid = 0.8, wave_numbers = 1:3, zero_in = FALSE, surround = TRUE)
   }
 }
+\seealso{
+Other visualisation tools: 
+\code{\link{behaviour_plot}()},
+\code{\link{effect_strength}()},
+\code{\link{emulator_plot}()},
+\code{\link{output_plot}()},
+\code{\link{plot_actives}()},
+\code{\link{plot_lattice}()},
+\code{\link{plot_wrap}()},
+\code{\link{simulator_plot}()},
+\code{\link{space_removed}()},
+\code{\link{validation_pairs}()},
+\code{\link{wave_dependencies}()},
+\code{\link{wave_points}()},
+\code{\link{wave_values}()},
+\code{\link{wave_variance}()}
+}
+\concept{visualisation tools}

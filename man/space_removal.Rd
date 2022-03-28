@@ -43,3 +43,6 @@ knows to be in the NROY space (including any validation points, if accessible).
  space_removal(SIREmulators$ems, SIREmulators$targets,
   rbind(SIRSample$training, SIRSample$validation), individual = FALSE)
 }
+\seealso{
+\code{\link{space_removed}} for a visualisation of the space removal.
+}

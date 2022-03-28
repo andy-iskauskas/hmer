@@ -65,3 +65,15 @@ validation_diagnostics(SIREmulators$ems, SIREmulators$targets, SIRSample$validat
 # k-fold (with k = 3)
 validation_diagnostics(SIREmulators$ems, SIREmulators$targets, k = 3)
 }
+\seealso{
+Other diagnostic functions: 
+\code{\link{analyze_diagnostic}()},
+\code{\link{classification_diag}()},
+\code{\link{comparison_diag}()},
+\code{\link{get_diagnostic}()},
+\code{\link{individual_errors}()},
+\code{\link{residual_diag}()},
+\code{\link{standard_errors}()},
+\code{\link{summary_diag}()}
+}
+\concept{diagnostic functions}

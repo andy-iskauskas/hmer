@@ -56,6 +56,20 @@ This function takes a data.frame that contains the input points, simulator value
 on the diagnostic, a set of summary measures. It returns a data.frame of any points that failed
 the diagnostic.
 }
+\references{
+Jackson (2018) <http://etheses.dur.ac.uk/12826>
+}
 \seealso{
 \code{\link{get_diagnostic}}
+
+Other diagnostic functions: 
+\code{\link{classification_diag}()},
+\code{\link{comparison_diag}()},
+\code{\link{get_diagnostic}()},
+\code{\link{individual_errors}()},
+\code{\link{residual_diag}()},
+\code{\link{standard_errors}()},
+\code{\link{summary_diag}()},
+\code{\link{validation_diagnostics}()}
 }
+\concept{diagnostic functions}

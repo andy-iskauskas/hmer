@@ -168,3 +168,7 @@ all(round(newem$get_exp(fake_data[,names(ranges)]),5)
 newem$get_exp_d(sample_points, 'a')
 newem$get_cov_d(sample_points, 'b', p2 = 'a')
 }
+\references{
+Goldstein & Wooff (2007) <ISBN: 9780470065662>
+ Craig, Goldstein, Seheult & Smith (1998) <doi:10.1111/1467-9884.00115>
+}

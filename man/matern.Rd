@@ -29,3 +29,6 @@ matern(data.frame(a=1), data.frame(a=2), list(nu = 1.5, theta = 0.1))
 matern(data.frame(a=1,b=2,c=-1),data.frame(a=1.5,b=2.9,c=-0.7), list(nu = 1.5, theta = 0.2))
 #> 0.0009527116
 }
+\references{
+Rasmussen & Williams (2005) <ISBN: 9780262182539>
+}
