@@ -45,6 +45,6 @@
 #'    Identical to those of \code{\link{Emulator}}: the one internal difference is that
 #'    \code{adjust} returns a HierarchicalEmulator rather than a standard one.
 #'
-#' @references Goldstein & Vernon (2016), being prepared
+#' @references Goldstein & Vernon (2016), in preparation
 #' @export
 NULL

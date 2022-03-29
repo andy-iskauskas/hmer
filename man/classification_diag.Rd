@@ -27,7 +27,7 @@ classification_diag(
 A data.frame of failed points
 }
 \description{
-Shorthand function for diagnostic test 'ce'.
+Shorthand function for diagnostic test `ce'.
 }
 \details{
 For details of the function, see \code{\link{get_diagnostic}} and for the plot

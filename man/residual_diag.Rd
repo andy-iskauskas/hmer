@@ -23,7 +23,7 @@ Plots the emulator residuals.
 An emulator is composed of two parts: a global regression surface, and a local
 correlation structure. It can sometimes be informative to examine the residuals
 of the regression surface on the training set, to determine the extent to which
-the regression surface is being 'corrected for' by the correlation structure.
+the regression surface is being `corrected for' by the correlation structure.
 }
 \examples{
 residual_diag(SIREmulators$ems$nS)

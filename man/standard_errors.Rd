@@ -24,7 +24,7 @@ standard_errors(
 A data.frame of failed points
 }
 \description{
-Shorthand function for diagnostic test 'se'.
+Shorthand function for diagnostic test `se'.
 }
 \details{
 For details of the function, see \code{\link{get_diagnostic}} and for the plot

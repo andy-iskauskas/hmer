@@ -20,7 +20,7 @@ A ggplot object corresponding to the plot
 For a set of emulators, demonstrate which variables are active.
 }
 \details{
-Each emulator has a list of 'active' variables; those which contribute in an appreciable way
+Each emulator has a list of `active' variables; those which contribute in an appreciable way
 to its regression surface. It can be instructive to examine the differences in active variables
 for a give collection of emulators. The plot here produces an nxp grid for n emulators in p
 inputs; a square is blacked out if that variable does not contribute to that output.

@@ -36,7 +36,7 @@ A data.frame containing points that failed one or more diagnostic tests.
 Performs the standard set of validation diagnostics on emulators.
 }
 \details{
-All the diagnostics here can be performed with or without a validation (or 'holdout')
+All the diagnostics here can be performed with or without a validation (or `holdout')
 set of data. The presence of a set of targets is optional for some checks but
 mandatory for others: the appropriate warnings will be given in the event that some
 checks cannot be applied.

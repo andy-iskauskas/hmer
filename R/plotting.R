@@ -155,7 +155,7 @@ imp_plot <- function(em, z, plotgrid = NULL, ppd = 30, cb = FALSE, nth = NULL) {
 #'
 #' Given a single emulator, or a set of emulators, the emulator statistics can be plotted
 #' across a two-dimensional slice of the parameter space. Which statistic is plotted is
-#' determined by \code{plot_type}: options are 'exp', 'var', 'sd', 'imp', and 'nimp', which
+#' determined by \code{plot_type}: options are `exp', `var', `sd', `imp', and `nimp', which
 #' correspond to expectation, variance, standard deviation, implausibility, and nth-max
 #' implausibility.
 #'
@@ -163,11 +163,11 @@ imp_plot <- function(em, z, plotgrid = NULL, ppd = 30, cb = FALSE, nth = NULL) {
 #' parameters are taken to be fixed at their mid-range values. This behaviour can be changed
 #' with the \code{params} and \code{fixed_vals} parameters (see examples).
 #'
-#' If the statistic is 'exp', 'var' or 'sd', then the minimal set of parameters to pass to this
+#' If the statistic is `exp', `var' or `sd', then the minimal set of parameters to pass to this
 #' function are \code{ems} (which can be a list of emulators or a single one) and \code{plot_type}.
-#' If the statistic is 'imp' or 'nimp', then the \code{targets} must be supplied - it is not
+#' If the statistic is `imp' or `nimp', then the \code{targets} must be supplied - it is not
 #' necessary to specify the individual target for a single emulator plot. If the statistic is
-#' 'nimp', then the level of maximum implausiblility can be chosen with the parameter \code{nth}.
+#' `nimp', then the level of maximum implausibility can be chosen with the parameter \code{nth}.
 #'
 #' Implausibility plots are typically coloured from green (low implausibility) to red (high
 #' implausibility): a colourblind-friendly option is available and can be turned on by setting
@@ -291,7 +291,7 @@ emulator_plot <- function(ems, plot_type = 'exp', ppd = 30, targets = NULL, cb =
 #'
 #' If a \code{points} data.frame is not provided, then points are sampled uniformly from the
 #' input region. Otherwise, the provided points are used: for example, if a representative
-#' sample current NROY space is available.
+#' sample of the current NROY space is available.
 #'
 #' @importFrom ggplot2 ggplot aes labs geom_line geom_point geom_errorbar
 #'
@@ -460,7 +460,7 @@ plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE, cutoff = 3, maxpoin
 #'
 #' For a set of emulators, demonstrate which variables are active.
 #'
-#' Each emulator has a list of 'active' variables; those which contribute in an appreciable way
+#' Each emulator has a list of `active' variables; those which contribute in an appreciable way
 #' to its regression surface. It can be instructive to examine the differences in active variables
 #' for a give collection of emulators. The plot here produces an nxp grid for n emulators in p
 #' inputs; a square is blacked out if that variable does not contribute to that output.

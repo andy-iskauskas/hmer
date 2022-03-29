@@ -1,10 +1,10 @@
 #' Multiple Wave Point Plotting
 #'
-#' Given multiple waves of points, produces pairs plots.
+#' Given multiple waves of points, produces pairs plots
 #'
 #' Subsequent waves are overlaid on the same pairs plots, to determine the
 #' evolution of the non-implausible region. One-dimensional density plots
-#' are also created on the diagonal .
+#' are also created on the diagonal.
 #'
 #' @importFrom GGally ggpairs
 #'
@@ -63,7 +63,7 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5, zero
 #' To ensure that the wave numbers provided in the legend match, one should provide waves
 #' as a list of data.frames with the earliest wave at the start of the list.
 #'
-#' The parameters \code{which_wave} and \code{upper_scale} control the level of 'zoom' on
+#' The parameters \code{which_wave} and \code{upper_scale} control the level of `zoom' on
 #' each of the lower-triangular and upper-triangular plots, respectively. For the lower
 #' plots, \code{which_wave} determines which of the provided waves is to be used to determine
 #' the output ranges to plot with respect to: generally, higher \code{which_wave} values

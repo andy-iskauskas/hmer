@@ -21,7 +21,7 @@ comparison_diag(emulator, targets, validation, sd = 3, plt = interactive())
 A data.frame of failed points
 }
 \description{
-Shorthand function for diagnostic test 'cd'.
+Shorthand function for diagnostic test `cd'.
 }
 \details{
 For details of the function, see \code{\link{get_diagnostic}} and for the plot

@@ -136,7 +136,7 @@ get_truncation <- function(e, v, mu = TRUE, nu = 6, a = 0, b = Inf) {
 #' involved. This function allows the easy selecting of emulators by name, returning a
 #' subset of them in the same form as the original object.
 #'
-#' This function is compatible with 'standard' emulators; that is, those in a simple
+#' This function is compatible with `standard' emulators; that is, those in a simple
 #' list, equivalent to subsetting over the collection of output names of the emulators
 #' that exist in \code{output_names}.
 #'
@@ -177,7 +177,24 @@ subset_emulators <- function(emulators, output_names) {
   return(collated)
 }
 
-
+#' Collect and order emulators
+#'
+#' Manipulates lists (or lists of lists) of emulators into a useable form.
+#'
+#' Most often used as a pre-processing stage for \code{generate_new_runs} or
+#' \code{nth_implausible}, this takes a list of emulators in a variety of forms
+#' coming from either multiple waves of history matching, hierarchical emulation
+#' or bimodal emulation, and arrange them in a form suitable for sequential analysis.
+#' Emulators are also ordered by their ranges: those with the lower ranges are placed
+#' to the front of their respective list (representing the fact that these are likely
+#' the most recent, and therefore most restrictive, emulators).
+#'
+#' @param emulators The recursive list of emulators
+#'
+#' @return A list of emulators with the ordered property described above.
+#'
+#' @noRd
+#' @keywords internal
 collect_emulators <- function(emulators) {
   if ("Emulator" %in% class(emulators)) return(setNames(emulators, emulators$output_name))
   if (all(purrr::map_lgl(emulators, ~"Emulator" %in% class(.)))) {
@@ -199,6 +216,20 @@ collect_emulators <- function(emulators) {
   return(collect_emulators(unlist(emulators)))
 }
 
+#' Obtain the parameter ranges from a colletion of emulators
+#'
+#' This is a more complex version of the \code{em$ranges} command, which accommodates
+#' the recursive structure of hierarchical, bimodal, and multiwave emulators. The minimal
+#' argument determines whether we obtain the smallest (default) or largest set of ranges
+#' in the collection of emulators.
+#'
+#' @param emulators The set of emulators (possibly as a recursive list)
+#' @param minimal Whether to return the smallest (default) or largest ranges
+#'
+#' @return A list of paired numerics, corresponding to the parameter ranges
+#'
+#' @noRd
+#' @keywords internal
 getRanges <- function(emulators, minimal = TRUE) {
   emulators <- collect_emulators(emulators)
   if (!is.null(emulators$expectation)) emulators <- emulators$expectation

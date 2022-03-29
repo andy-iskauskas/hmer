@@ -22,7 +22,7 @@ gives the rational quadratic correlation between the two points.
 }
 \details{
 This correlation function, for d = |x-x'|, has the form
-(1+d^2/(2 alpha theta^2))^(-alpha), and can be seen as a superposition of exponential-squared
+\eqn{(1+d^2/(2\alpha\theta^2))^{-\alpha}}, and can be seen as a superposition of exponential-squared
 correlation functions.
 }
 \examples{

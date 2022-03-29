@@ -22,7 +22,7 @@ analyze_diagnostic(
 
 \item{plt}{Whether or not to plot the analysis}
 
-\item{cutoff}{The implausibility cutoff for diagnostic 'ce'}
+\item{cutoff}{The implausibility cutoff for diagnostic `ce'}
 
 \item{...}{Any other parameters to pass to subfunctions}
 }

@@ -33,12 +33,12 @@ wave_points(
 A ggplot object
 }
 \description{
-Given multiple waves of points, produces pairs plots.
+Given multiple waves of points, produces pairs plots
 }
 \details{
 Subsequent waves are overlaid on the same pairs plots, to determine the
 evolution of the non-implausible region. One-dimensional density plots
-are also created on the diagonal .
+are also created on the diagonal.
 }
 \examples{
  wave_points(SIRMultiWaveData, c('aSI', 'aIR', 'aSR'))

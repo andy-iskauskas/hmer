@@ -61,7 +61,7 @@ to overlay the region of interest onto the plot.
 To ensure that the wave numbers provided in the legend match, one should provide waves
 as a list of data.frames with the earliest wave at the start of the list.
 
-The parameters \code{which_wave} and \code{upper_scale} control the level of 'zoom' on
+The parameters \code{which_wave} and \code{upper_scale} control the level of `zoom' on
 each of the lower-triangular and upper-triangular plots, respectively. For the lower
 plots, \code{which_wave} determines which of the provided waves is to be used to determine
 the output ranges to plot with respect to: generally, higher \code{which_wave} values

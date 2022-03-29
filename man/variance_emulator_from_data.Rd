@@ -33,7 +33,7 @@ A list of lists: one for the variance emulators and one for the function emulato
 Trains hierarchical emulators to stochastic systems
 }
 \details{
-For stochastic systems, it can be helpful to emulate the variance as well as the function.
+For stochastic systems, one may emulate the variance as well as the function itself.
 This is particularly true if one expects the variance to be very different in different
 areas of the parameter space (for example, in an epidemic model). This function performs
 the requisite two-stage Bayes Linear update.
@@ -49,4 +49,7 @@ emulators are the Bayes Linear adjusted forms.
  v_ems <- variance_emulator_from_data(BirthDeath$training, c("Y"),
   list(lambda = c(0, 0.08), mu = c(0.04, 0.13)), c_lengths = c(0.75))
 
+}
+\references{
+Goldstein & Vernon (2016) in preparation
 }

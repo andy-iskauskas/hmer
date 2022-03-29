@@ -25,7 +25,7 @@ get_diagnostic(
 
 \item{which_diag}{Which diagnostic measure to use (choosing from cd, ce, se above)}
 
-\item{stdev}{For 'cd', a measure of the allowed distance from prediction and reality}
+\item{stdev}{For `cd', a measure of the allowed distance from prediction and reality}
 
 \item{cleaned}{Internal for stochastic emulators}
 
@@ -55,7 +55,7 @@ should not be further away from the simulator value than stdev*uncertainty.
 
 Classification Error (ce): Given a set of targets, the emulator can determine implausibility
 of a point with respect to the relevant target, accepting or rejecting it as appropriate.
-We can define a similar 'implausibility' function for the simulator: the combination of
+We can define a similar `implausibility' function for the simulator: the combination of
 the two rejection schemes gives four classifications of points. Any point where the
 emulator would reject the point but the simulator would not should be investigated.
 

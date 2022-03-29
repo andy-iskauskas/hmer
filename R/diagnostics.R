@@ -130,7 +130,7 @@ summary_diag <- function(emulator, validation, verbose = interactive()) {
 #' An emulator is composed of two parts: a global regression surface, and a local
 #' correlation structure. It can sometimes be informative to examine the residuals
 #' of the regression surface on the training set, to determine the extent to which
-#' the regression surface is being 'corrected for' by the correlation structure.
+#' the regression surface is being `corrected for' by the correlation structure.
 #'
 #' @param emulator The emulator to consider.
 #' @param histogram Should a histogram or a scatter plot be shown? Default: FALSE
@@ -220,7 +220,7 @@ space_removal <- function(ems, targets, points = NULL, cutoff = 3, individual = 
 #'
 #' Classification Error (ce): Given a set of targets, the emulator can determine implausibility
 #' of a point with respect to the relevant target, accepting or rejecting it as appropriate.
-#' We can define a similar 'implausibility' function for the simulator: the combination of
+#' We can define a similar `implausibility' function for the simulator: the combination of
 #' the two rejection schemes gives four classifications of points. Any point where the
 #' emulator would reject the point but the simulator would not should be investigated.
 #'
@@ -239,7 +239,7 @@ space_removal <- function(ems, targets, points = NULL, cutoff = 3, individual = 
 #' @param targets If desired, the target values for the output(s) of the system
 #' @param validation If provided, the emulator is tested against the outputs of these points
 #' @param which_diag Which diagnostic measure to use (choosing from cd, ce, se above)
-#' @param stdev For 'cd', a measure of the allowed distance from prediction and reality
+#' @param stdev For `cd', a measure of the allowed distance from prediction and reality
 #' @param cleaned Internal for stochastic emulators
 #' @param warn Should a warning be shown if ce is chosen and no targets provided?
 #' @param kfold Mainly internal: pre-computed k-fold diagnostic results for output
@@ -365,7 +365,7 @@ get_diagnostic <- function(emulator, targets = NULL, validation = NULL, which_di
 #' @param output_name The name of the output emulated
 #' @param targets If required or desired, the targets for the system outputs
 #' @param plt Whether or not to plot the analysis
-#' @param cutoff The implausibility cutoff for diagnostic 'ce'
+#' @param cutoff The implausibility cutoff for diagnostic `ce'
 #' @param ... Any other parameters to pass to subfunctions
 #'
 #' @return A data.frame of failed points
@@ -431,7 +431,7 @@ analyze_diagnostic <- function(in_data, output_name, targets = NULL, plt = inter
 #'
 #' Performs the standard set of validation diagnostics on emulators.
 #'
-#' All the diagnostics here can be performed with or without a validation (or 'holdout')
+#' All the diagnostics here can be performed with or without a validation (or `holdout')
 #' set of data. The presence of a set of targets is optional for some checks but
 #' mandatory for others: the appropriate warnings will be given in the event that some
 #' checks cannot be applied.
@@ -677,7 +677,7 @@ individual_errors <- function(em, validation, errtype = "normal", xtype = "index
 
 #' Classification Diagnostics
 #'
-#' Shorthand function for diagnostic test 'ce'.
+#' Shorthand function for diagnostic test `ce'.
 #'
 #' For details of the function, see \code{\link{get_diagnostic}} and for the plot
 #' see \code{\link{analyze_diagnostic}}.
@@ -704,7 +704,7 @@ classification_diag <- function(emulator, targets, validation, cutoff = 3, plt =
 
 #' Comparison Diagnostics
 #'
-#' Shorthand function for diagnostic test 'cd'.
+#' Shorthand function for diagnostic test `cd'.
 #'
 #' For details of the function, see \code{\link{get_diagnostic}} and for the plot
 #' see \code{\link{analyze_diagnostic}}.
@@ -731,7 +731,7 @@ comparison_diag <- function(emulator, targets, validation, sd = 3, plt = interac
 
 #' Standardized Error Diagnostics
 #'
-#' Shorthand function for diagnostic test 'se'.
+#' Shorthand function for diagnostic test `se'.
 #'
 #' For details of the function, see \code{\link{get_diagnostic}} and for the plot
 #' see \code{\link{analyze_diagnostic}}.

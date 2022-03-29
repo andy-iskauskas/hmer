@@ -8,14 +8,14 @@ convertRanges <- function(object) {
       return(NULL)
     }
   }
-  if (class(object) == "list") {
+  if (is.list(object)) {
     if (length(names(object)) == length(object) && all(purrr::map_dbl(object, length) == 2)) return(object)
     else {
       warning("List of ranges is misspecified (either not all named, or not all have a maximum and minimum)")
       return(NULL)
     }
   }
-  if (class(object) == "data.frame") {
+  if (is.data.frame(object)) {
     if (length(object) == 2 && !any(purrr::map_lgl(1:nrow(object), ~row.names(object)[.]==.))) return(setNames(purrr::map(1:nrow(object), ~c(object[.,1], object[.,2])), row.names(object)))
     else {
       warning("Data.frame of ranges is misspecified (either row.names incomplete, or dimension of data.frame is not nx2)")
@@ -230,7 +230,7 @@ likelihood_estimate <- function(inputs, outputs, h, corr_name = 'exp_sq', hp_ran
 #' If the minimum information is provided, then an emulator is fitted as follows. The basis
 #' functions and associated regression coefficients are generated using \code{step} and \code{lm}
 #' up to a desired order (default 2, determined by \code{quadratic}). These regression parameters
-#' are assumed to be 'known' unless \code{beta.var = TRUE}, in which case the derived parameter
+#' are assumed to be `known' unless \code{beta.var = TRUE}, in which case the derived parameter
 #' variance is taken from the model fit too (and the regression coefficients themselves can
 #' be modified by the maximum likelihood estimate performed below).
 #'
@@ -244,13 +244,13 @@ likelihood_estimate <- function(inputs, outputs, h, corr_name = 'exp_sq', hp_ran
 #' determination of the nugget term via a two-stage training process.
 #'
 #' Some rudimentary data handling functionality is available but should be approached with
-#' caution. The `na.rm` option will strip out rows of the training data that have NA values
-#' in them; this of course may leave too few points to train to, and any consistent occurence
-#' of NAs in model data should be investigated. The `check.ranges` option allows a redefinition
-#' of the ranges of the input parameters for emulator training; this is a common practice in
-#' later waves in order to maximise the predictive power of the emulators, but should only be
-#' used here if one is sure that the training set is representative of (and certainly spanning)
-#' the full minimum enclosing hyperrectangle.
+#' caution. The \code{na.rm} option will strip out rows of the training data that have NA values
+#' in them; this of course may leave too few points to train to, and any consistent occurrence
+#' of NAs in model data should be investigated. The \code{check.ranges} option allows a
+#' redefinition of the ranges of the input parameters for emulator training; this is a common
+#' practice in later waves in order to maximise the predictive power of the emulators, but should
+#' only be used here if one is sure that the training set is representative of (and certainly
+#' spanning) the full minimum enclosing hyperrectangle.
 #'
 #' @param input_data Required. A data.frame containing parameter and output values.
 #' @param output_names Required. A character vector of output names.
@@ -459,7 +459,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
   model_us <- purrr::map(seq_along(model_u_corrs), ~list(sigma = model_u_sigmas[[.]], corr = model_u_corrs[[.]]))
   model_betas <- purrr::map(seq_along(model_beta_mus), ~list(mu = model_beta_mus[[.]], sigma = model_beta_sigmas[[.]]))
   if (!is.null(discrepancies)) {
-    if (class(discrepancies) == "numeric") discrepancies <- purrr::map(discrepancies, ~list(internal = ., external = 0))
+    if (is.numeric(discrepancies)) discrepancies <- purrr::map(discrepancies, ~list(internal = ., external = 0))
   }
   if (verbose) print("Creating emulators...")
   if (!has.hierarchy) {
@@ -493,7 +493,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
 #'
 #' Trains hierarchical emulators to stochastic systems
 #'
-#' For stochastic systems, it can be helpful to emulate the variance as well as the function.
+#' For stochastic systems, one may emulate the variance as well as the function itself.
 #' This is particularly true if one expects the variance to be very different in different
 #' areas of the parameter space (for example, in an epidemic model). This function performs
 #' the requisite two-stage Bayes Linear update.
@@ -514,6 +514,8 @@ emulator_from_data <- function(input_data, output_names, ranges,
 #' @param ... Optional parameters that can be passed to \code{link{emulator_from_data}}.
 #'
 #' @return A list of lists: one for the variance emulators and one for the function emulators.
+#'
+#' @references Goldstein & Vernon (2016) in preparation
 #'
 #' @examples
 #'  # A simple example using the BirthDeath dataset

@@ -117,7 +117,7 @@ behaviour_plot <- function(ems, points, model = missing(ems), out_names = unique
 #' computationally more intensive. The default is \code{'disc'}.
 #'
 #' The inflationary/deflationary values are chosen by \code{u_mod}: the default is to take
-#' 80%, 90%, 100%, 110%, and 120% of the original value as the variation. The proportion of
+#' 80\%, 90\%, 100\%, 110\%, and 120\% of the original value as the variation. The proportion of
 #' points deemed non-implausible is checked at a set of implausibility cutoffs defined by
 #' \code{intervals}, and a plot is returned showing the relevant data.
 #'

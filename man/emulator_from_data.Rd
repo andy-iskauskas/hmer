@@ -95,7 +95,7 @@ parameters.
 If the minimum information is provided, then an emulator is fitted as follows. The basis
 functions and associated regression coefficients are generated using \code{step} and \code{lm}
 up to a desired order (default 2, determined by \code{quadratic}). These regression parameters
-are assumed to be 'known' unless \code{beta.var = TRUE}, in which case the derived parameter
+are assumed to be `known' unless \code{beta.var = TRUE}, in which case the derived parameter
 variance is taken from the model fit too (and the regression coefficients themselves can
 be modified by the maximum likelihood estimate performed below).
 
@@ -109,13 +109,13 @@ If \code{ev} is provided, then the ensemble variability is taken into account in
 determination of the nugget term via a two-stage training process.
 
 Some rudimentary data handling functionality is available but should be approached with
-caution. The `na.rm` option will strip out rows of the training data that have NA values
-in them; this of course may leave too few points to train to, and any consistent occurence
-of NAs in model data should be investigated. The `check.ranges` option allows a redefinition
-of the ranges of the input parameters for emulator training; this is a common practice in
-later waves in order to maximise the predictive power of the emulators, but should only be
-used here if one is sure that the training set is representative of (and certainly spanning)
-the full minimum enclosing hyperrectangle.
+caution. The \code{na.rm} option will strip out rows of the training data that have NA values
+in them; this of course may leave too few points to train to, and any consistent occurrence
+of NAs in model data should be investigated. The \code{check.ranges} option allows a
+redefinition of the ranges of the input parameters for emulator training; this is a common
+practice in later waves in order to maximise the predictive power of the emulators, but should
+only be used here if one is sure that the training set is representative of (and certainly
+spanning) the full minimum enclosing hyperrectangle.
 }
 \examples{
 # Use the \code{\link{SIRSample}} training dataset as an example.

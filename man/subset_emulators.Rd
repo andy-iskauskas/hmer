@@ -24,7 +24,7 @@ provided by variance_emulator_from_data or bimodal_emulator_from_data, it can be
 involved. This function allows the easy selecting of emulators by name, returning a
 subset of them in the same form as the original object.
 
-This function is compatible with 'standard' emulators; that is, those in a simple
+This function is compatible with `standard' emulators; that is, those in a simple
 list, equivalent to subsetting over the collection of output names of the emulators
 that exist in \code{output_names}.
 }

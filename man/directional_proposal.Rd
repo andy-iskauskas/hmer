@@ -29,7 +29,7 @@ directional_proposal(
 
 \item{hcutoff}{The minimum allowed step size.}
 
-\item{iteration.measure}{Either 'exp' for expectation or 'imp' for implausibility.}
+\item{iteration.measure}{Either `exp' for expectation or `imp' for implausibility.}
 
 \item{iteration.steps}{The number of allowed iterations.}
 
@@ -39,7 +39,7 @@ directional_proposal(
 Either a new proposal point, or the original point if an improvement could not be found.
 }
 \description{
-Proposes a new point by applying 'emulated gradient descent' on an existing point.
+Proposes a new point by applying `emulated gradient descent' on an existing point.
 }
 \details{
 Given a point (preferably close to the implausibility boundary) \code{x}, we can calculate
@@ -52,11 +52,11 @@ this point.
 
 We may try to find a shared direction which improves (or at least does not worsen) all
 emulator evaluations. If a point is already well inside the implausibility boundary for a given
-output (where 'well inside' is defined by the value of \code{accept}), we may allow this
+output (where `well inside' is defined by the value of \code{accept}), we may allow this
 output to worsen in order to improve the others.
 
 Provided a shared direction, v, can be identified, we iteratively move in this direction. Define
-the new proposed point x' = x + h*v, where h is a step-size given by \code{hstart}.. Compare
+the new proposed point x' = x + h*v, where h is a step-size given by \code{hstart}. Compare
 the summary statistic (either expectational difference or implausibility) to that provided by
 the original point; if the new point gives improvement, then continue to move in this direction
 until no further improvement is possible for this step-size. The step-size is reduced (up to

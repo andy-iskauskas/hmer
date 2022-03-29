@@ -68,7 +68,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #' barrier to further reductions in implausibility. The argument \code{c_tol} is used to
 #' determine if the improvement in implausibility is small enough to justify stopping the
 #' process; by default this is 0.1. The process will also stop if it has produced points
-#' 'close to' the desired implausibility: the level of closeness is defined using the
+#' `close to' the desired implausibility: the level of closeness is defined using the
 #' \code{i_tol} argument.
 #'
 #' These methods may not work, or may work slowly, if the target space is very small
@@ -88,9 +88,9 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #' @param nth A parameter to be passed to the \code{n} argument of \code{\link{nth_implausible}}.
 #' @param plausible_set An optional set of known non-implausible points (for eg line sampling).
 #' @param verbose Should progress statements be printed to the console?
-#' @param cluster Should emulator clustering be considered in the LHS generation? EXPERIMENTAL
+#' @param cluster Should emulator clustering be considered in the LHS generation?
 #' @param resample Number of times to resample using line and/or importance sampling.
-#' @param seek How many 'good' points to search for
+#' @param seek How many `good' points to search for
 #' @param c_tol The tolerance with which to determine that best implausibility has been reached.
 #' @param i_tol The tolerance on final desired implausibility
 #' @param to_file The filename to write to sequentially during proposal. Default is NULL (no writing)

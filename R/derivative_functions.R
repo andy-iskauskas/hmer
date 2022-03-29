@@ -14,7 +14,7 @@ get_deriv_info <- function(em, x, var = FALSE, ...) {
 #'
 #' Given a point \code{x} and a direction \code{v}, we find the overlap between E[f'(x)] and
 #' \code{v}. The emulated derivative has uncertainty associated with it: the variance is taken
-#' into account using v^T Var[f'(x)] v.
+#' into account using \eqn{v^T \text{Var}[f'(x)] v}.
 #'
 #' If \code{sd == NULL}, then only the (normed) overlap between the derivative and the direction
 #' vector is returned. Otherwise a pair of values are returned: these are the normed overlap plus
@@ -48,7 +48,7 @@ directional_deriv <- function(em, x, v, sd = NULL, ...) {
 
 #' Emulated Derivative Point Proposal
 #'
-#' Proposes a new point by applying 'emulated gradient descent' on an existing point.
+#' Proposes a new point by applying `emulated gradient descent' on an existing point.
 #'
 #' Given a point (preferably close to the implausibility boundary) \code{x}, we can calculate
 #' the emulated gradient at this point for each emulator. If the estimate of the expectation
@@ -60,11 +60,11 @@ directional_deriv <- function(em, x, v, sd = NULL, ...) {
 #'
 #' We may try to find a shared direction which improves (or at least does not worsen) all
 #' emulator evaluations. If a point is already well inside the implausibility boundary for a given
-#' output (where 'well inside' is defined by the value of \code{accept}), we may allow this
+#' output (where `well inside' is defined by the value of \code{accept}), we may allow this
 #' output to worsen in order to improve the others.
 #'
 #' Provided a shared direction, v, can be identified, we iteratively move in this direction. Define
-#' the new proposed point x' = x + h*v, where h is a step-size given by \code{hstart}.. Compare
+#' the new proposed point x' = x + h*v, where h is a step-size given by \code{hstart}. Compare
 #' the summary statistic (either expectational difference or implausibility) to that provided by
 #' the original point; if the new point gives improvement, then continue to move in this direction
 #' until no further improvement is possible for this step-size. The step-size is reduced (up to
@@ -77,7 +77,7 @@ directional_deriv <- function(em, x, v, sd = NULL, ...) {
 #' @param accept The implausibility below which we allow an output to worsen.
 #' @param hstart The initial step size.
 #' @param hcutoff The minimum allowed step size.
-#' @param iteration.measure Either 'exp' for expectation or 'imp' for implausibility.
+#' @param iteration.measure Either `exp' for expectation or `imp' for implausibility.
 #' @param iteration.steps The number of allowed iterations.
 #' @param nv The number of directions on the n-sphere to try.
 #'

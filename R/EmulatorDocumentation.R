@@ -131,6 +131,7 @@
 #'
 #' @references
 #'  Goldstein & Wooff (2007) <ISBN: 9780470065662>
+#'
 #'  Craig, Goldstein, Seheult & Smith (1998) <doi:10.1111/1467-9884.00115>
 #'
 #' @export

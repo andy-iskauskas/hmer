@@ -41,7 +41,7 @@ A function for plotting emulator expectations, variances, and implausibilities
 \details{
 Given a single emulator, or a set of emulators, the emulator statistics can be plotted
 across a two-dimensional slice of the parameter space. Which statistic is plotted is
-determined by \code{plot_type}: options are 'exp', 'var', 'sd', 'imp', and 'nimp', which
+determined by \code{plot_type}: options are `exp', `var', `sd', `imp', and `nimp', which
 correspond to expectation, variance, standard deviation, implausibility, and nth-max
 implausibility.
 
@@ -49,11 +49,11 @@ By default, the slice varies in the first two parameters of the emulators, and a
 parameters are taken to be fixed at their mid-range values. This behaviour can be changed
 with the \code{params} and \code{fixed_vals} parameters (see examples).
 
-If the statistic is 'exp', 'var' or 'sd', then the minimal set of parameters to pass to this
+If the statistic is `exp', `var' or `sd', then the minimal set of parameters to pass to this
 function are \code{ems} (which can be a list of emulators or a single one) and \code{plot_type}.
-If the statistic is 'imp' or 'nimp', then the \code{targets} must be supplied - it is not
+If the statistic is `imp' or `nimp', then the \code{targets} must be supplied - it is not
 necessary to specify the individual target for a single emulator plot. If the statistic is
-'nimp', then the level of maximum implausiblility can be chosen with the parameter \code{nth}.
+`nimp', then the level of maximum implausibility can be chosen with the parameter \code{nth}.
 
 Implausibility plots are typically coloured from green (low implausibility) to red (high
 implausibility): a colourblind-friendly option is available and can be turned on by setting

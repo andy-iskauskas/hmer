@@ -108,7 +108,7 @@ orn_uhl <- function(x, xp, hp) {
 #' gives the gamma-exponential correlation between the two points.
 #'
 #' The gamma-exponential correlation function, for d = |x-x'|, is given by
-#' exp(-(d/l)^gamma). Gamma must be between 0 (exclusive) and 2 (inclusive).
+#' \eqn{\exp(-(d/l)^\gamma)}. Gamma must be between 0 (exclusive) and 2 (inclusive).
 #'
 #' @param x A data.frame of rows corresponding to position vectors
 #' @param xp A data.frame of rows corresponding to position vectors
@@ -136,7 +136,7 @@ gamma_exp <- function(x, xp, hp) {
 #' gives the rational quadratic correlation between the two points.
 #'
 #' This correlation function, for d = |x-x'|, has the form
-#' (1+d^2/(2 alpha theta^2))^(-alpha), and can be seen as a superposition of exponential-squared
+#' \eqn{(1+d^2/(2\alpha\theta^2))^{-\alpha}}, and can be seen as a superposition of exponential-squared
 #' correlation functions.
 #'
 #' @param x A data.frame of rows corresponding to position vectors

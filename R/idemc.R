@@ -103,8 +103,8 @@ idemc_step <- function(ems, targets, points, point_imps, ladder, clusters, order
 #' intensive, and should not be used as a default - for more standard methods of finding
 #' points, see \code{\link{generate_new_runs}} and the methods therein.
 #'
-#' The IDEMC method operates on an 'implausibility ladder', in the spirit of annealing
-#' methods. Each 'rung' of the ladder is characterised by within-cluster and overall
+#' The IDEMC method operates on an `implausibility ladder', in the spirit of annealing
+#' methods. Each `rung' of the ladder is characterised by within-cluster and overall
 #' variance. The stages performed in one step of the evolutionary algorithm are as follows:
 #'
 #' Mutation: A point is modified using a process akin to a random walk step. The parameters
@@ -130,8 +130,8 @@ idemc_step <- function(ems, targets, points, point_imps, ladder, clusters, order
 #' each rung; if crossover is chosen, then \code{(n+1)/2} such moves are performed across the
 #' \code{n} rungs. Exchange is always performed and \code{n+1} such moves are performed.
 #'
-#' The choice of 'implausibility ladder' and clusters has a large bearing on the results. This
-#' function performs a "burn-in" to determine a reasonable ladder by starting with a uniform
+#' The choice of `implausibility ladder' and clusters has a large bearing on the results. This
+#' function performs a `burn-in' to determine a reasonable ladder by starting with a uniform
 #' sample across the whole space and defining the next rung by demanding that a percentage
 #' (determined by \code{p}) of the original points satisfy the constraint of this new rung.
 #' The IDEMC process is performed on these two rungs to generate \code{s} points, from which

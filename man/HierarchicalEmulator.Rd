@@ -55,5 +55,5 @@ Creates a univariate emulator with hierarchical structure.
 }
 
 \references{
-Goldstein & Vernon (2016), being prepared
+Goldstein & Vernon (2016), in preparation
 }

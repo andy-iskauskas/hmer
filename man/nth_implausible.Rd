@@ -39,7 +39,7 @@ Either the nth maximum implausibilities, or booleans (if cutoff is given).
 Computes the nth-maximum implausibility of points relative to a set of emulators.
 }
 \details{
-For a collection of emulators, it can be helpful to combine the implausibility
+For a collection of emulators, we often combine the implausibility
 measures for a given set of observations. The maximum implausibility of a point,
 given a set of univariate emulators and an associated collection of target values,
 is the largest implausibility of the collected set of implausibilities. The 2nd

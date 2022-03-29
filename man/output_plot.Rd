@@ -25,7 +25,7 @@ target values (with appropriate uncertainty).
 \details{
 If a \code{points} data.frame is not provided, then points are sampled uniformly from the
 input region. Otherwise, the provided points are used: for example, if a representative
-sample current NROY space is available.
+sample of the current NROY space is available.
 }
 \examples{
  output_plot(SIREmulators$ems, SIREmulators$targets)

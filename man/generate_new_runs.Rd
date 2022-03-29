@@ -39,11 +39,11 @@ generate_new_runs(
 
 \item{verbose}{Should progress statements be printed to the console?}
 
-\item{cluster}{Should emulator clustering be considered in the LHS generation? EXPERIMENTAL}
+\item{cluster}{Should emulator clustering be considered in the LHS generation?}
 
 \item{resample}{Number of times to resample using line and/or importance sampling.}
 
-\item{seek}{How many 'good' points to search for}
+\item{seek}{How many `good' points to search for}
 
 \item{c_tol}{The tolerance with which to determine that best implausibility has been reached.}
 
@@ -112,7 +112,7 @@ until either the desired implausibility has been reached or the process has reac
 barrier to further reductions in implausibility. The argument \code{c_tol} is used to
 determine if the improvement in implausibility is small enough to justify stopping the
 process; by default this is 0.1. The process will also stop if it has produced points
-'close to' the desired implausibility: the level of closeness is defined using the
+`close to' the desired implausibility: the level of closeness is defined using the
 \code{i_tol} argument.
 
 These methods may not work, or may work slowly, if the target space is very small
