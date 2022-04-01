@@ -112,7 +112,10 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #'  pts_no_importance <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
 #'   method = c('line'))
 #' }
-generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'importance'), cutoff = 3, nth = 1, plausible_set, verbose = interactive(), cluster = FALSE, resample = 1, seek = 0, c_tol = 0.5, i_tol = 0.01, to_file = NULL, ...) {
+generate_new_runs <- function(ems, n_points, z, method = c('lhs', 'line', 'importance'), cutoff = 3,
+                              nth = ifelse(length(unique(purrr::map_chr(ems, ~.$output_name))) > 10, 2, 1),
+                              plausible_set, verbose = interactive(), cluster = FALSE, resample = 1, seek = 0,
+                              c_tol = 0.5, i_tol = 0.01, to_file = NULL, ...) {
   if (!is.null(to_file)) {
     tryCatch(
       write.csv(data.frame(), file = to_file, row.names = FALSE),

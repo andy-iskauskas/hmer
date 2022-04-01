@@ -86,7 +86,8 @@ sequential_imp <- function(ems, x, z, n = 1, cutoff = 3) {
 #' nth_implausible(v_ems$expectation, unique(BirthDeath$validation[,1:2]), v_targs)
 #' nth_implausible(v_ems, unique(BirthDeath$validation[,1:2]), v_targs$expectation)
 #'
-nth_implausible <- function(ems, x, z, n = 1, max_imp = Inf, cutoff = NULL, sequential = FALSE, get_raw = FALSE) {
+nth_implausible <- function(ems, x, z, n = ifelse(length(unique(purrr::map_chr(ems, ~.$output_name))) > 10, 2, 1),
+                            max_imp = Inf, cutoff = NULL, sequential = FALSE, get_raw = FALSE) {
   ## Preprocessing for variance emulation
   if (!is.null(ems$expectation) && !is.null(ems$variance)) {
     if (!is.null(z$expectation) && !is.null(z$variance)) {

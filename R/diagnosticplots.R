@@ -114,7 +114,7 @@ behaviour_plot <- function(ems, points, model = missing(ems), out_names = unique
 #' the hyperparameters of the emulator correlation structure. In the first case, the
 #' implausibilities are recalculated for each inflation value; in the other two cases the
 #' emulators are retrained. For this reason, the \code{'var'} and \code{'hp'} options are
-#' computationally more intensive. The default is \code{'disc'}.
+#' computationally more intensive. The default is \code{'obs'}.
 #'
 #' The inflationary/deflationary values are chosen by \code{u_mod}: the default is to take
 #' 80\%, 90\%, 100\%, 110\%, and 120\% of the original value as the variation. The proportion of

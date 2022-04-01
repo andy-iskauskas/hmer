@@ -41,8 +41,12 @@ exp_plot <- function(em, plotgrid = NULL, ppd = 30) {
       ggplot(data = grid_data, aes(x = grid_data[,1], y = grid_data[,2])) + geom_contour_filled(aes(z = intervals), breaks = fake_breaks, colour = 'black') + viridis::scale_fill_viridis(discrete = TRUE, option = "magma", name = "exp", guide = guide_legend(ncol = 1), labels = function(b) {signif(exp_breaks[as.numeric(stringr::str_extract(b, "\\d+"))], 6)})
     }
   )
+  if (is.null(em$em_type)) extra_ident <- NULL
+  else if (em$em_type == "mean") extra_ident <- "Mean"
+  else if (em$em_type == "variance") extra_ident <- "Variance"
+  else extra_ident <- em$em_type
   g <- g +
-    labs(title = paste(em$output_name, "Emulator Expectation"), x = names(grid_data)[1], y = names(grid_data)[2]) +
+    labs(title = paste(em$output_name, extra_ident, "Emulator Expectation"), x = names(grid_data)[1], y = names(grid_data)[2]) +
     scale_x_continuous(expand = c(0,0)) +
     scale_y_continuous(expand = c(0,0)) +
     theme_minimal()
@@ -95,8 +99,12 @@ var_plot <- function(em, plotgrid = NULL, ppd = 30, sd = FALSE) {
       ggplot(data = grid_data, aes(x = grid_data[,1], y = grid_data[,2])) + geom_contour_filled(aes(z = intervals), breaks = fake_breaks, colour = 'black') + viridis::scale_fill_viridis(discrete = TRUE, option = "plasma", name = if (sd) "sd" else "var", guide = guide_legend(ncol = 1), labels = function(b) {signif(cov_breaks[as.numeric(stringr::str_extract(b, "\\d+"))], 6)})
     }
   )
+  if (is.null(em$em_type)) extra_ident <- NULL
+  else if (em$em_type == "mean") extra_ident <- "Mean"
+  else if (em$em_type == "variance") extra_ident <- "Variance"
+  else extra_ident <- em$em_type
   g <- g +
-    labs(title = paste(em$output_name, "Emulator", (if(sd) "Standard Deviation" else "Variance")), x = names(grid_data)[1], y = names(grid_data)[2]) +
+    labs(title = paste(em$output_name, extra_ident, "Emulator", (if(sd) "Standard Deviation" else "Variance")), x = names(grid_data)[1], y = names(grid_data)[2]) +
     scale_x_continuous(expand = c(0,0)) +
     scale_y_continuous(expand = c(0,0)) +
     theme_minimal()
@@ -142,7 +150,11 @@ imp_plot <- function(em, z, plotgrid = NULL, ppd = 30, cb = FALSE, nth = NULL) {
   }
   else
     g <- g + geom_contour_filled(aes(z = grid_data[,"I"]), colour = 'black', breaks = imp_breaks[included]) + scale_fill_manual(values = col_scale[included], name = "I", labels = imp_names[included], guide = guide_legend(reverse = TRUE))
-  g <- g + labs(title = paste(em$output_name, (if (is.null(nth)) "Emulator Implausibility" else paste(ns, "Maximum Implausibility"))), x = names(grid_data)[1], y = names(grid_data)[2]) +
+  if (is.null(em$em_type)) extra_ident <- NULL
+  else if (em$em_type == "mean") extra_ident <- "Mean"
+  else if (em$em_type == "variance") extra_ident <- "Variance"
+  else extra_ident <- em$em_type
+  g <- g + labs(title = paste(em$output_name, extra_ident, (if (is.null(nth)) "Emulator Implausibility" else paste(ns, "Maximum Implausibility"))), x = names(grid_data)[1], y = names(grid_data)[2]) +
     scale_x_continuous(expand = c(0,0)) +
     scale_y_continuous(expand = c(0,0)) +
     theme_minimal()
