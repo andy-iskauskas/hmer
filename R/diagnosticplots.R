@@ -145,7 +145,7 @@ behaviour_plot <- function(ems, points, model = missing(ems), out_names = unique
 #' space_removed(SIREmulators$ems, SIREmulators$targets, ppd = 5)
 #  space_removed(SIREmulators$ems$nS, SIREmulators$targets,
 #   ppd = 5, u_mod = seq(0.75, 1.25, by = 0.25), intervals = seq(2, 6, by = 0.1))
-space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1), intervals = seq(0, 10, length.out = 200), modified = 'obs', maxpoints = NULL) {
+space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1), intervals = seq(0, 10, length.out = 200), modified = 'obs', maxpoints = 50000) {
   value <- name <- NULL
   if ("Emulator" %in% class(ems))
     ems <- setNames(list(ems), ems$output_name)
@@ -160,22 +160,26 @@ space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1
   imp_array <- array(0, dim = c(length(intervals), length(u_mod)))
   if (!modified %in% c('obs', 'disc', 'var', 'hp')) {
     warning("Unrecognised vary parameter. Setting to observation error (obs).")
-    modified = 'obs'
+    modified <- 'obs'
+  }
+  if (modified == "disc" && all(unlist(purrr::map(ems, ~all(.$discs == 0))))) {
+    warning("'disc' chosen, but no emulators have any internal or external discrepancy. Setting to observation error (obs).")
+    modified <- 'obs'
   }
   if (modified == 'obs') {
     for (i in u_mod) {
       targets_2 <- targets
       for (j in 1:length(targets)) {
         if (is.atomic(targets[[j]])) {
-          targets_2[[j]] <- c(targets[[j]][1] - i * diff(targets[[j]])/2, targets[[j]][2] + i * diff(targets[[j]])/2)
+          targets_2[[j]] <- c(mean(targets[[j]]) - i * diff(targets[[j]])/2, mean(targets[[j]]) + i * diff(targets[[j]])/2)
         }
         else {
           targets_2[[j]] <- list(val = targets[[j]]$val, sigma = i * targets[[j]]$sigma)
         }
       }
       m_imps <- nth_implausible(ems, ptgrid, targets_2)
-      cutoff <- purrr::map_dbl(intervals, ~1-length(m_imps[m_imps <= .])/length(m_imps))
-      imp_array[, match(i, u_mod)] <- cutoff
+      coff <- purrr::map_dbl(intervals, ~1-length(m_imps[m_imps <= .])/length(m_imps))
+      imp_array[, match(i, u_mod)] <- coff
     }
   }
   else {
@@ -186,17 +190,20 @@ space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1
         ems_2 <- purrr::map(ems, ~.$set_hyperparams(purrr::map(.$corr$hyper_p, ~i*.)))
       else {
         ems_2 <- ems
-        for (j in 1:length(ems_2)) ems_2[[j]]$disc <- lapply(ems[[j]]$disc, function(a) a * i)
+        for (j in 1:length(ems_2)) {
+          ems_2[[j]]$disc <- lapply(ems[[j]]$disc, function(a) a * i)
+        }
       }
-      imps <- nth_implausible(ems_2, ptgrid, targets)
-      imp_array[, match(i, u_mod)] <- purrr::map_dbl(intervals, ~1-length(imps[imps <= .])/length(imps))
+      m_imps <- nth_implausible(ems_2, ptgrid, targets)
+      coff <- purrr::map_dbl(intervals, ~1-length(m_imps[m_imps <= .])/length(m_imps))
+      imp_array[, match(i, u_mod)] <- coff
     }
   }
   df <- setNames(data.frame(imp_array), u_mod)
   df$cutoff <- intervals
   df_pivot <- pivot_longer(df, cols = !c('cutoff'))
   title <- switch(modified, 'obs' = "observational error", 'disc' = 'structural discrepancy', 'var' = 'variance inflation', 'hp' = 'hyperparameter inflation')
-  subtitle <- switch(modified, 'obs' = "% Observational\nError", 'disc' = '% Structural\nDiscrepancy', 'var' = '% Variance\nInflation', 'hp' = '% Hyperparameter\nInflation')
+  subtitle <- switch(modified, 'obs' = "% Observational\nError", 'disc' = '% Structural\nDiscrepancy', 'var' = '% Variance', 'hp' = '% Hyperparameter')
   g <- ggplot(data = df_pivot, aes(x = cutoff, y = value, group = name, colour = name)) +
     geom_line(lwd = 1.5) +
     viridis::scale_color_viridis(discrete = TRUE, option = 'cividis', labels = function(b) {paste0(round(as.numeric(b)*100, 0), "%")}) +
