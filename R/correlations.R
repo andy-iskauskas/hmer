@@ -52,8 +52,10 @@ exp_sq <- function(x, xp, hp) {
 
 exp_sq_d <- function(x, xp, hp, xi, xpi = NULL) {
   diff_1 <- outer(x[,xi, drop = FALSE], xp[,xi, drop = FALSE], "-")[,,,1]
+  if (is.null(nrow(diff_1))) diff_1 <- t(diff_1)
   if (is.null(xpi)) return(-2 * t(diff_1) * exp_sq(x, xp, hp)/hp$theta^2)
   diff_2 <- if (is.null(xpi)) diff_1 else outer(x[,xpi, drop = FALSE], xp[,xpi, drop = FALSE], "-")[,,,1]
+  if (is.null(nrow(diff_2))) diff_2 <- t(diff_2)
   return(2/hp$theta^2 * (if (xi == xpi) 1 else 0) * exp_sq(x, xp, hp) - 4/hp$theta^4 * t(diff_1) * t(diff_2) * exp_sq(x, xp, hp))
 }
 
@@ -91,6 +93,7 @@ matern_d <- function(x, xp, hp, xi, xpi = NULL) {
   p <- hp$nu-0.5
   inner_arg <- sqrt(2*p+1) * get_dist(x, xp)/hp$theta
   diff_1 <- outer(xp[,xi, drop = FALSE], x[,xi, drop = FALSE], "-")[,,,1]
+  if (is.null(nrow(diff_1))) diff_1 <- t(diff_1)
   if (is.null(xpi)) {
     non_sum <- -4*hp$nu/hp$theta^2 * diff_1 * factorial(p)/factorial(2*p) * exp(-inner_arg)
     sum <- Reduce('+', purrr::map(0:(p-1), ~factorial(p-1+.)/(factorial(.) * factorial(p-1-.)) * (2*inner_arg)^(p-1-.)))
@@ -98,6 +101,7 @@ matern_d <- function(x, xp, hp, xi, xpi = NULL) {
   }
   extra_bit <- if(xi == xpi) 4*hp$nu/hp$theta^2 * factorial(p)/factorial(2*p) * exp(-inner_arg) * Reduce('+', purrr::map(0:(p-1), ~factorial(p-1+.)/(factorial(.) * factorial(p-1-.)) * (2*inner_arg)^(p-1-.))) else 0
   diff_2 <- outer(xp[,xpi, drop = FALSE], x[,xpi, drop = FALSE], "-")[,,,1]
+  if (is.null(nrow(diff_2))) diff_2 <- t(diff_2)
   non_sum <- -16*hp$nu^2/hp$theta^4 * diff_1 * diff_2 * factorial(p)/factorial(2*p) * exp(-inner_arg)
   sum <- sum(purrr::map_dbl(0:(p-2), ~factorial(p-2+.)/(factorial(.)*factorial(p-2-.)) * (2*inner_arg)^(p-2-.)))
   return(extra_bit+non_sum*sum)
@@ -189,8 +193,10 @@ rat_quad <- function(x, xp, hp) {
 rat_quad_d <- function(x, xp, hp, xi, xpi = NULL) {
   dists <- get_dist(x/hp$theta, xp/hp$theta)^2
   diff_1 <- outer(xp[,xi, drop = FALSE], x[,xi, drop = FALSE], "-")[,,,1]
+  if (is.null(nrow(diff_1))) diff_1 <- t(diff_1)
   if (is.null(xpi)) return(-diff_1/hp$theta^2 * (1+dists/(2*hp$alpha*hp$theta^2))^(-hp$alpha-1))
   diff_2 <- outer(xp[,xpi, drop = FALSE], x[,xpi, drop = FALSE], "-")[,,,1]
+  if (is.null(nrow(diff_2))) diff_2 <- t(diff_2)
   extra_bit <- if(xi == xpi) (1+dists/(2*hp$alpha*hp$theta^2))^(-hp$alpha-1) else 0
   return(-(hp$alpha+1)/hp$alpha * diff_1*diff_2/hp$theta^4 * (1+dists/(2*hp$alpha*hp$theta^2))^(-hp$alpha-2) + extra_bit)
 }

@@ -390,6 +390,7 @@ output_plot <- function(ems, targets, points = NULL, npoints = 1000) {
 #'  plot_lattice(SIREmulators$ems$nS, SIREmulators$targets)
 #' }
 plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE, cutoff = 3, maxpoints = 5e4) {
+  ems <- collect_emulators(ems)
   ranges <- if ("Emulator" %in% class(ems)) ems$ranges else ems[[1]]$ranges
   if (ppd^length(ranges) > maxpoints) {
     point_grid <- setNames(data.frame(do.call('cbind', purrr::map(ranges, ~runif(maxpoints, .[[1]], .[[2]])))), names(ranges))
