@@ -39,7 +39,7 @@ ode_results <- function(parms, end_time = 25) {
 
 get_res <- function(inputs) {
   ode_out <- data.frame(t(apply(inputs, 1, function(x) ode_results(x)[11, c('S', 'I', 'R')])))
-  return(cbind(inputs, ode_out) |> setNames(c(names(inputs), c('nS', 'nI', 'nR'))))
+  return(setNames(cbind(inputs, ode_out), c(names(inputs), c('nS', 'nI', 'nR'))))
 }
 set.seed(12)
 ```
@@ -133,7 +133,7 @@ The variety of visualisation tools in the `hmer` package can give an insight, wh
 
 The emulators are most powerful when they act as interpolants over the region of interest - by which we mean the region where we expect the model to be adequate in fitting to the observed data (given the uncertainties mentioned above). If the points on which the emulators are trained do not give rise to anything approaching a fit to data, even univariately, then we may not be surprised if this results in emulators that do not believe a match can be found.
 
-As an example, we consider the dataset provided in `problem_data`; this consists of training data from a model consisting of 21 inputs and 19 outputs. Along with this are the defined targets and ranges, as well as an 'extra' set of points which includes the best found fit for the model using hand-fitting. It will be important to note that, aside from outputs 13, 14, 16, and 17, all outputs are proportions or ratios (taking values within $[0,1]$).
+As an example, we consider the dataset provided in `problem_data`; this consists of training data from a model consisting of 21 inputs and 19 outputs. Along with this are the defined targets and ranges, as well as an 'extra' set of points which includes the best found fit for the model using hand-fitting. It will be important to note that, aside from outputs 13, 14, 16, and 17, all outputs are proportions or ratios (taking values within $[0,1]$). The central feature of this model is that acceptable matches lie in a 'trench' at in a small corner of the space, for which many of the inputs are at, or close to, their minimum values.
 
 We try to train a set of emulators to this dataset in the normal fashion. The one change is that we use the `targets` argument of `emulator_from_data` in order to gain an insight into the structure of the data.
 
@@ -175,7 +175,7 @@ plot(x = plot_data[,names(problem_data$ranges)[9]], y = plot_data[,names(problem
 abline(h = problem_data$targets[[7]], lty = 2)
 ```
 
-In fact, in a small part of the parameter space (somewhere near what turns out to be a 10d 'corner' of the space) this target can be attained. The behaviour of the output is very interesting: in the vast majority of the input space it settles consistenly at high values. As we get close to this corner, it steeply drops off into a 'trench' where the acceptable matches can be found. It is not reasonable, therefore, to just dismiss these outputs out of hand: they do in fact contain useful information about the structure of the space.
+In fact, in a small part of the parameter space (somewhere near what turns out to be a 10d 'corner' of the space) this target can be attained. The behaviour of the output is very interesting: in the vast majority of the input space it settles consistenly at high values. As we get close to this corner, it steeply drops off into the trench where the acceptable matches can be found. It is not reasonable, therefore, to just dismiss these outputs out of hand: they do in fact contain useful information about the structure of the space.
 
 One way to potentially elicit this information is to consider a transformation of the outputs. The relevant transformation depends on the nature of the data: here, given that the output values are between 0 and 1, we might consider a `logit` transformation.
 

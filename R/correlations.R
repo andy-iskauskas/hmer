@@ -1,3 +1,32 @@
+#' Distance function
+#'
+#' Calculates Euclidean distances between points in two data.frames
+#'
+#' If the number of points is moderate, use the \code{dist} function (to take advantage of speed);
+#' when the number of points is large this can try to allocate a large object so we instead use
+#' direct calculation using \code{colSums}.
+#'
+#' @param df1 The first data.frame
+#' @param df2 The second data.frame
+#'
+#' @return The distance matrix
+#'
+#' @keywords internal
+#' @noRd
+#'
+get_dist <- function(df1, df2) {
+  if (ncol(df1) != ncol(df2)) stop("Data frames do not have the same dimension.")
+  d <- length(df1)
+  p <- max(nrow(df1), nrow(df2))
+  if (d < (833*p^2-198400*p+144350000)/(55550*p+6910000) || p > 2500) {
+    return(apply(df1, 1, function(a) sqrt(colSums((a-t(df2))^2))))
+  }
+  dists <- as.matrix(dist(rbind(df1, df2)))[((nrow(df1)+1):(nrow(df1)+nrow(df2))), 1:nrow(df1)]
+  row.names(dists) <- colnames(dists) <- NULL
+  return(dists)
+}
+
+
 #' Exponential squared correlation function
 #'
 #' For points \code{x}, \code{xp} and a correlation length \code{theta}, gives the exponent
@@ -17,15 +46,15 @@
 #' exp_sq(data.frame(a=1,b=2,c=-1),data.frame(a=1.5,b=2.9,c=-0.7), list(theta = 0.2))
 #' #> 3.266131e-13
 exp_sq <- function(x, xp, hp) {
-  dists <- as.matrix(dist(rbind(x/hp$theta, xp/hp$theta)))[(nrow(x)+1):(nrow(x)+nrow(xp)), 1:nrow(x)]^2
+  dists <- get_dist(x/hp$theta, xp/hp$theta)^2
   return(exp(-dists))
 }
 
 exp_sq_d <- function(x, xp, hp, xi, xpi = NULL) {
-  diff_1 <- outer(xp[,xi, drop = FALSE], x[,xi, drop = FALSE], "-")[,,,1]
-  if (is.null(xpi)) return(-2 * diff_1 * exp_sq(x, xp, hp)/hp$theta^2)
-  diff_2 <- if (is.null(xpi)) diff_1 else outer(xp[,xpi, drop = FALSE], x[,xpi, drop = FALSE], "-")[,,,1]
-  return(2/hp$theta^2 * (if (xi == xpi) 1 else 0) * exp_sq(x, xp, hp) - 4/hp$theta^4 * diff_1 * diff_2 * exp_sq(x, xp, hp))
+  diff_1 <- outer(x[,xi, drop = FALSE], xp[,xi, drop = FALSE], "-")[,,,1]
+  if (is.null(xpi)) return(-2 * t(diff_1) * exp_sq(x, xp, hp)/hp$theta^2)
+  diff_2 <- if (is.null(xpi)) diff_1 else outer(x[,xpi, drop = FALSE], xp[,xpi, drop = FALSE], "-")[,,,1]
+  return(2/hp$theta^2 * (if (xi == xpi) 1 else 0) * exp_sq(x, xp, hp) - 4/hp$theta^4 * t(diff_1) * t(diff_2) * exp_sq(x, xp, hp))
 }
 
 #' Matern correlation function
@@ -51,7 +80,7 @@ exp_sq_d <- function(x, xp, hp, xi, xpi = NULL) {
 matern <- function(x, xp, hp) {
   if (floor(hp$nu*2) != hp$nu*2 || floor(hp$nu) == hp$nu) stop("Matern hyperparameter nu must be half-integer.")
   p <- hp$nu-0.5
-  d <- as.matrix(dist(rbind(x, xp)))[(nrow(x)+1):(nrow(x)+nrow(xp))]
+  d <- get_dist(x, xp)
   exp(-sqrt(2*p+1)*d/hp$theta) * factorial(p)/factorial(2*p) * Reduce('+', purrr::map(0:p, ~factorial(p+.)/(factorial(.)*factorial(p-.)) * (2*sqrt(2*p+1)*d/hp$theta)^(p-.)))
 }
 
@@ -60,7 +89,7 @@ matern_d <- function(x, xp, hp, xi, xpi = NULL) {
   if (floor(hp$nu) < 1) stop("This correlation function is not differentiable.")
   if (floor(hp$nu) < 2 && !is.null(xpi)) stop("This correlation function is not twice differentiable.")
   p <- hp$nu-0.5
-  inner_arg <- sqrt(2*p+1) * as.matrix(dist(rbind(x, xp)))[(nrow(x)+1):(nrow(x)+nrow(xp))]/hp$theta
+  inner_arg <- sqrt(2*p+1) * get_dist(x, xp)/hp$theta
   diff_1 <- outer(xp[,xi, drop = FALSE], x[,xi, drop = FALSE], "-")[,,,1]
   if (is.null(xpi)) {
     non_sum <- -4*hp$nu/hp$theta^2 * diff_1 * factorial(p)/factorial(2*p) * exp(-inner_arg)
@@ -98,7 +127,7 @@ matern_d <- function(x, xp, hp, xi, xpi = NULL) {
 #' orn_uhl(data.frame(a=1,b=1,c=1), data.frame(a=1.2,b=0.9,c=0.6), list(theta = 0.2)) ==
 #'  matern(data.frame(a=1,b=1,c=1), data.frame(a=1.2,b=0.9,c=0.6), list(theta = 0.2, nu = 0.5)) #> TRUE
 orn_uhl <- function(x, xp, hp) {
-  dists <- as.matrix(dist(rbind(x, xp)))[(nrow(x)+1):(nrow(x)+nrow(xp)), 1:nrow(x)]
+  dists <- get_dist(x, xp)
   exp(-dists/hp$theta)
 }
 
@@ -126,7 +155,7 @@ orn_uhl <- function(x, xp, hp) {
 #' #> 0.0001399953
 gamma_exp <- function(x, xp, hp) {
   if (hp$gamma > 2 || hp$gamma <= 0) stop("Gamma hyperparameter must be between 0 (exclusive) and 2 (inclusive)")
-  dists <- as.matrix(dist(rbind(x, xp)))[(nrow(x)+1):(nrow(x)+nrow(xp)), 1:nrow(x)]
+  dists <- get_dist(x, xp)
   exp(-(dists/hp$theta)^hp$gamma)
 }
 
@@ -148,17 +177,17 @@ gamma_exp <- function(x, xp, hp) {
 #'
 #' @references Rasmussen & Williams (2005) <ISBN: 9780262182539>
 #' @examples
-#' rat_quad(data.frame(a=1), data.frame(a=2), list(alpha = 1.5, rho = 0.1))
-#' #> 0.110858
-#' rat_quad(data.frame(a=1,b=2,c=-1),data.frame(a=1.5,b=2.9,c=-0.7), list(alpha = 1.5, rho = 0.2))
-#' #> 0.2194183
+#' rat_quad(data.frame(a=1), data.frame(a=2), list(alpha = 1.5, theta = 0.1))
+#' #> 0.004970797
+#' rat_quad(data.frame(a=1,b=2,c=-1),data.frame(a=1.5,b=2.9,c=-0.7), list(alpha = 1.5, theta = 0.2))
+#' #> 0.02904466
 rat_quad <- function(x, xp, hp) {
-  dists <- as.matrix(dist(rbind(x, xp)))[(nrow(x)+1):(nrow(x)+nrow(xp)), 1:nrow(x)]^2
+  dists <- get_dist(x, xp)^2
   (1+dists/(2*hp$alpha*hp$theta^2))^(-hp$alpha)
 }
 
 rat_quad_d <- function(x, xp, hp, xi, xpi = NULL) {
-  dists <- as.matrix(dist(rbind(x/hp$theta, xp/hp$theta)))[(nrow(x)+1):(nrow(x)+nrow(xp)), 1:nrow(x)]^2
+  dists <- get_dist(x/hp$theta, xp/hp$theta)^2
   diff_1 <- outer(xp[,xi, drop = FALSE], x[,xi, drop = FALSE], "-")[,,,1]
   if (is.null(xpi)) return(-diff_1/hp$theta^2 * (1+dists/(2*hp$alpha*hp$theta^2))^(-hp$alpha-1))
   diff_2 <- outer(xp[,xpi, drop = FALSE], x[,xpi, drop = FALSE], "-")[,,,1]

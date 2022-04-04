@@ -11,7 +11,7 @@ space_removed(
   u_mod = seq(0.8, 1.2, by = 0.1),
   intervals = seq(0, 10, length.out = 200),
   modified = "obs",
-  maxpoints = NULL
+  maxpoints = 50000
 )
 }
 \arguments{
@@ -49,7 +49,7 @@ emulator variance (as given by \code{Emulator$u_sigma}), and \code{'hp'} corresp
 the hyperparameters of the emulator correlation structure. In the first case, the
 implausibilities are recalculated for each inflation value; in the other two cases the
 emulators are retrained. For this reason, the \code{'var'} and \code{'hp'} options are
-computationally more intensive. The default is \code{'disc'}.
+computationally more intensive. The default is \code{'obs'}.
 
 The inflationary/deflationary values are chosen by \code{u_mod}: the default is to take
 80\%, 90\%, 100\%, 110\%, and 120\% of the original value as the variation. The proportion of

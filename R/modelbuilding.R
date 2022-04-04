@@ -380,9 +380,9 @@ emulator_from_data <- function(input_data, output_names, ranges,
       all_coeffs <- c(all_coeffs, apply(expand.grid(input_names, input_names), 1, paste, collapse = ":"))
       all_coeffs <- sub("(.*):(\\1)$", "I(\\1^2)", all_coeffs)
     }
-    model_basis_funcs <- purrr::map(models, ~all_funcs[all_coeffs %in% variable.names(.)])
+    model_basis_funcs <- purrr::map(models, ~all_funcs[match(variable.names(.),all_coeffs)])
     if (!beta.var) {
-      model_beta_mus <- purrr::map(models, ~c(.$coefficients[all_coeffs[all_coeffs %in% names(.$coefficients)]], use.names = FALSE))
+      model_beta_mus <- purrr::map(models, ~c(.$coefficients[all_coeffs[match(names(.$coefficients), all_coeffs)]], use.names = FALSE))
       model_beta_sigmas <- purrr::map(model_beta_mus, ~diag(0, nrow = length(.)))
     }
     else {

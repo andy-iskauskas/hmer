@@ -248,7 +248,7 @@ Emulator <- R6Class(
       else beta_part <- g %*% self$beta_mu
       u_part <- apply(x, 1, self$u_mu)
       if (!is.null(self$in_data)) {
-        c_data <- self$corr$get_corr_d(x, self$in_data, p_ind, actives = self$active_vars)
+        c_data <- t(self$corr$get_corr_d(x, self$in_data, p_ind, actives = self$active_vars))
         c_data <- matrix(c_data/range_scale, nrow = nrow(x))
         if (is.numeric(self$u_sigma)) {
           if (length(self$beta_mu) == 1)
@@ -267,7 +267,6 @@ Emulator <- R6Class(
       return(beta_part + u_part)
     },
     get_cov_d = function(x, p1, xp = NULL, p2 = NULL, full = FALSE) {
-      # I am not convinced that this is doing what it should (it's hard to know). Keep thinking on this.
       if (nrow(x) > 1000 && !full) {
         k <- ceiling(nrow(x)/1000)
         m <- ceiling(nrow(x)/k)
@@ -319,7 +318,7 @@ Emulator <- R6Class(
       g_x <- g_x/range_scale1
       gp_x <- gp_x/range_scale2
       if (full || nrow(x) != nrow(xp)) {
-          x_xp_c <- self$corr$get_corr_d(x, xp, p1_ind, p2_ind, self$active_vars)/(range_scale1*range_scale2)
+          x_xp_c <- t(self$corr$get_corr_d(x, xp, p1_ind, p2_ind, self$active_vars))/(range_scale1*range_scale2)
         if (is.null(nrow(g_x))) beta_part <- g_x %*% self$beta_sigma %*% gp_x
         else beta_part <- t(g_x) %*% self$beta_sigma %*% gp_x
         if (is.numeric(self$u_sigma))
@@ -327,11 +326,11 @@ Emulator <- R6Class(
         else
           u_part <- sweep(sweep(x_xp_c, 2, apply(xp, 1, self$u_sigma), "*"), 1, apply(x, 1, self$u_sigma), "*")
         if (!is.null(self$in_data)) {
-          c_x <- self$corr$get_corr_d(x, self$in_data, p1_ind, p2_ind, self$active_vars)/(range_scale1*range_scale2)
+          c_x <- t(self$corr$get_corr_d(x, self_in_data, p1_ind, p2 = NULL, self$active_vars))/range_scale1
           c_xp <- if(null_flag)
             -1*c_x
           else
-            -1*self$corr$get_corr_d(xp, self$in_data, p1_ind, p2_ind, active_vars)/(range_scale1*range_scale2)
+            -1*t(self$corr$get_corr_d(x, self$in_data, p2_ind, p2 = NULL, self$active_vars))/range_scale2
           if(nrow(x) == 1) {
             c_x <- t(c_x)
             c_xp <- t(c_xp)
@@ -362,11 +361,11 @@ Emulator <- R6Class(
         if (is.numeric(self$u_sigma)) u_part <- self$u_sigma^2 * diag(self$corr$get_corr_d(x, xp, p1_ind, p2_ind, self$active_vars))/(range_scale1*range_scale2)
         else u_part <- purrr::map_dbl(point_seq, ~self$u_sigma(x[.,])*self$u_sigma(x[.,])) * diag(self$corr$get_corr_d(x, xp, p1_ind, p2_ind, self$active_vars))/(range_scale1*range_scale2)
         if (!is.null(self$in_data)) {
-          c_x <- self$corr$get_corr_d(self$in_data, x, p1_ind, p2_ind, self$active_vars)/(range_scale1*range_scale2)
+          c_x <- t(self$corr$get_corr_d(x, self$in_data, p1_ind, p2 = NULL, self$active_vars))/range_scale1
           c_xp <- if(null_flag)
             -1*c_x
           else
-            -1*self$corr$get_corr_d(self$in_data, xp, p1_ind, p2_ind, self$active_vars)/(range_scale1*range_scale2)
+            -1*t(self$corr$get_corr_d(xp, self$in_data, p2_ind, p2 = NULL, self$active_vars))/range_scale2
           if (nrow(x) == 1) {
             c_x <- t(c_x)
             c_xp <- t(c_xp)

@@ -26,10 +26,10 @@ This correlation function, for d = |x-x'|, has the form
 correlation functions.
 }
 \examples{
-rat_quad(data.frame(a=1), data.frame(a=2), list(alpha = 1.5, rho = 0.1))
-#> 0.110858
-rat_quad(data.frame(a=1,b=2,c=-1),data.frame(a=1.5,b=2.9,c=-0.7), list(alpha = 1.5, rho = 0.2))
-#> 0.2194183
+rat_quad(data.frame(a=1), data.frame(a=2), list(alpha = 1.5, theta = 0.1))
+#> 0.004970797
+rat_quad(data.frame(a=1,b=2,c=-1),data.frame(a=1.5,b=2.9,c=-0.7), list(alpha = 1.5, theta = 0.2))
+#> 0.02904466
 }
 \references{
 Rasmussen & Williams (2005) <ISBN: 9780262182539>

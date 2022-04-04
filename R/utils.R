@@ -196,7 +196,7 @@ subset_emulators <- function(emulators, output_names) {
 #' @noRd
 #' @keywords internal
 collect_emulators <- function(emulators) {
-  if ("Emulator" %in% class(emulators)) return(setNames(emulators, emulators$output_name))
+  if ("Emulator" %in% class(emulators)) return(setNames(list(emulators), emulators$output_name))
   if (all(purrr::map_lgl(emulators, ~"Emulator" %in% class(.)))) {
     em_names <- purrr::map_chr(emulators, ~.$output_name)
     em_range_prods <- purrr::map_dbl(emulators, ~prod(purrr::map_dbl(.$ranges, diff)))
