@@ -37,3 +37,7 @@ This function is concerned with ascertaining whether a direction is oriented in 
 of the emulator gradient, subject to the uncertainty around the estimate of the derivative.
 It allows for a consideration of "emulated gradient descent".
 }
+\examples{
+ directional_deriv(SIREmulators$ems[[1]], SIRSample$validation[1,], c(1,1,1))
+
+}

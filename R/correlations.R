@@ -141,7 +141,7 @@ orn_uhl <- function(x, xp, hp) {
 #' gives the gamma-exponential correlation between the two points.
 #'
 #' The gamma-exponential correlation function, for d = |x-x'|, is given by
-#' \eqn{\exp(-(d/l)^\gamma)}. Gamma must be between 0 (exclusive) and 2 (inclusive).
+#' \eqn{\exp(-(d/\theta)^\gamma)}. Gamma must be between 0 (exclusive) and 2 (inclusive).
 #'
 #' @param x A data.frame of rows corresponding to position vectors
 #' @param xp A data.frame of rows corresponding to position vectors
@@ -226,8 +226,8 @@ Correlator <- R6::R6Class(
       return((1 - self$nugget) * active + self$nugget * extra)
     },
     get_corr_d = function(x, xp = NULL, p1, p2 = NULL, actives = rep(TRUE, length(x))) {
-      if (!actives[p1] || (!is.null(p2) && !actives[p2]) || is.null(xp)) return(0)
       if (is.null(xp)) return(self$get_corr_d(x, x, p1, p2, actives))
+      if (!actives[p1] || (!is.null(p2) && !actives[p2])) return(matrix(0, nrow = nrow(xp), ncol = nrow(x)))
       active_p1 <- sum(actives[1:p1])
       active_p2 <- if (!is.null(p2)) sum(actives[1:p2]) else NULL
       d_func <- get(paste0(self$corr_name, "_d"))

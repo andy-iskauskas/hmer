@@ -331,10 +331,6 @@ Emulator <- R6Class(
             -1*c_x
           else
             -1*t(self$corr$get_corr_d(x, self$in_data, p2_ind, p2 = NULL, self$active_vars))/range_scale2
-          if(nrow(x) == 1) {
-            c_x <- t(c_x)
-            c_xp <- t(c_xp)
-          }
           if (is.numeric(self$u_sigma)) {
             c_x <- self$u_sigma^2 * c_x
             c_xp <- self$u_sigma^2 * c_xp
@@ -366,10 +362,6 @@ Emulator <- R6Class(
             -1*c_x
           else
             -1*t(self$corr$get_corr_d(xp, self$in_data, p2_ind, p2 = NULL, self$active_vars))/range_scale2
-          if (nrow(x) == 1) {
-            c_x <- t(c_x)
-            c_xp <- t(c_xp)
-          }
           if (is.numeric(self$u_sigma)) {
             c_x <- self$u_sigma^2 * c_x
             c_xp <- self$u_sigma^2 * c_xp

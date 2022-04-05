@@ -22,7 +22,7 @@ gives the gamma-exponential correlation between the two points.
 }
 \details{
 The gamma-exponential correlation function, for d = |x-x'|, is given by
-\eqn{\exp(-(d/l)^\gamma)}. Gamma must be between 0 (exclusive) and 2 (inclusive).
+\eqn{\exp(-(d/\theta)^\gamma)}. Gamma must be between 0 (exclusive) and 2 (inclusive).
 }
 \examples{
 gamma_exp(data.frame(a=1), data.frame(a=2), list(gamma = 1.5, theta = 0.1))

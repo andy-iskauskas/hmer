@@ -80,7 +80,7 @@ Creates a correlation structure, with the necessary specifications.
     and accept a named list of hyperparameters as its third argument, and return a matrix
     of correlations between rows of the data.matrices. If a derivative also
     exists, it should take the same name as the correlation function with "_d" appended to
-    it, and the directions to differentiate wite respect to should come after the
+    it, and the directions to differentiate with respect to should come after the
     hyperparameter argument. For example, the rational quadratic functions have the form
 
      \code{rat_quad(x1, x2, hp = list(alpha, theta))}
@@ -103,4 +103,7 @@ test_corr$get_corr(point1, point2, actives = c(TRUE, TRUE, FALSE)) #> 0.6734372
 new_corr <- test_corr$set_hyper_p(list(theta = 0.5), nug = 0.01)
 new_corr$get_corr(point1, point2) #> 0.9784845
 new_corr$get_corr(point1, point2, actives = c(TRUE, TRUE, FALSE)) #> 0.9785824
+
+mat_corr <- Correlator$new('matern', list(nu = 1.5, theta = 0.5))
+mat_corr$get_corr(data.frame(a = c(1, 0.9), b = c(4, 4.2)))
 }

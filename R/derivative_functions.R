@@ -4,7 +4,7 @@ get_deriv_info <- function(em, x, var = FALSE, ...) {
     deriv_var <- matrix(unlist(purrr::map(names(em$ranges), function(a) purrr::map_dbl(names(em$ranges), function(b) em$get_cov_d(x, p1 = a, p2 = b, ...)))), nrow = length(em$ranges), byrow = TRUE)
     return(list(exp = deriv_exp, var = deriv_var))
   }
-  return(deriv_exp)
+  return(list(exp = deriv_exp))
 }
 
 #' Derivative inner product
@@ -34,9 +34,15 @@ get_deriv_info <- function(em, x, var = FALSE, ...) {
 #'
 #' @export
 #'
+#' @examples
+#'  directional_deriv(SIREmulators$ems[[1]], SIRSample$validation[1,], c(1,1,1))
+#'
 directional_deriv <- function(em, x, v, sd = NULL, ...) {
   normed_v <- v/sqrt(sum(v^2))
-  deriv_info <- get_deriv_info(em, x, ...)
+  if (!is.null(sd))
+    deriv_info <- get_deriv_info(em, x, var = TRUE)
+  else
+    deriv_info <- get_deriv_info(em, x, ...)
   normed_info <- deriv_info$exp/sqrt(sum(deriv_info$exp^2))
   suitability <- normed_info %*% normed_v
   if (is.null(sd)) return(suitability)
@@ -86,7 +92,7 @@ directional_deriv <- function(em, x, v, sd = NULL, ...) {
 #'
 #' @examples
 #'  # Take a point from the SIR system at later waves with low (but >3) implausibility
-#'  start_point <- SIRMultiWaveData[[2]][56,1:3]
+#'  start_point <- SIRMultiWaveData[[2]][90,1:3]
 #'  ems <- SIRMultiWaveEmulators[[3]]
 #'  targs <- SIREmulators$targets
 #'  # Using expected error as measure
@@ -109,7 +115,7 @@ directional_proposal <- function(ems, x, targets, accept = 2, hstart = 1e-04, hc
     if (!is.numeric(targets[[y]])) comparative <- targets[[y]]$val < x_predict[[y]]
     else comparative <- targets[[y]][2] < x_predict[[y]]
   })
-  x_diffs <- do.call('rbind', purrr::map(ems, get_deriv_info, x))
+  x_diffs <- do.call('rbind', purrr::map(ems, ~get_deriv_info(., x)$exp))
   x_dir <- do.call('rbind', purrr::map(seq_along(is_bigger), ~if(is_bigger[[.]]) -1*x_diffs[.,] else x_diffs[.,]))
   x_norms <- apply(x_dir, 1, function(y) sqrt(sum(y^2)))
   x_dir <- sweep(x_dir, 1, x_norms, "/")
