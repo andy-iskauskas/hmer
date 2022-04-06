@@ -355,7 +355,7 @@ likelihood_estimate <- function(inputs, outputs, h, corr_name = 'exp_sq',
 #' @export
 #'
 #' @examples
-#' # Use the \code{\link{SIRSample}} training dataset as an example.
+#' # Use the SIRSample training dataset as an example.
 #' ranges <- list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05))
 #' out_vars <- c('nS','nI','nR')
 #' ems_linear <- emulator_from_data(SIRSample$training, out_vars, ranges, quadratic = FALSE)

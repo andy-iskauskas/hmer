@@ -67,7 +67,7 @@ eval_funcs <- function(funcs, points, ...) {
 # Inner modification of a function
 multiply_function <- function(f, mult) {
   func_body <- body(f)
-  if (typeof(func_body) != "language" || class(func_body) == "call")
+  if (typeof(func_body) != "language" || is.call(func_body))
     body(f) <- substitute(mult * func_body)
   else {
     relevant <- body(f)[[length(body(f))]]

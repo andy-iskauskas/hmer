@@ -4,3 +4,8 @@ UnitTesting.R
 changelog.txt
 ^doc$
 ^Meta$
+^LICENSE\.md$
+^cran-comments\.md$
+^\.travis\.yml$
+^\.github$
+^README\.Rmd$
