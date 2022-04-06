@@ -1,7 +1,15 @@
 get_deriv_info <- function(em, x, var = FALSE, ...) {
-  deriv_exp <- purrr::map_dbl(names(em$ranges), function(y) em$get_exp_d(x, p = y, ...))
+  deriv_exp <- purrr::map_dbl(names(em$ranges),
+                              function(y) em$get_exp_d(x, p = y, ...))
   if (var) {
-    deriv_var <- matrix(unlist(purrr::map(names(em$ranges), function(a) purrr::map_dbl(names(em$ranges), function(b) em$get_cov_d(x, p1 = a, p2 = b, ...)))), nrow = length(em$ranges), byrow = TRUE)
+    deriv_var <- matrix(
+      unlist
+      (purrr::map(names(em$ranges),
+                  function(a)
+                    purrr::map_dbl(names(em$ranges),
+                                   function(b)
+                                     em$get_cov_d(x, p1 = a, p2 = b, ...)))),
+      nrow = length(em$ranges), byrow = TRUE)
     return(list(exp = deriv_exp, var = deriv_var))
   }
   return(list(exp = deriv_exp))
@@ -14,7 +22,7 @@ get_deriv_info <- function(em, x, var = FALSE, ...) {
 #'
 #' Given a point \code{x} and a direction \code{v}, we find the overlap between E[f'(x)] and
 #' \code{v}. The emulated derivative has uncertainty associated with it: the variance is taken
-#' into account using \eqn{v^T \text{Var}[f'(x)] v}.
+#' into account using \eqn{v^{T} Var[f'(x)] v}.
 #'
 #' If \code{sd == NULL}, then only the (normed) overlap between the derivative and the direction
 #' vector is returned. Otherwise a pair of values are returned: these are the normed overlap plus
@@ -102,21 +110,30 @@ directional_deriv <- function(em, x, v, sd = NULL, ...) {
 #'  all_points <- do.call('rbind.data.frame', list(start_point, new_point1, new_point2))
 #'  nth_implausible(ems, all_points, targs)
 #'
-directional_proposal <- function(ems, x, targets, accept = 2, hstart = 1e-04, hcutoff = 1e-09, iteration.measure = 'exp', iteration.steps = 100, nv = 500) {
+directional_proposal <- function(ems, x, targets, accept = 2, hstart = 1e-04,
+                                 hcutoff = 1e-09, iteration.measure = 'exp',
+                                 iteration.steps = 100, nv = 500) {
   if (length(x) > length(ems[[1]]$ranges))
     x <- x[,names(ems[[1]]$ranges)]
   if (any(!names(targets) %in% purrr::map_chr(ems, ~.$output_name))) {
-    warning("Not all targets have a corresponding emulator. Restricting to only emulated outputs.")
+    warning("Not all targets have a corresponding emulator.
+            Restricting to only emulated outputs.")
     targets <- targets[names(targets) %in% purrr::map_chr(ems, ~.$output_name)]
   }
-  point_implaus <- purrr::map_dbl(seq_along(ems), ~ems[[.]]$implausibility(x, z = targets[[.]]))
+  point_implaus <- purrr::map_dbl(seq_along(ems),
+                                  ~ems[[.]]$implausibility(x, z = targets[[.]]))
   x_predict <- purrr::map_dbl(ems, ~.$get_exp(x))
   is_bigger <- purrr::map_lgl(seq_along(targets), function(y) {
-    if (!is.numeric(targets[[y]])) comparative <- targets[[y]]$val < x_predict[[y]]
+    if (!is.numeric(targets[[y]]))
+      comparative <- targets[[y]]$val < x_predict[[y]]
     else comparative <- targets[[y]][2] < x_predict[[y]]
   })
   x_diffs <- do.call('rbind', purrr::map(ems, ~get_deriv_info(., x)$exp))
-  x_dir <- do.call('rbind', purrr::map(seq_along(is_bigger), ~if(is_bigger[[.]]) -1*x_diffs[.,] else x_diffs[.,]))
+  x_dir <- do.call('rbind', purrr::map(seq_along(is_bigger), function(i) {
+                                       if(is_bigger[[i]])
+                                         return(-1*x_diffs[i,])
+                                       else
+                                         return(x_diffs[i,])}))
   x_norms <- apply(x_dir, 1, function(y) sqrt(sum(y^2)))
   x_dir <- sweep(x_dir, 1, x_norms, "/")
   test_dirs <- runifs(nv*length(x), length(x))
@@ -124,14 +141,19 @@ directional_proposal <- function(ems, x, targets, accept = 2, hstart = 1e-04, hc
   suit_means <- apply(suits, 1, mean)
   order_dirs <- test_dirs[order(suit_means, decreasing = TRUE),]
   order_suits <- suits[order(suit_means, decreasing = TRUE),]
-  restrict_dirs <- order_dirs[apply(order_suits, 1, function(y) all(y >= 0 | point_implaus < accept)),]
+  restrict_dirs <- order_dirs[apply(order_suits, 1,
+                                    function(y)
+                                      all(y >= 0 | point_implaus < accept)),]
   nth_discrepancy <- function(ems, x, targets, n = 1) {
     discs <- purrr::map_dbl(seq_along(ems), function(y) {
-      if (!is.numeric(targets[[y]])) return(abs((ems[[y]]$get_exp(x) - targets[[y]]$val)/targets[[y]]$val))
+      if (!is.numeric(targets[[y]]))
+        return(abs((ems[[y]]$get_exp(x) - targets[[y]]$val)/targets[[y]]$val))
       else {
         emval <- ems[[y]]$get_exp(x)
-        if (emval < targets[[y]][1]) return((targets[[y]][1]-emval)/targets[[y]][1])
-        if (emval > targets[[y]][2]) return((emval - targets[[y]][2])/targets[[y]][2])
+        if (emval < targets[[y]][1])
+          return((targets[[y]][1]-emval)/targets[[y]][1])
+        if (emval > targets[[y]][2])
+          return((emval - targets[[y]][2])/targets[[y]][2])
         return(0)
       }
     })
@@ -144,14 +166,18 @@ directional_proposal <- function(ems, x, targets, accept = 2, hstart = 1e-04, hc
   }
   range_dists <- purrr::map_dbl(ems[[1]]$ranges, ~diff(.)/2)
   best_dir <- restrict_dirs[1,] * range_dists
-  track_measure <- if (iteration.measure == "exp") nth_discrepancy(ems, x, targets) else max(point_implaus)
+  track_measure <- if (iteration.measure == "exp")
+    nth_discrepancy(ems, x, targets) else max(point_implaus)
   better_point <- NULL
   attempts <- 0
   gap <- 1e-04
   index <- 1
   while (attempts < iteration.steps) {
     new_point <- x + gap * index * best_dir
-    new_measure <- if (iteration.measure == "exp") nth_discrepancy(ems, new_point, targets) else nth_implausible(ems, new_point, targets)
+    new_measure <- if (iteration.measure == "exp")
+      nth_discrepancy(ems, new_point, targets)
+    else
+      nth_implausible(ems, new_point, targets)
     if (new_measure < track_measure) {
       better_point <- new_point
       track_measure <- new_measure

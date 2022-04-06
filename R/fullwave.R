@@ -28,7 +28,7 @@ preflight <- function(data, targets, coff = 0.95, logging = NULL) {
   applicable_targets <- intersect(names(data), names(targets))
   d_abridge <- data[,applicable_targets]
   targets <- targets[applicable_targets]
-  for (i in 1:length(targets)) {
+  for (i in seq_along(targets)) {
     if (!is.atomic(targets[[i]])) targets[[i]] <- c(targets[[i]]$val - 3*targets[[i]]$sigma, targets[[i]]$val + 3*targets[[i]]$sigma)
   }
   getHits <- function(data, targets) {
@@ -52,7 +52,7 @@ preflight <- function(data, targets, coff = 0.95, logging = NULL) {
       hom[,i] <- NULL
     }
   }
-  missing_all <- (1:nrow(hom))[apply(hom, 1, function(x) all(x == 0))]
+  missing_all <- (seq_len(nrow(hom)))[apply(hom, 1, function(x) all(x == 0))]
   hom <- hom[-missing_all,]
   checkPairs <- function(df) {
     for (i in 1:(length(df)-1)) {
@@ -75,7 +75,7 @@ preflight <- function(data, targets, coff = 0.95, logging = NULL) {
       for (j in (i+1):length(df)) {
         log_and <- as.numeric(df[,i] & df[,j])
         if (all(log_and == 0) || all(log_and == 1)) next
-        for (k in (1:length(df))[-c(i,j)]) {
+        for (k in (seq_along(df))[-c(i,j)]) {
           cval <- cor(log_and, df[,k])
           if (cval < -coff) {
             if (!is.null(logging)) logging(level = "WARN", msg = paste("Strong negative correlation between points satisfying (",names(df)[i],", ",names(df)[j],") and ", names(df)[k], " - this could mean that the latter target cannot be hit if the other two are.", sep = ""))
@@ -154,12 +154,18 @@ preflight <- function(data, targets, coff = 0.95, logging = NULL) {
 #'  second <- full_wave(SIRMultiWaveData[[2]], ranges, SIREmulators$targets,
 #'   old_emulators = SIRMultiWaveEmulators[[1]])
 #'  }
-full_wave <- function(data, ranges, targets, old_emulators = NULL, prop_train = 0.7, cutoff = 3, nth = 1, ...) {
-  new_ranges <- setNames(purrr::map(names(ranges), ~c(max(ranges[[.]][1], min(data[,.]) - 0.05 * diff(range(data[,.]))), min(ranges[[.]][2], max(data[,.]) + 0.05 * diff(range(data[,.]))))), names(ranges))
+full_wave <- function(data, ranges, targets, old_emulators = NULL,
+                      prop_train = 0.7, cutoff = 3, nth = 1, ...) {
+  new_ranges <- setNames(
+    purrr::map(
+      names(ranges),
+      ~c(max(ranges[[.]][1], min(data[,.]) - 0.05 * diff(range(data[,.]))),
+         min(ranges[[.]][2], max(data[,.]) + 0.05 * diff(range(data[,.]))))),
+    names(ranges))
   preflight(data, targets)
-  samp <- sample(1:nrow(data), floor(prop_train*nrow(data)))
+  samp <- sample(seq_len(nrow(data)), floor(prop_train*nrow(data)))
   train <- data[samp,]
-  valid <- data[!seq_along(1:nrow(data)) %in% samp,]
+  valid <- data[-samp,]
   print("Training emulators...")
   tryCatch(
     ems <- emulator_from_data(train, names(targets), new_ranges, ...),
@@ -167,30 +173,44 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL, prop_train = 
       print(paste("Problem with emulator training:", e))
     }
   )
-  for (i in 1:length(ems)) if (ems[[i]]$u_sigma^2 < 1e-8) ems[[i]]$set_sigma(targets[[ems[[i]]$output_name]]$sigma * 0.1)
+  for (i in seq_along(ems)) {
+    if (ems[[i]]$u_sigma^2 < 1e-8)
+      ems[[i]]$set_sigma(targets[[ems[[i]]$output_name]]$sigma * 0.1)
+  }
   print("Performing diagnostics...")
   invalid_ems <- c()
-  for (i in 1:length(ems)) {
+  for (i in seq_along(ems)) {
     comp_fail <- nrow(comparison_diag(ems[[i]], targets, valid, plt = FALSE))
     if (comp_fail > nrow(valid)/4) {
       invalid_ems <- c(invalid_ems, i)
-      print(paste("Emulator for output", ems[[i]]$output_name, "fails comparison diagnostics. It will not be matched to at this wave."))
+      print(paste("Emulator for output",
+                  ems[[i]]$output_name,
+                  "fails comparison diagnostics.",
+                  "It will not be matched to at this wave."))
     }
   }
   if (length(invalid_ems) > 0)
     ems <- ems[-invalid_ems]
   if (!any(purrr::map_lgl(targets, is.atomic)))
-    emulator_uncerts <- purrr::map_dbl(ems, ~(.$u_sigma^2 + targets[[.$output_name]]$sigma^2)/targets[[.$output_name]]$sigma)
+    emulator_uncerts <- purrr::map_dbl(
+      ems, ~(.$u_sigma^2 +
+               targets[[.$output_name]]$sigma^2)/targets[[.$output_name]]$sigma)
   else emulator_uncerts <- NULL
   if (length(ems) == 0) stop("No emulator passed diagnostic checks.")
-  for (i in 1:length(ems)) {
-    misclass <- nrow(classification_diag(ems[[i]], targets, valid, cutoff = cutoff, plt = FALSE))
+  for (i in seq_along(ems)) {
+    misclass <- nrow(classification_diag(ems[[i]], targets, valid,
+                                         cutoff = cutoff, plt = FALSE))
     while(misclass > 0) {
       ems[[i]] <- ems[[i]]$mult_sigma(1.1)
-      misclass <- nrow(classification_diag(ems[[i]], targets, valid, plt = FALSE))
+      misclass <- nrow(classification_diag(ems[[i]],
+                                           targets, valid, plt = FALSE))
     }
   }
-  emulator_order <- c(purrr::map_dbl(ems, ~sum(.$implausibility(data, targets[[.$output_name]], cutoff))), use.names = FALSE)
+  emulator_order <- c(
+    purrr::map_dbl(
+      ems,
+      ~sum(.$implausibility(data, targets[[.$output_name]], cutoff))),
+    use.names = FALSE)
   ems <- ems[order(emulator_order)]
   if (!is.null(old_emulators))
     working_ems <- c(ems, old_emulators)
@@ -198,9 +218,15 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL, prop_train = 
     working_ems <- ems
   targets <- targets[purrr::map_chr(working_ems, ~.$output_name)]
   print("Generating new points...")
-  new_points <- generate_new_runs(working_ems, nrow(data), targets, cutoff = cutoff, verbose = FALSE, nth = nth)
-  if (nrow(new_points) == 0) stop("Could not generate points in non-implausible space.")
+  new_points <- generate_new_runs(working_ems, nrow(data), targets,
+                                  cutoff = cutoff, verbose = FALSE, nth = nth)
+  if (nrow(new_points) == 0)
+    stop("Could not generate points in non-implausible space.")
   if (!any(purrr::map_lgl(targets, is.atomic)))
-    if (!is.null(emulator_uncerts) && all(emulator_uncerts < 1.02) && length(emulator_uncerts) == length(targets)) print("All emulator uncertainties are comparable to target uncertainties. More waves may be unnecessary.")
+    if (!is.null(emulator_uncerts) &&
+        all(emulator_uncerts < 1.02) &&
+        length(emulator_uncerts) == length(targets))
+      print(paste("All emulator uncertainties are comparable to target",
+                  "uncertainties. More waves may be unnecessary."))
   return(list(points = new_points, emulators = ems))
 }

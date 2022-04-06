@@ -1,7 +1,9 @@
-idemc_step <- function(ems, targets, points, point_imps, ladder, clusters, order_active, ranges, M = 10, pm = 0.9, w = 0.8) {
+idemc_step <- function(ems, targets, points, point_imps, ladder, clusters,
+                       order_active, ranges, M = 10, pm = 0.9, w = 0.8) {
   input_names <- names(ems[[1]]$ranges)
   in_range <- function(x, ranges) {
-    is_in <- purrr::map_lgl(seq_along(ranges), ~x[[.]] >= ranges[[.]][1] && x[[.]] <= ranges[[.]][2])
+    is_in <- purrr::map_lgl(seq_along(ranges), ~x[[.]] >= ranges[[.]][1] &&
+                              x[[.]] <= ranges[[.]][2])
     return(all(is_in))
   }
   proposal <- points
@@ -12,35 +14,58 @@ idemc_step <- function(ems, targets, points, point_imps, ladder, clusters, order
   nex <- n+1
   do_mutate <- runif(1)
   if (do_mutate <= pm) {
-    for (j in 1:length(points)) {
+    for (j in seq_along(points)) {
       if (j == 1) {
-        proposal[[j]] <- setNames(data.frame(matrix(purrr::map_dbl(clusters[[j]]$ranges, ~runif(1, .[[1]], .[[2]])), nrow = 1)), input_names)
-        prop_imps[[j]] <- nth_implausible(ems, proposal[[j]], targets, max_imp = Inf)
+        proposal[[j]] <- setNames(
+          data.frame(
+            matrix(
+              purrr::map_dbl(
+                clusters[[j]]$ranges,
+                ~runif(1, .[[1]], .[[2]])), nrow = 1)), input_names)
+        prop_imps[[j]] <- nth_implausible(ems, proposal[[j]],
+                                          targets, max_imp = Inf)
       }
       else {
         for (i in 1:M) {
-          which_clust <- predict(clusters[[j]]$cluster, points[[j]])$classification
+          which_clust <- predict(clusters[[j]]$cluster,
+                                 points[[j]])$classification
           clust_mean <- clusters[[j]]$cluster$parameters$mean[,which_clust]
           clust_var <- clusters[[j]]$cluster$parameters$variance$sigma[,,which_clust]
           all_mean <- clusters[[j]]$total$mean
           all_var <- clusters[[j]]$total$sigma
           if (runif(1) < w)
-            new_point <- mvtnorm::rmvnorm(1, mean = clust_mean, sigma = clust_var)
+            new_point <- mvtnorm::rmvnorm(1, mean = clust_mean,
+                                          sigma = clust_var)
           else
             new_point <- mvtnorm::rmvnorm(1, mean = all_mean, sigma = all_var)
           new_clust <- predict(clusters[[j]]$cluster, new_point)$classification
           new_var <- clusters[[j]]$cluster$parameters$variance$sigma[,,new_clust]
-          new_imp <- nth_implausible(ems, setNames(data.frame(matrix(new_point, nrow = 1)), input_names), targets, max_imp = Inf)
+          new_imp <- nth_implausible(ems,
+                                     setNames(
+                                       data.frame(matrix(new_point, nrow = 1)),
+                                       input_names),
+                                     targets, max_imp = Inf)
           if (new_imp <= ladder[[j]] && in_range(new_point, ranges)) {
-            accept_num <- (w * mclust::dmvnorm(points[[j]], mean = new_point, sigma = clust_var) + (1-w)*mclust::dmvnorm(points[[j]], mean = new_point, sigma = all_var))
-            accept_denom <- (w * mclust::dmvnorm(new_point, mean = points[[j]], sigma = new_var) + (1-w)*mclust::dmvnorm(new_point, mean = points[[j]], sigma = all_var))
+            accept_num <- (w * mclust::dmvnorm(points[[j]],
+                                               mean = new_point,
+                                               sigma = clust_var) +
+                             (1-w)*mclust::dmvnorm(points[[j]],
+                                                   mean = new_point,
+                                                   sigma = all_var))
+            accept_denom <- (w * mclust::dmvnorm(new_point,
+                                                 mean = points[[j]],
+                                                 sigma = new_var) +
+                               (1-w)*mclust::dmvnorm(new_point,
+                                                     mean = points[[j]],
+                                                     sigma = all_var))
             prob_accept <- min(accept_num/accept_denom, 1)
             if(!is.numeric(prob_accept)) prob_accept <- -1
             accepted <- if (runif(1) <= prob_accept) new_imp else NULL
           }
           else accepted <- NULL
           if (!is.null(accepted)) {
-            proposal[[j]] <- setNames(data.frame(matrix(new_point, nrow = 1)), input_names)
+            proposal[[j]] <- setNames(data.frame(matrix(new_point, nrow = 1)),
+                                      input_names)
             prop_imps[[j]] <- new_imp
           }
         }
@@ -54,16 +79,27 @@ idemc_step <- function(ems, targets, points, point_imps, ladder, clusters, order
       if (n == 2)
         index2 <- ifelse(index1 == 1, 2, 1)
       else
-        index2 <- sample((1:n)[-index1], 1, prob = purrr::map_dbl((1:n)[-index1], ~(n+1-.)/(n*(n+1)/2+index1-n-1)))
+        index2 <- sample((1:n)[-index1], 1,
+                         prob = purrr::map_dbl((1:n)[-index1],
+                                               ~(n+1-.)/(n*(n+1)/2+index1-n-1)))
       x1 <- proposal[[index1]][,order_active]
       x2 <- proposal[[index2]][,order_active]
       c_point <- sample(1:(length(proposal[[1]])-1), 1)
-      y1 <- unlist(c(x1[1:c_point], x2[(c_point+1):length(x2)]), use.names = FALSE)
-      y2 <- unlist(c(x2[1:c_point], x1[(c_point+1):length(x1)]), use.names = FALSE)
-      imps <- nth_implausible(ems, setNames(data.frame(rbind(y1, y2)), input_names), targets, max_imp = Inf)
-      if (imps[[1]] <= ladder[[index1]] && imps[[2]] <= ladder[[index2]] && in_range(y1, ranges[order_active]) && in_range(y2, ranges[order_active])) {
-        proposal[[index1]] <- setNames(data.frame(matrix(y1, nrow = 1)), order_active)[,input_names]
-        proposal[[index2]] <- setNames(data.frame(matrix(y2, nrow = 1)), order_active)[,input_names]
+      y1 <- unlist(c(x1[1:c_point], x2[(c_point+1):length(x2)]),
+                   use.names = FALSE)
+      y2 <- unlist(c(x2[1:c_point], x1[(c_point+1):length(x1)]),
+                   use.names = FALSE)
+      imps <- nth_implausible(ems,
+                              setNames(data.frame(rbind(y1, y2)), input_names),
+                              targets, max_imp = Inf)
+      if (imps[[1]] <= ladder[[index1]] &&
+          imps[[2]] <= ladder[[index2]] &&
+          in_range(y1, ranges[order_active]) &&
+          in_range(y2, ranges[order_active])) {
+        proposal[[index1]] <- setNames(data.frame(matrix(y1, nrow = 1)),
+                                       order_active)[,input_names]
+        proposal[[index2]] <- setNames(data.frame(matrix(y2, nrow = 1)),
+                                       order_active)[,input_names]
         prop_imps[[index1]] <- imps[[1]]
         prop_imps[[index2]] <- imps[[2]]
       }
@@ -166,12 +202,20 @@ idemc_step <- function(ems, targets, points, point_imps, ladder, clusters, order
 #'  }
 #'
 #' @export
-idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)), sn = s, p = 0.4, thin = 1, pm = 0.9, w = 0.8, M = 10, detailed = FALSE) {
+idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)),
+                  sn = s, p = 0.4, thin = 1, pm = 0.9, w = 0.8,
+                  M = 10, detailed = FALSE) {
   ems <- collect_emulators(ems)
   ranges <- getRanges(ems, FALSE)
-  order_active <- names(ranges)[order(apply(do.call('rbind', purrr::map(ems, ~.$active_vars)), 2, sum), decreasing = TRUE)]
+  order_active <- names(ranges)[order(
+    apply(
+      do.call(
+        'rbind', purrr::map(ems, ~.$active_vars)), 2, sum), decreasing = TRUE)]
   ## Burn-in
-  points <- setNames(do.call('cbind.data.frame', purrr::map(ranges, ~runif(s, .[[1]], .[[2]]))), names(ranges))
+  points <- setNames(
+    do.call(
+      'cbind.data.frame',
+      purrr::map(ranges, ~runif(s, .[[1]], .[[2]]))), names(ranges))
   clusters_list <- list(list(ranges = ranges))
   ladder <- c(Inf)
   imps <- nth_implausible(ems, points, targets, max_imp = Inf)
@@ -182,33 +226,46 @@ idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)), sn = 
   while(imp_cutoff > cutoff) {
     print(imp_cutoff)
     next_points <- points[imps <= imp_cutoff,]
-    next_cluster <- Mclust(next_points, G = 1:4, control = emControl(tol = 1e-3), verbose = FALSE)
+    next_cluster <- Mclust(next_points, G = 1:4,
+                           control = emControl(tol = 1e-3), verbose = FALSE)
     next_mean <- apply(next_points, 2, mean)
     next_var <- var(next_points)
     points_list[[length(points_list)+1]] <- next_points[nrow(next_points),]
     all_points <- list()
-    for (i in 1:length(points_list)) {
-      df <- setNames(data.frame(matrix(0, nrow = s+1, ncol = length(ranges))), names(ranges))
+    for (i in seq_along(points_list)) {
+      df <- setNames(
+        data.frame(
+          matrix(0, nrow = s+1, ncol = length(ranges))), names(ranges))
       df[1,] <- points_list[[i]]
       all_points[[length(all_points)+1]] <- df
     }
-    clusters_list[[length(clusters_list)+1]] <- list(cluster = next_cluster, total = list(mean = next_mean, sigma = next_var))
+    clusters_list[[length(clusters_list)+1]] <- list(cluster = next_cluster,
+                                                     total = list(
+                                                       mean = next_mean,
+                                                       sigma = next_var))
     ladder <- c(ladder, imp_cutoff)
-    point_imps <- c(point_imps, imps[imps <= imp_cutoff][sum(imps <= imp_cutoff)])
+    point_imps <- c(point_imps,
+                    imps[imps <= imp_cutoff][sum(imps <= imp_cutoff)])
     all_imps <- matrix(0, nrow = s+1, ncol = length(points_list))
     all_imps[1,] <- point_imps
     for (i in 1:s) {
       these_points <- purrr::map(all_points, ~.[i,])
-      idemc_result <- idemc_step(ems, targets, these_points, all_imps[i,], ladder, clusters_list, order_active, ranges, M = M, pm = pm, w = w)
+      idemc_result <- idemc_step(ems, targets, these_points, all_imps[i,],
+                                 ladder, clusters_list, order_active, ranges,
+                                 M = M, pm = pm, w = w)
       all_imps[i+1,] <- idemc_result$imps
-      for (j in 1:length(idemc_result$points)) {
+      for (j in seq_along(idemc_result$points)) {
         all_points[[j]][i+1,] <- idemc_result$points[[j]]
       }
     }
     points <- all_points[[length(all_points)]]
-    clusters_list <- purrr::map(1:length(all_points), function(i) {
+    clusters_list <- purrr::map(seq_along(all_points), function(i) {
       if (i == 1) return(list(ranges = ranges))
-      return(list(cluster = Mclust(all_points[[i]], G = 1:4, control = emControl(tol = 1e-3), verbose = FALSE), total = list(mean = apply(all_points[[i]], 2, mean), sigma = var(all_points[[i]]))))
+      return(list(cluster = Mclust(all_points[[i]], G = 1:4,
+                                   control = emControl(tol = 1e-3),
+                                   verbose = FALSE),
+                  total = list(mean = apply(all_points[[i]], 2, mean),
+                               sigma = var(all_points[[i]]))))
     })
     imps <- all_imps[,ncol(all_imps)]
     imp_cutoff <- sort(imps)[floor(p*s)+1]
@@ -222,21 +279,27 @@ idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)), sn = 
   next_var <- var(next_points)
   points_list[[length(points_list)+1]] <- next_points[nrow(next_points),]
   all_points <- list()
-  for (i in 1:length(points_list)) {
-    df <- setNames(data.frame(matrix(0, nrow = sn+1, ncol = length(ranges))), names(ranges))
+  for (i in seq_along(points_list)) {
+    df <- setNames(data.frame(matrix(0, nrow = sn+1,
+                                     ncol = length(ranges))), names(ranges))
     df[1,] <- points_list[[i]]
     all_points[[length(all_points)+1]] <- df
   }
-  clusters_list[[length(clusters_list)+1]] <- list(cluster = next_cluster, total = list(mean = next_mean, sigma = next_var))
+  clusters_list[[length(clusters_list)+1]] <- list(cluster = next_cluster,
+                                                   total = list(
+                                                     mean = next_mean,
+                                                     sigma = next_var))
   ladder <- c(ladder, imp_cutoff)
   point_imps <- c(point_imps, imps[imps <= imp_cutoff][sum(imps <= imp_cutoff)])
   all_imps <- matrix(0, nrow = sn+1, ncol = length(points_list))
   all_imps[1,] <- point_imps
   for (i in 1:sn) {
     these_points <- purrr::map(all_points, ~.[i,])
-    idemc_result <- idemc_step(ems, targets, these_points, all_imps[i,], ladder, clusters_list, order_active, ranges, M = M, pm = pm, w = w)
+    idemc_result <- idemc_step(ems, targets, these_points, all_imps[i,],
+                               ladder, clusters_list, order_active, ranges,
+                               M = M, pm = pm, w = w)
     all_imps[i+1,] <- idemc_result$imps
-    for (j in 1:length(idemc_result$points)) {
+    for (j in seq_along(idemc_result$points)) {
       all_points[[j]][i+1,] <- idemc_result$points[[j]]
     }
   }
@@ -244,15 +307,23 @@ idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)), sn = 
   imps <- all_imps[,ncol(all_imps)]
   points_list <- purrr::map(all_points, ~.[nrow(.),])
   ## Burn in done: generate points
-  print(paste0("Completed burn-in: implausibility ladder is (", round(orig_imp, 3), "; ", paste0(round(ladder[-1], 3), collapse = "; "), ")."))
-  clusters_list <- purrr::map(1:length(all_points), function(i) {
+  print(paste0("Completed burn-in: implausibility ladder is (",
+               round(orig_imp, 3), "; ", paste0(round(ladder[-1], 3),
+                                                collapse = "; "), ")."))
+  clusters_list <- purrr::map(seq_along(all_points), function(i) {
     if (i == 1) return(list(ranges = ranges))
-    return(list(cluster = Mclust(all_points[[i]], G = 1:4, control = emControl(tol = 1e-3), verbose = FALSE), total = list(mean = apply(all_points[[i]], 2, mean), sigma = var(all_points[[i]]))))
+    return(list(cluster = Mclust(all_points[[i]], G = 1:4,
+                                 control = emControl(tol = 1e-3),
+                                 verbose = FALSE),
+                total = list(mean = apply(all_points[[i]], 2, mean),
+                             sigma = var(all_points[[i]]))))
   })
   print("Performing final point generation...")
   all_points <- list()
-  for (i in 1:length(points_list)) {
-    df <- setNames(data.frame(matrix(0, nrow = N*thin+1, ncol = length(ranges))), names(ranges))
+  for (i in seq_along(points_list)) {
+    df <- setNames(
+      data.frame(
+        matrix(0, nrow = N*thin+1, ncol = length(ranges))), names(ranges))
     df[1,] <- points_list[[i]]
     all_points[[length(all_points)+1]] <- df
   }
@@ -261,9 +332,11 @@ idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)), sn = 
   all_imps[1,] <- point_imps
   for (i in 1:(N*thin)) {
     these_points <- purrr::map(all_points, ~.[i,])
-    idemc_result <- idemc_step(ems, targets, these_points, all_imps[i,], ladder, clusters_list, order_active, ranges, M = M, pm = pm, w = w)
+    idemc_result <- idemc_step(ems, targets, these_points, all_imps[i,],
+                               ladder, clusters_list, order_active, ranges,
+                               M = M, pm = pm, w = w)
     all_imps[i+1,] <- idemc_result$imps
-    for (j in 1:length(idemc_result$points))
+    for (j in seq_along(idemc_result$points))
       all_points[[j]][i+1,] <- idemc_result$points[[j]]
   }
   all_points <- purrr::map(all_points, ~.[-1,])

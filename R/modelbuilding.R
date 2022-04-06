@@ -2,23 +2,37 @@
 convertRanges <- function(object) {
   if (is.null(object) || missing(object)) return(object)
   if ("matrix" %in% class(object)) {
-    if (ncol(object) == 2 && length(row.names(object)[row.names(object)!=""]) == nrow(object)) return(setNames(purrr::map(1:nrow(object), ~c(object[.,1], object[.,2], use.names = FALSE)), row.names(object)))
+    if (ncol(object) == 2 &&
+        length(row.names(object)[row.names(object)!=""]) == nrow(object))
+      return(setNames(
+        purrr::map(
+          seq_len(nrow(object)),
+          ~c(object[.,1], object[.,2], use.names = FALSE)),
+        row.names(object)))
     else {
-      warning("Data.matrix of ranges is misspecified (either row.names incomplete, or dimension of data.frame is not nx2)")
+      warning(paste("Data.matrix of ranges is misspecified",
+                    "(either row.names incomplete, or dimension of data.frame is not nx2)"))
       return(NULL)
     }
   }
   if (is.list(object)) {
-    if (length(names(object)) == length(object) && all(purrr::map_dbl(object, length) == 2)) return(object)
+    if (length(names(object)) == length(object) &&
+        all(purrr::map_dbl(object, length) == 2)) return(object)
     else {
-      warning("List of ranges is misspecified (either not all named, or not all have a maximum and minimum)")
+      warning(paste("List of ranges is misspecified",
+                    "(either not all named, or not all have a maximum and minimum)"))
       return(NULL)
     }
   }
   if (is.data.frame(object)) {
-    if (length(object) == 2 && !any(purrr::map_lgl(1:nrow(object), ~row.names(object)[.]==.))) return(setNames(purrr::map(1:nrow(object), ~c(object[.,1], object[.,2])), row.names(object)))
+    if (length(object) == 2 &&
+        !any(purrr::map_lgl(seq_len(nrow(object)), ~row.names(object)[.]==.)))
+      return(setNames(
+        purrr::map(seq_len(nrow(object)),
+                   ~c(object[.,1], object[.,2])), row.names(object)))
     else {
-      warning("Data.frame of ranges is misspecified (either row.names incomplete, or dimension of data.frame is not nx2)")
+      warning(paste("Data.frame of ranges is misspecified",
+                    "(either row.names incomplete, or dimension of data.frame is not nx2)"))
       return(NULL)
     }
   }
@@ -50,31 +64,59 @@ convertRanges <- function(object) {
 #'
 #' @return The fitted \code{lm} model object
 #'
-get_coefficient_model <- function(data, ranges, output_name, add = FALSE, order = 2, u_form = NULL, printing = NULL) {
+get_coefficient_model <- function(data, ranges, output_name, add = FALSE,
+                                  order = 2, u_form = NULL, printing = NULL) {
   if (!is.null(printing)) print(printing)
   lower_form <- as.formula(paste(output_name, "1", sep = " ~ "))
   if (is.null(u_form)) {
     if (order == 1)
-      upper_form <- as.formula(paste(output_name, " ~ ", paste0(c('1', names(ranges)), collapse = "+"), sep = ""))
+      upper_form <- as.formula(paste(output_name,
+                                     " ~ ",
+                                     paste0(c('1', names(ranges)),
+                                            collapse = "+"),
+                                     sep = ""))
     else {
-      upper_form <- as.formula(paste(output_name, " ~ ", paste(paste0(c('1', names(ranges)), collapse = "+"), paste0("I(", names(ranges), "^2)", collapse = "+"), sep = "+"), sep = ""))
-      start_model <- get_coefficient_model(data = data, ranges = ranges, output_name = output_name, add = add, order = order, u_form = upper_form)
+      upper_form <- as.formula(
+        paste(
+          output_name,
+          " ~ ",
+          paste(paste0(c('1', names(ranges)), collapse = "+"),
+                paste0("I(", names(ranges), "^2)", collapse = "+"),
+                sep = "+"), sep = ""))
+      start_model <- get_coefficient_model(data = data, ranges = ranges,
+                                           output_name = output_name,
+                                           add = add, order = order,
+                                           u_form = upper_form)
       a_vars <- names(start_model$coefficients)[-1]
       in_model <- purrr::map_lgl(names(ranges), ~any(grepl(., a_vars)))
       a_vars <- names(ranges)[in_model]
       if (length(a_vars) == 0)
         upper_form <- as.formula(paste(output_name, "~ 1"))
       else
-        upper_form <- as.formula(paste(output_name, " ~ ", paste(paste("(", paste(c('1', a_vars), collapse = "+"), ")^", order, sep = ""), paste0("I(", a_vars, paste("^", order, ")", sep = ""), collapse = "+"), paste0(c(outer(a_vars, names(ranges), paste, sep = ":")), collapse = "+"), sep = "+"), sep = ""))
+        upper_form <- as.formula(
+          paste(
+            output_name,
+            " ~ ",
+            paste(
+              paste(
+                "(",
+                paste(c('1', a_vars), collapse = "+"), ")^", order, sep = ""),
+              paste0("I(", a_vars, paste("^", order, ")", sep = ""),
+                     collapse = "+"),
+              paste0(c(outer(a_vars, names(ranges), paste, sep = ":")),
+                     collapse = "+"),
+              sep = "+"), sep = ""))
     }
   }
   else
     upper_form <- u_form
   if (!add & (choose(length(ranges) + order, length(ranges)) > nrow(data))) {
-    warning("Maximum number of regression terms is greater than the available degrees of freedom. Changing to add = TRUE")
+    warning(paste("Maximum number of regression terms is greater than",
+                  "the available degrees of freedom. Changing to add = TRUE"))
     add <- TRUE
   }
-  if (!"data.frame" %in% class(data)) data <- setNames(data.frame(data), c(names(ranges), output_name))
+  if (!"data.frame" %in% class(data))
+    data <- setNames(data.frame(data), c(names(ranges), output_name))
   if (add) {
     model <- step(lm(formula = lower_form, data = data),
                   scope = list(lower = lower_form, upper = upper_form),
@@ -89,11 +131,15 @@ get_coefficient_model <- function(data, ranges, output_name, add = FALSE, order 
     mod_coeffs <- summary(model)$coefficients[-1,]
     mod_anv <- anova(model)
     tot_sos <- sum(mod_anv$`Sum Sq`)
-    quad_sos <- mod_anv[!row.names(mod_anv) %in% c(names(ranges), "Residuals"), "Sum Sq"]/tot_sos
-    quad_names <- row.names(mod_coeffs)[!row.names(mod_coeffs) %in% names(ranges)]
+    quad_sos <- mod_anv[!row.names(mod_anv) %in% c(names(ranges), "Residuals"),
+                        "Sum Sq"]/tot_sos
+    quad_names <- row.names(mod_coeffs)[!row.names(mod_coeffs) %in%
+                                          names(ranges)]
     quad_remove <- quad_names[quad_sos < 0.01]
-    final_terms <- row.names(mod_coeffs)[!row.names(mod_coeffs) %in% quad_remove]
-    model <- lm(data = data, formula = as.formula(paste(output_name, "~", paste0(c('1', final_terms), collapse = "+"))))
+    final_terms <- row.names(mod_coeffs)[!row.names(mod_coeffs) %in%
+                                           quad_remove]
+    model <- lm(data = data, formula = as.formula(
+      paste(output_name, "~", paste0(c('1', final_terms), collapse = "+"))))
   }
   return(model)
 }
@@ -122,12 +168,18 @@ get_coefficient_model <- function(data, ranges, output_name, add = FALSE, order 
 #' @noRd
 #'
 #' @return A list of hyperparameter values
-likelihood_estimate <- function(inputs, outputs, h, corr_name = 'exp_sq', hp_range, beta = NULL, delta = NULL, nsteps = 30, printing = NULL) {
+likelihood_estimate <- function(inputs, outputs, h, corr_name = 'exp_sq',
+                                hp_range, beta = NULL, delta = NULL,
+                                nsteps = 30, printing = NULL) {
   if (!is.null(printing)) print(printing)
-  corr <- Correlator$new(corr_name, hp = setNames(purrr::map(names(hp_range), ~hp_range[[.]][[1]]), names(hp_range)))
+  corr <- Correlator$new(corr_name,
+                         hp = setNames(
+                           purrr::map(names(hp_range),
+                                      ~hp_range[[.]][[1]]), names(hp_range)))
   if (!"data.frame" %in% class(inputs)) inputs <- data.frame(inputs)
   H <- t(eval_funcs(h, inputs))
-  if (!is.null(beta) && length(beta) != length(h)) stop("Number of coefficients does not match number of regression functions.")
+  if (!is.null(beta) && length(beta) != length(h))
+    stop("Number of coefficients does not match number of regression functions.")
   av <- purrr::map_lgl(seq_along(names(inputs)), function(x) {
     point_vec <- c(rep(0, x-1), 1, rep(0, length(names(inputs))-x))
     func_vals <- purrr::map_dbl(h, purrr::exec, point_vec)
@@ -138,8 +190,9 @@ likelihood_estimate <- function(inputs, outputs, h, corr_name = 'exp_sq', hp_ran
     this_corr <- corr$set_hyper_p(hp, delta)
     this_corr$get_corr(points, actives = av)
   }
-  func_to_opt <- function(params, log_lik = TRUE, b = beta, return_stats = FALSE) {
-    hp <- params[1:length(hp_range)]
+  func_to_opt <- function(params, log_lik = TRUE,
+                          b = beta, return_stats = FALSE) {
+    hp <- params[seq_along(hp_range)]
     delta <- params[length(hp_range)+1]
     if (is.na(delta)) delta <- 0
     A <- corr_mat(inputs, hp, delta)
@@ -151,14 +204,22 @@ likelihood_estimate <- function(inputs, outputs, h, corr_name = 'exp_sq', hp_ran
     if (is.null(b)) {
       b_ml <- tryCatch(
         chol2inv(chol(t(H) %*% A_inv %*% H)) %*% t(H) %*% A_inv %*% outputs,
-        error = function(e) MASS::ginv(t(H) %*% A_inv %*% H) %*% t(H) %*% A_inv %*% outputs
+        error = function(e) MASS::ginv(t(H) %*% A_inv %*% H) %*%
+          t(H) %*% A_inv %*% outputs
       )
     }
     else b_ml <- b
-    m_diff <- if (nrow(H) == 1) t(outputs - H * b_ml) else outputs - H %*% b_ml
+    m_diff <- if (nrow(H) == 1)
+      t(outputs - H * b_ml)
+    else
+      outputs - H %*% b_ml
     sigma_ml <- suppressWarnings(sqrt(t(m_diff) %*% A_inv %*% m_diff/length(outputs)))
-    if (log_lik) lik <- -length(outputs) * log(2*pi*sigma_ml^2)/2 - log(det(A))/2 - (t(m_diff) %*% A_inv %*% m_diff)/(2*sigma_ml^2)
-    else lik <-  1/((2*pi*sigma_ml^2)^(length(outputs)/2) * sqrt(det(A))) * exp(-(t(m_diff) %*% A_inv %*% m_diff)/(2 * sigma_ml^2))
+    if (log_lik)
+      lik <- -length(outputs) * log(2*pi*sigma_ml^2)/2 - log(det(A))/2 -
+      (t(m_diff) %*% A_inv %*% m_diff)/(2*sigma_ml^2)
+    else
+      lik <-  1/((2*pi*sigma_ml^2)^(length(outputs)/2) * sqrt(det(A))) *
+      exp(-(t(m_diff) %*% A_inv %*% m_diff)/(2 * sigma_ml^2))
     if (!is.finite(lik)) lik <- -Inf
     if (return_stats) return(list(beta = b_ml, sigma = sigma_ml))
     else return(lik)
@@ -171,19 +232,30 @@ likelihood_estimate <- function(inputs, outputs, h, corr_name = 'exp_sq', hp_ran
   }
   else {
     if (corr_name == "matern") {
-      grid_search <- expand.grid(theta = seq(hp_range$theta[[1]], hp_range$theta[[2]], length.out = nsteps), nu = c(0.5, 1.5, 2.5))
+      grid_search <- expand.grid(
+        theta = seq(hp_range$theta[[1]],
+                    hp_range$theta[[2]],
+                    length.out = nsteps),
+        nu = c(0.5, 1.5, 2.5))
     }
     else {
-      grid_search <- expand.grid(purrr::map(hp_range, ~seq(.[[1]], .[[2]], length.out = nsteps)))
+      grid_search <- expand.grid(purrr::map(hp_range,
+                                            ~seq(.[[1]], .[[2]],
+                                                 length.out = nsteps)))
     }
     grid_liks <- apply(grid_search, 1, function(x) {
       if (is.null(delta)) return(func_to_opt(c(x, 0)))
       else return(func_to_opt(c(x, delta)))
     })
-    maximin_distance <- max(apply(diag(Inf, nrow(inputs)) + as.matrix(dist(inputs, diag = TRUE, upper = TRUE)), 1, min))
-    best_point <- setNames(as.list(c(grid_search[which.max(grid_liks),])), names(hp_range))
+    maximin_distance <- max(
+      apply(
+        diag(Inf, nrow(inputs)) +
+          as.matrix(dist(inputs, diag = TRUE, upper = TRUE)), 1, min))
+    best_point <- setNames(
+      as.list(c(grid_search[which.max(grid_liks),])), names(hp_range))
     if (maximin_distance < hp_range[['theta']][2])
-      best_point$theta <- max(maximin_distance, grid_search[which.max(grid_liks), 'theta'])
+      best_point$theta <- max(
+        maximin_distance, grid_search[which.max(grid_liks), 'theta'])
     if (sum(av) == length(inputs)) delta <- 0
     if(is.null(delta))
       best_delta <- 0.05
@@ -191,7 +263,11 @@ likelihood_estimate <- function(inputs, outputs, h, corr_name = 'exp_sq', hp_ran
       best_delta <- ifelse (delta == 0, 1e-10, delta)
     initial_params <- unlist(c(best_point, best_delta), use.names = FALSE)
     # best_params <- tryCatch(
-    #   nmkb(initial_params, func_to_opt, lower = c(purrr::map_dbl(hp_range, ~.[[1]]-1e-6), if(is.null(delta)) 0 else max(0, delta - 1e-6), use.names = F), upper = c(purrr::map_dbl(hp_range, ~.[[2]]+1e-6), if(is.null(delta)) 0.1 else delta + 1e-6, use.names = F), control = list(maximize = TRUE))$par,
+    #   nmkb(initial_params, func_to_opt, lower = c(purrr::map_dbl(hp_range,
+    #   ~.[[1]]-1e-6), if(is.null(delta)) 0 else max(0, delta - 1e-6),
+    #   use.names = F), upper = c(purrr::map_dbl(hp_range, ~.[[2]]+1e-6),
+    #   if(is.null(delta)) 0.1 else delta + 1e-6, use.names = F),
+    #   control = list(maximize = TRUE))$par,
     #   error = function(e) {
     #     return(initial_params)
     #   }
@@ -206,7 +282,8 @@ likelihood_estimate <- function(inputs, outputs, h, corr_name = 'exp_sq', hp_ran
   # if (sum(av) == length(inputs)) best_delta <- 0
   best_params <- unlist(c(best_point, best_delta), use.names = FALSE)
   other_pars <- func_to_opt(best_params, return_stats = TRUE)
-  return(list(hp = best_point, delta = best_delta, sigma = other_pars$sigma, beta = other_pars$beta))
+  return(list(hp = best_point, delta = best_delta,
+              sigma = other_pars$sigma, beta = other_pars$beta))
 }
 
 #' Generate Emulators from Data
@@ -341,16 +418,20 @@ emulator_from_data <- function(input_data, output_names, ranges,
                                has.hierarchy = FALSE, verbose = interactive(),
                                na.rm = FALSE, check.ranges = FALSE,
                                corr_name = 'exp_sq', targets = NULL, ...) {
-  if(!is.null(targets) && length(intersect(names(targets), output_names) == length(output_names))) {
+  if(!is.null(targets) &&
+     length(intersect(names(targets), output_names) == length(output_names))) {
     do_preflight <- preflight(input_data, targets[output_names])
     if (do_preflight) {
-      print("Some outputs may not be adequately emulated, due to consistent over/underestimation in training data.")
-      print("Consider looking at the outputs (using, eg, behaviour_plot); some outputs may require extra runs and/or transformation.")
+      print(paste("Some outputs may not be adequately emulated,",
+                  "due to consistent over/underestimation in training data."))
+      print(paste("Consider looking at the outputs (using, eg, behaviour_plot);",
+                  "some outputs may require extra runs and/or transformation."))
     }
   }
   model_beta_mus <- model_u_sigmas <- model_u_corrs <- NULL
   if (missing(ranges)) {
-    if (is.null(input_names)) stop("Input ranges or names of inputs must be provided.")
+    if (is.null(input_names))
+      stop("Input ranges or names of inputs must be provided.")
     warning("No ranges provided. Inputs assumed to be in ranges [-1, 1].")
     ranges <- setNames(purrr::map(input_names, ~c(-1, 1)), input_names)
   }
@@ -358,36 +439,81 @@ emulator_from_data <- function(input_data, output_names, ranges,
     ranges <- convertRanges(ranges)
   }
   if (is.null(ranges)) stop("Ranges either not specified, or misspecified.")
-  if (na.rm) input_data <- input_data[apply(input_data, 1, function(x) !any(is.na(x))),]
+  if (na.rm) input_data <- input_data[apply(
+    input_data, 1, function(x) !any(is.na(x))),]
   if (check.ranges) {
-    ranges <- setNames(purrr::map(names(ranges), ~c(max(ranges[[.]][1], min(input_data[,.]) - 0.05 * diff(range(input_data[,.]))), min(ranges[[.]][2], max(input_data[,.]) + 0.05 * diff(range(input_data[,.]))))), names(ranges))
+    ranges <- setNames(
+      purrr::map(
+        names(ranges),
+        ~c(
+          max(
+            ranges[[.]][1],
+            min(input_data[,.]) - 0.05 * diff(range(input_data[,.]))),
+          min(
+            ranges[[.]][2],
+            max(input_data[,.]) + 0.05 * diff(range(input_data[,.]))))),
+      names(ranges))
   }
-  if (nrow(input_data) < 10*length(ranges) && verbose) print(paste("Fewer than", 10*length(ranges), "non-NA points in", length(ranges), "dimensions - treat the emulated outputs with caution, or include more training points (minimum 10 times the number of input parameters)."))
-  data <- setNames(cbind(eval_funcs(scale_input, input_data[,names(ranges)], ranges), input_data[,output_names]), c(names(ranges), output_names))
-  if (!"data.frame" %in% class(data)) data <- setNames(data.frame(data), c(names(ranges), output_names))
+  if (nrow(input_data) < 10*length(ranges) &&
+      verbose) print(paste("Fewer than", 10*length(ranges),
+                           "non-NA points in", length(ranges),
+                           "dimensions - treat the emulated",
+                           "outputs with caution, or include more",
+                           "training points",
+                           "(minimum 10 times the number of input parameters)."))
+  data <- setNames(
+    cbind(
+      eval_funcs(
+        scale_input,
+        input_data[,names(ranges)],
+        ranges), input_data[,output_names]),
+    c(names(ranges), output_names))
+  if (!"data.frame" %in% class(data))
+    data <- setNames(data.frame(data), c(names(ranges), output_names))
   if (is.null(list(...)[['more_verbose']]))
     more_verbose <- if (length(output_names) > 10) TRUE else FALSE
-  else more_verbose = list(...)[['more_verbose']]
+  else more_verbose <- list(...)[['more_verbose']]
   if (missing(funcs)) {
     if (verbose) print("Fitting regression surfaces...")
     if (quadratic) {
-      does_add <- (choose(length(input_names)+2, length(input_names)) > nrow(data))
-      models <- purrr::map(output_names, ~get_coefficient_model(data, ranges, ., add = does_add, printing = (if(more_verbose) . else NULL)))
+      does_add <- (choose(length(input_names)+2,
+                          length(input_names)) > nrow(data))
+      models <- purrr::map(
+        output_names,
+        ~get_coefficient_model(data, ranges, ., add = does_add,
+                               printing = (if(more_verbose) . else NULL)))
     }
     else {
       does_add <- (length(input_names)+1 > nrow(data))
-      models <- purrr::map(output_names, ~get_coefficient_model(data, ranges, ., add = does_add, order = 1, printing = (if(more_verbose) . else NULL)))
+      models <- purrr::map(
+        output_names,
+        ~get_coefficient_model(data, ranges, ., add = does_add, order = 1,
+                               printing = (if(more_verbose) . else NULL)))
     }
-    all_funcs <- c(function(x) 1, purrr::map(seq_along(input_names), ~function(x) x[[.]]))
+    all_funcs <- c(function(x) 1,
+                   purrr::map(seq_along(input_names), ~function(x) x[[.]]))
     all_coeffs <- c("(Intercept)", input_names)
     if (quadratic) {
-      all_funcs <- c(all_funcs, apply(expand.grid(1:length(input_names), 1:length(input_names)), 1, function(y) function(x) x[[y[[1]]]] * x[[y[[2]]]]))
-      all_coeffs <- c(all_coeffs, apply(expand.grid(input_names, input_names), 1, paste, collapse = ":"))
+      all_funcs <- c(all_funcs,
+                     apply(
+                       expand.grid(
+                         seq_along(input_names),
+                         seq_along(input_names)), 1,
+                       function(y) function(x) x[[y[[1]]]] * x[[y[[2]]]]))
+      all_coeffs <- c(all_coeffs,
+                      apply(
+                        expand.grid(
+                          input_names,
+                          input_names), 1, paste, collapse = ":"))
       all_coeffs <- sub("(.*):(\\1)$", "I(\\1^2)", all_coeffs)
     }
-    model_basis_funcs <- purrr::map(models, ~all_funcs[match(variable.names(.),all_coeffs)])
+    model_basis_funcs <- purrr::map(
+      models, ~all_funcs[match(variable.names(.), all_coeffs)])
     if (!beta.var) {
-      model_beta_mus <- purrr::map(models, ~c(.$coefficients[all_coeffs[match(names(.$coefficients), all_coeffs)]], use.names = FALSE))
+      model_beta_mus <- purrr::map(
+        models,
+        ~c(.$coefficients[all_coeffs[match(names(.$coefficients), all_coeffs)]],
+           use.names = FALSE))
       model_beta_sigmas <- purrr::map(model_beta_mus, ~diag(0, nrow = length(.)))
     }
     else {
@@ -396,9 +522,11 @@ emulator_from_data <- function(input_data, output_names, ranges,
   }
   else {
     if (!(missing(beta) || is.null(beta[[1]]$mu))) {
-      if (any(purrr::map_lgl(seq_along(beta), ~length(beta[[.]]$mu) != length(funcs[[.]])))) stop("Regression function and coefficient specifications do not match.")
+      if (any(purrr::map_lgl(seq_along(beta), ~length(beta[[.]]$mu) != length(funcs[[.]]))))
+        stop("Regression function and coefficient specifications do not match.")
       model_beta_mus <- purrr::map(beta, ~.$mu)
-      if (is.null(beta[[1]]$sigma)) model_beta_sigmas <- purrr::map(beta, ~diag(0, nrow = length(.$mu)))
+      if (is.null(beta[[1]]$sigma))
+        model_beta_sigmas <- purrr::map(beta, ~diag(0, nrow = length(.$mu)))
       else model_beta_sigmas <- purrr::map(beta, ~.$sigma)
       model_basis_funcs <- funcs
     }
@@ -414,11 +542,14 @@ emulator_from_data <- function(input_data, output_names, ranges,
     model_u_corrs <- purrr::map(u, ~.$corr)
   }
   if (verbose) print("Building correlation structures..")
-  if (any(is.null(model_beta_mus) || is.null(model_u_sigmas) || is.null(model_u_corrs))) {
+  if (any(is.null(model_beta_mus) ||
+          is.null(model_u_sigmas) ||
+          is.null(model_u_corrs))) {
     corr_func <- tryCatch(
       get(corr_name),
       error = function(e) {
-        print(paste("Can't find correlation function of type", corr_name, "- reverting to exp_sq"))
+        print(paste("Can't find correlation function of type",
+                    corr_name, "- reverting to exp_sq"))
         return(NULL)
       }
     )
@@ -428,65 +559,117 @@ emulator_from_data <- function(input_data, output_names, ranges,
         if (!corr_name %in% c('exp_sq', 'orn_uhl', 'matern', 'rat_quad')) {
           th_ra <- list(...)[["theta_ranges"]]
           if (is.null(th_ra)) {
-            print(paste("User defined correlation function", corr_name, "found but no corresponding hyperparameter ranges via theta_ranges. Please provide - reverting to exponential squared."))
+            print(paste("User defined correlation function", corr_name,
+                        "found but no corresponding hyperparameter ranges via",
+                        "theta_ranges. Please provide -",
+                        "reverting to exponential squared."))
             corr_name <- 'exp_sq'
           }
           else {
             theta_ranges <- list()
-            for (i in 1:length(model_basis_funcs)) theta_ranges[[length(theta_ranges)+1]] <- th_ra
+            for (i in seq_along(model_basis_funcs))
+              theta_ranges[[length(theta_ranges)+1]] <- th_ra
           }
         }
       }
       if (corr_name == "exp_sq" || corr_name == "orn_uhl")
-        theta_ranges <- purrr::map(model_basis_funcs, ~list(theta = c(1/3, ifelse(quadratic, 1, 2))))
+        theta_ranges <- purrr::map(
+          model_basis_funcs,
+          ~list(theta = c(1/3, ifelse(quadratic, 1, 2))))
       else if (corr_name == "matern")
-        theta_ranges <- purrr::map(model_basis_funcs, ~list(theta = c(1/3, ifelse(quadratic, 1, 2)), nu = c(0.5, 2.5)))
+        theta_ranges <- purrr::map(
+          model_basis_funcs,
+          ~list(theta = c(1/3, ifelse(quadratic, 1, 2)), nu = c(0.5, 2.5)))
       else if (corr_name == "rat_quad")
-        theta_ranges <- purrr::map(model_basis_funcs, ~list(theta = c(1/3, ifelse(quadratic, 1, 2)), alpha = c(-1, 1)))
+        theta_ranges <- purrr::map(
+          model_basis_funcs,
+          ~list(theta = c(1/3, ifelse(quadratic, 1, 2)), alpha = c(-1, 1)))
     }
     else {
       if (corr_name == "exp_sq" || corr_name == "orn_uhl") {
-        if (length(c_lengths) == 1) theta_ranges <- purrr::map(1:length(model_basis_funcs), ~list(theta = c_lengths))
-        else theta_ranges <- purrr::map(1:length(model_basis_funcs), ~list(theta = c_lengths[[.]]))
+        if (length(c_lengths) == 1)
+          theta_ranges <- purrr::map(
+            seq_along(model_basis_funcs),
+            ~list(theta = c_lengths))
+        else theta_ranges <- purrr::map(
+          seq_along(model_basis_funcs),
+          ~list(theta = c_lengths[[.]]))
       }
       else {
         if (is.null(names(c_lengths)))
-          theta_ranges <- purrr::map(1:length(model_basis_funcs), ~c_lengths[[.]])
+          theta_ranges <- purrr::map(
+            seq_along(model_basis_funcs), ~c_lengths[[.]])
         else
-          theta_ranges <- purrr::map(1:length(model_basis_funcs), ~c_lengths)
+          theta_ranges <- purrr::map(seq_along(model_basis_funcs), ~c_lengths)
       }
     }
-    specs <- purrr::map(seq_along(model_basis_funcs), ~likelihood_estimate(data[,input_names], data[,output_names[[.]]], model_basis_funcs[[.]], corr_name = corr_name, hp_range = theta_ranges[[.]], beta = model_beta_mus[[.]], delta = model_deltas[[.]], printing = (if (more_verbose) output_names[[.]] else NULL)))
-    if (is.null(model_u_sigmas)) model_u_sigmas <- purrr::map(specs, ~as.numeric(.$sigma))
-    if (is.null(model_beta_mus)) model_beta_mus <- purrr::map(specs, ~.$beta)
-    if(is.null(model_u_corrs)) model_u_corrs <- purrr::map(specs, ~Correlator$new(corr_name, hp = .$hp, nug = .$delta))
+    specs <- purrr::map(
+      seq_along(model_basis_funcs),
+      ~likelihood_estimate(data[,input_names],
+                           data[,output_names[[.]]],
+                           model_basis_funcs[[.]],
+                           corr_name = corr_name,
+                           hp_range = theta_ranges[[.]],
+                           beta = model_beta_mus[[.]],
+                           delta = model_deltas[[.]],
+                           printing = (if (more_verbose) output_names[[.]] else NULL)))
+    if (is.null(model_u_sigmas))
+      model_u_sigmas <- purrr::map(specs, ~as.numeric(.$sigma))
+    if (is.null(model_beta_mus))
+      model_beta_mus <- purrr::map(specs, ~.$beta)
+    if(is.null(model_u_corrs))
+      model_u_corrs <- purrr::map(specs,
+                                  ~Correlator$new(corr_name, hp = .$hp, nug = .$delta))
   }
-  model_us <- purrr::map(seq_along(model_u_corrs), ~list(sigma = model_u_sigmas[[.]], corr = model_u_corrs[[.]]))
-  model_betas <- purrr::map(seq_along(model_beta_mus), ~list(mu = model_beta_mus[[.]], sigma = model_beta_sigmas[[.]]))
+  model_us <- purrr::map(
+    seq_along(
+      model_u_corrs),
+    ~list(sigma = model_u_sigmas[[.]], corr = model_u_corrs[[.]]))
+  model_betas <- purrr::map(
+    seq_along(model_beta_mus),
+    ~list(mu = model_beta_mus[[.]], sigma = model_beta_sigmas[[.]]))
   if (!is.null(discrepancies)) {
-    if (is.numeric(discrepancies)) discrepancies <- purrr::map(discrepancies, ~list(internal = ., external = 0))
+    if (is.numeric(discrepancies))
+      discrepancies <- purrr::map(discrepancies,
+                                  ~list(internal = ., external = 0))
   }
   if (verbose) print("Creating emulators...")
   if (!has.hierarchy) {
-    out_ems <- setNames(purrr::map(seq_along(model_us),
-                                 ~Emulator$new(basis_f = model_basis_funcs[[.]], beta = model_betas[[.]],
-                                               u = model_us[[.]], ranges = ranges, model = tryCatch(models[[.]], error = function(e) NULL),
-                                               discs = discrepancies[[.]])), output_names)
+    out_ems <- setNames(
+      purrr::map(
+        seq_along(model_us),
+        ~Emulator$new(basis_f = model_basis_funcs[[.]], beta = model_betas[[.]],
+                      u = model_us[[.]], ranges = ranges,
+                      model = tryCatch(models[[.]], error = function(e) NULL),
+                      discs = discrepancies[[.]])), output_names)
   } else {
-    out_ems <- setNames(purrr::map(seq_along(model_us),
-                                   ~HierarchicalEmulator$new(basis_f = model_basis_funcs[[.]], beta = model_betas[[.]],
-                                                 u = model_us[[.]], ranges = ranges, model = tryCatch(models[[.]], error = function(e) NULL),
-                                                 discs = discrepancies[[.]])), output_names)
+    out_ems <- setNames(
+      purrr::map(
+        seq_along(model_us),
+        ~HierarchicalEmulator$new(basis_f = model_basis_funcs[[.]],
+                                  beta = model_betas[[.]],
+                                  u = model_us[[.]], ranges = ranges,
+                                  model = tryCatch(models[[.]], error = function(e) NULL),
+                                  discs = discrepancies[[.]])), output_names)
   }
   if (!missing(ev)) {
-    ev_deltas <- ev/purrr::map_dbl(out_ems, ~mean(apply(data[,names(ranges)], 1, .$u_sigma)))
+    ev_deltas <- ev/purrr::map_dbl(
+      out_ems, ~mean(apply(data[,names(ranges)], 1, .$u_sigma)))
     ev_deltas <- purrr::map_dbl(ev_deltas, ~min(1/3, .))
-    return(emulator_from_data(input_data, output_names, ranges, input_names, beta, u, purrr::map_dbl(out_ems, ~.$corr$hyper_p$theta), funcs, ev_deltas, quadratic = quadratic, beta.var = beta.var, discrepancies = discrepancies, has.hierarchy = has.hierarchy))
+    return(emulator_from_data(input_data, output_names, ranges,
+                              input_names, beta, u,
+                              purrr::map_dbl(out_ems, ~.$corr$hyper_p$theta),
+                              funcs, ev_deltas, quadratic = quadratic,
+                              beta.var = beta.var,
+                              discrepancies = discrepancies,
+                              has.hierarchy = has.hierarchy))
   }
   if (!is.null(model_deltas)) {
-    for (i in 1:length(model_deltas)) out_ems[[i]]$corr$nugget <- model_deltas[[i]]
+    for (i in seq_along(model_deltas))
+      out_ems[[i]]$corr$nugget <- model_deltas[[i]]
   }
-  for (i in 1:length(out_ems)) out_ems[[i]]$output_name <- output_names[[i]]
+  for (i in seq_along(out_ems))
+    out_ems[[i]]$output_name <- output_names[[i]]
   if (adjusted) {
     if (verbose) print("Performing Bayes linear adjustment...")
     out_ems <- purrr::map(out_ems, ~.$adjust(input_data, .$output_name))
@@ -528,7 +711,9 @@ emulator_from_data <- function(input_data, output_names, ranges,
 #'   list(lambda = c(0, 0.08), mu = c(0.04, 0.13)), c_lengths = c(0.75))
 #'
 #' @export
-variance_emulator_from_data <- function(input_data, output_names, ranges, input_names = names(ranges), verbose = interactive(), ...) {
+variance_emulator_from_data <- function(input_data, output_names, ranges,
+                                        input_names = names(ranges),
+                                        verbose = interactive(), ...) {
   unique_points <- unique(input_data[, input_names])
   uids <- apply(unique_points, 1, hash)
   data_by_point <- purrr::map(uids, function(x) {
@@ -552,37 +737,55 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
     kurt_relevant <- purrr::map_dbl(seq_along(kurts), function(x) {
         if(!is.nan(kurts[x]) && (vofv/vars^2)[x] <= 1) kurts[x] else NA
       })
-    return(c(x[1, input_names], means, vars, kurt_relevant, n_points, use.names = FALSE))
+    return(c(x[1, input_names], means, vars, kurt_relevant,
+             n_points, use.names = FALSE))
   }))
-  collected_df <- setNames(data.frame(collected_stats), c(input_names, paste0(output_names, "mean"), paste0(output_names, "var"), paste0(output_names, "kurt"), "n"))
+  collected_df <- setNames(data.frame(collected_stats),
+                           c(input_names, paste0(output_names, "mean"),
+                             paste0(output_names, "var"),
+                             paste0(output_names, "kurt"), "n"))
   collected_df <- data.frame(apply(collected_df, 2, unlist))
   if (length(output_names) == 1)
-    collected_df_var <- collected_df[!is.na(collected_df[,paste0(output_names, "var")]),]
+    collected_df_var <- collected_df[
+      !is.na(collected_df[,paste0(output_names, "var")]),]
   else
-    collected_df_var <- collected_df[apply(collected_df[,paste0(output_names, "var")], 1, function(a) !any(is.na(a))),]
+    collected_df_var <- collected_df[
+      apply(collected_df[,paste0(output_names, "var")], 1,
+            function(a) !any(is.na(a))),]
   if (verbose) print("Computed summary statistics...")
   variance_emulators <- list()
   for (i in output_names) {
     is_high_rep <- !is.na(collected_df_var[,paste0(i,"kurt")])
-    all_var <- setNames(collected_df_var[,c(input_names, paste0(i, 'var'))], c(input_names, i))
+    all_var <- setNames(
+      collected_df_var[,c(input_names, paste0(i, 'var'))], c(input_names, i))
     all_n <- collected_df_var$n
     if (all(is_high_rep)) kurt_ave <- mean(collected_df_var[,paste0(i,'kurt')])
     else if (!any(is_high_rep)) kurt_ave <- 3
     else kurt_ave <- mean(collected_df_var[is_high_rep, paste0(i, 'kurt')])
     if (all(is_high_rep) || any(is_high_rep)) {
-      var_df <- setNames(collected_df_var[is_high_rep, c(input_names, paste0(i, "var"))], c(input_names, i))
+      var_df <- setNames(
+        collected_df_var[is_high_rep, c(input_names, paste0(i, "var"))],
+        c(input_names, i))
       npoints <- collected_df_var[is_high_rep, 'n']
       if (sum(is_high_rep) == 1) {
         point <- all_var[is_high_rep,]
         temp_corr <- Correlator$new(hp = list(theta = 0.5))
-        variance_em <- HierarchicalEmulator$new(basis_f = c(function(x) 1), beta = list(mu = c(point[1,i]), sigma = matrix(0, nrow = 1, ncol = 1)), u = list(sigma = point[1,i]^2, corr = temp_corr), ranges = ranges, out_name = i, verbose = FALSE)
+        variance_em <- HierarchicalEmulator$new(
+          basis_f = c(function(x) 1),
+          beta = list(mu = c(point[1,i]), sigma = matrix(0, nrow = 1, ncol = 1)),
+          u = list(sigma = point[1,i]^2, corr = temp_corr),
+          ranges = ranges, out_name = i, verbose = FALSE)
       }
       else {
-        variance_em <- emulator_from_data(var_df, i, ranges, quadratic = FALSE, adjusted = FALSE, has.hierarchy = TRUE, verbose = FALSE, ...)[[1]]
+        variance_em <- emulator_from_data(
+          var_df, i, ranges, quadratic = FALSE,
+          adjusted = FALSE, has.hierarchy = TRUE, verbose = FALSE, ...)[[1]]
       }
     }
     else {
-      variance_em <- emulator_from_data(all_var, i, ranges, quadratic = FALSE, adjusted = FALSE, has.hierarchy = TRUE, verbose = FALSE, ...)[[1]]
+      variance_em <- emulator_from_data(
+        all_var, i, ranges, quadratic = FALSE,
+        adjusted = FALSE, has.hierarchy = TRUE, verbose = FALSE, ...)[[1]]
     }
     if (round(variance_em$u_sigma, 10) <= 0) {
       s_vars <- all_var[is_high_rep, i]
@@ -591,7 +794,9 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
       variance_em$u_sigma <- sqrt(mean(sig_est))
     }
     var_mod <- function(x, n) {
-      if (n > 1) return(variance_em$get_exp(x)^2 + variance_em$get_cov(x))/n * (kurt_ave - 1 + 2/(n-1))
+      if (n > 1)
+        return(variance_em$get_exp(x)^2 +
+                 variance_em$get_cov(x))/n * (kurt_ave - 1 + 2/(n-1))
       return(0)
     }
     variance_em$s_diag <- var_mod
@@ -602,21 +807,34 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
     }
     else {
       variance_em$samples <- all_n[!is_high_rep]
-      v_em <- variance_em$adjust(setNames(collected_df[!is_high_rep, c(input_names, paste0(i, 'var'))], c(input_names, i)), i)
+      v_em <- variance_em$adjust(
+        setNames(
+          collected_df[!is_high_rep, c(input_names, paste0(i, 'var'))],
+          c(input_names, i)), i)
     }
     variance_emulators <- c(variance_emulators, v_em)
   }
   variance_emulators <- setNames(variance_emulators, output_names)
   if (verbose) print("Completed variance emulators. Training mean emulators...")
   exp_mods <- purrr::map(variance_emulators, ~function(x, n) .$get_exp(x)/n)
-  exp_data <- setNames(collected_df[,c(input_names, paste0(output_names, 'mean'))], c(input_names, output_names))
-  exp_em <- emulator_from_data(exp_data, output_names, ranges, input_names, adjusted = FALSE, has.hierarchy = TRUE, verbose = verbose, more_verbose = FALSE, ...)
-  for (i in 1:length(exp_em)) {
+  exp_data <- setNames(
+    collected_df[,c(input_names, paste0(output_names, 'mean'))],
+    c(input_names, output_names))
+  exp_em <- emulator_from_data(
+    exp_data, output_names, ranges, input_names,
+    adjusted = FALSE, has.hierarchy = TRUE,
+    verbose = verbose, more_verbose = FALSE, ...)
+  for (i in seq_along(exp_em)) {
     exp_em[[i]]$s_diag <- exp_mods[[i]]
     exp_em[[i]]$samples <- collected_df$n
   }
-  expectation_emulators <- setNames(purrr::map(seq_along(exp_em), ~exp_em[[.]]$adjust(exp_data, output_names[[.]])), output_names)
-  return(list(variance = variance_emulators, expectation = expectation_emulators))
+  expectation_emulators <- setNames(
+    purrr::map(
+      seq_along(exp_em),
+      ~exp_em[[.]]$adjust(exp_data, output_names[[.]])),
+    output_names)
+  return(list(variance = variance_emulators,
+              expectation = expectation_emulators))
 }
 
 #' Bimodal Emulation
@@ -665,33 +883,47 @@ variance_emulator_from_data <- function(input_data, output_names, ranges, input_
 #'   b_ems <- bimodal_emulator_from_data(SIR_stochastic$training, SIR_names, SIR_ranges)
 #'  }
 #'
-bimodal_emulator_from_data <- function(data, output_names, ranges, input_names = names(ranges), verbose = interactive(), ...) {
+bimodal_emulator_from_data <- function(data, output_names, ranges,
+                                       input_names = names(ranges),
+                                       verbose = interactive(), ...) {
   unique_points <- unique(data[,input_names])
   uids <- apply(unique_points, 1, hash)
   param_sets <- purrr::map(uids, function(x) {
     data[apply(data[,input_names], 1, hash) == x,]
   })
   if(verbose) print("Separated dataset by unique points.")
-  modNames = mclust.options("emModelNames")[!mclust.options("emModelNames") == "EEE"]
+  modNames <- mclust.options("emModelNames")[
+    !mclust.options("emModelNames") == "EEE"]
   proportion <- purrr::map_dbl(param_sets, function(x) {
-    prop_clust <- Mclust(x[, output_names], G = 1:2, verbose = FALSE, modelNames = modNames, control = emControl(tol = 1e-3))$classification
+    prop_clust <- Mclust(x[, output_names], G = 1:2, verbose = FALSE,
+                         modelNames = modNames,
+                         control = emControl(tol = 1e-3))$classification
     return(sum(prop_clust ==1)/length(prop_clust))
   })
-  prop_df <- setNames(data.frame(cbind(unique_points, proportion)), c(names(unique_points), 'prop'))
+  prop_df <- setNames(
+    data.frame(cbind(unique_points, proportion)),
+    c(names(unique_points), 'prop'))
   if (verbose) print("Training emulator to proportion in modes.")
-  prop_em <- emulator_from_data(prop_df, c('prop'), ranges, verbose = FALSE, ...)
+  prop_em <- emulator_from_data(prop_df,
+                                c('prop'), ranges, verbose = FALSE, ...)
   if (verbose) print("Performing clustering to identify modes.")
-  has_bimodality <- setNames(do.call('rbind.data.frame', purrr::map(param_sets, function(x) {
+  has_bimodality <- setNames(
+    do.call('rbind.data.frame', purrr::map(param_sets, function(x) {
     purrr::map_lgl(output_names, function(y) {
       if (length(unique(x[,y])) == 1) return(FALSE)
       return(Mclust(x[,y], G = 1:2, verbose = FALSE)$G == 2)
     })
   })), output_names)
-  is_bimodal_target <- apply(has_bimodality, 2, function(x) sum(x)/length(x) >= 0.1)
-  if (!any(is_bimodal_target)) return(variance_emulator_from_data(data, output_names, ranges, verbose = FALSE, ...))
+  is_bimodal_target <- apply(
+    has_bimodality, 2,
+    function(x) sum(x)/length(x) >= 0.1)
+  if (!any(is_bimodal_target))
+    return(variance_emulator_from_data(
+      data, output_names, ranges, verbose = FALSE, ...))
   if (!all(is_bimodal_target)) {
     if (verbose) print("Training to unimodal targets.")
-    non_bimodal <- variance_emulator_from_data(data, output_names[!is_bimodal_target], ranges, verbose = FALSE, ...)
+    non_bimodal <- variance_emulator_from_data(
+      data, output_names[!is_bimodal_target], ranges, verbose = FALSE, ...)
   }
   else {
     if (verbose) print("No targets appear to be unimodal.")
@@ -702,13 +934,14 @@ bimodal_emulator_from_data <- function(data, output_names, ranges, input_names =
     c1_data <- list()
     c2_data <- list()
     param_bimodal <- has_bimodality[,x]
-    for (i in 1:length(param_bimodal)) {
+    for (i in seq_along(param_bimodal)) {
       if (!param_bimodal[[i]]) {
         c1_data[[length(c1_data)+1]] <- param_sets[[i]]
         c2_data[[length(c2_data)+1]] <- param_sets[[i]]
       }
       else {
-        this_clust <- Mclust(param_sets[[i]][,x], G = 1:2, verbose = FALSE)$classification
+        this_clust <- Mclust(param_sets[[i]][,x], G = 1:2,
+                             verbose = FALSE)$classification
         c1_data[[length(c1_data)+1]] <- param_sets[[i]][this_clust == 1,]
         c2_data[[length(c2_data)+1]] <- param_sets[[i]][this_clust == 2,]
       }
@@ -750,7 +983,8 @@ bimodal_emulator_from_data <- function(data, output_names, ranges, input_names =
       m2vars <- c(m2vars, bimodals[[i]]$m2$variance)
     }
   }
-  names(m1exps) <- names(m1vars) <- names(m2exps) <- names(m2vars) <- output_names
+  names(m1exps) <- names(m1vars) <- output_names
+  names(m2exps) <- names(m2vars) <- output_names
   return(list(
     mode1 = list(expectation = m1exps, variance = m1vars),
     mode2 = list(expectation = m2exps, variance = m2vars),

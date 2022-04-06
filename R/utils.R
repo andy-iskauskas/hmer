@@ -1,8 +1,12 @@
 # Implausibility colour palettes
-redgreen <- c('#00FF00', '#18FF00', '#31FF00', '#49FF00', '#62FF00', '#7AFF00', '#93FF00', '#ABFF00', '#C4FF00', '#DDFF00',
-              '#E0E200', '#E4C600', '#E8AA00', '#EC8D00', '#EF7100', '#F35500', '#F73800', '#FB1C00', '#FF0000', '#FF0000')
-colourblind <- c('#1aff1a', '#2af219', '#3ae618', '#4ada17', '#5acd16', '#6bc115', '#7bb514', '#8ba813', '#9b9c12', '#ac9011',
-                 '#a2831d', '#98762a', '#8e6936', '#845d43', '#7a504f', '#70435c', '#663768', '#5c2a75', '#521d81', '#48118e')
+redgreen <- c('#00FF00', '#18FF00', '#31FF00', '#49FF00', '#62FF00',
+              '#7AFF00', '#93FF00', '#ABFF00', '#C4FF00', '#DDFF00',
+              '#E0E200', '#E4C600', '#E8AA00', '#EC8D00', '#EF7100',
+              '#F35500', '#F73800', '#FB1C00', '#FF0000', '#FF0000')
+colourblind <- c('#1aff1a', '#2af219', '#3ae618', '#4ada17', '#5acd16',
+                 '#6bc115', '#7bb514', '#8ba813', '#9b9c12', '#ac9011',
+                 '#a2831d', '#98762a', '#8e6936', '#845d43', '#7a504f',
+                 '#70435c', '#663768', '#5c2a75', '#521d81', '#48118e')
 redgreencont <- list(low = '#00FF00', mid = '#DDFF00', high = '#FF0000')
 colourblindcont <- list(low = '#1aff1a', mid = '#ac9011', high = '#48118e')
 
@@ -26,7 +30,10 @@ scale_input <- function(x, r, forward = TRUE) {
 # Helper to convert functions to names
 function_to_names <- function(f, var_names, function_form = TRUE) {
   f_str <- deparse(body(f))
-  subbed <- stringr::str_replace_all(gsub("x\\[\\[(\\d*)\\]\\](^\\d)?", "var_names[\\1]\\2", f_str), "var_names\\[\\d*\\]", function(x) eval(parse(text = x)))
+  subbed <- stringr::str_replace_all(
+    gsub("x\\[\\[(\\d*)\\]\\](^\\d)?",
+         "var_names[\\1]\\2", f_str),
+    "var_names\\[\\d*\\]", function(x) eval(parse(text = x)))
   if (function_form) {
     subbed <- gsub("\\s\\*\\s", ":", subbed)
   }
@@ -41,7 +48,8 @@ eval_funcs <- function(funcs, points, ...) {
   pointsdim <- (length(dim(points)) != 0)
   manyfuncs <- (typeof(funcs) != "closure")
   if (manyfuncs && pointsdim)
-    return(apply(points, 1, function(x) purrr::map_dbl(funcs, purrr::exec, x, ...)))
+    return(apply(points, 1,
+                 function(x) purrr::map_dbl(funcs, purrr::exec, x, ...)))
   if (manyfuncs)
     return(purrr::map_dbl(funcs, purrr::exec, points, ...))
   if (pointsdim) {
@@ -59,7 +67,8 @@ eval_funcs <- function(funcs, points, ...) {
 # Inner modification of a function
 multiply_function <- function(f, mult) {
   func_body <- body(f)
-  if (typeof(func_body) != "language" || class(func_body) == "call") body(f) <- substitute(mult * func_body)
+  if (typeof(func_body) != "language" || class(func_body) == "call")
+    body(f) <- substitute(mult * func_body)
   else {
     relevant <- body(f)[[length(body(f))]]
     if (relevant[[1]] == "return") {
@@ -80,7 +89,7 @@ kurtosis <- function(x, na.rm = FALSE) {
     n <- length(x)
     n * sum((x-mean(x))^4)/sum((x-mean(x))^2)^2
   }
-  else if (is.data.frame(x)) sapply(x, kurtosis, na.rm = na.rm)
+  else if (is.data.frame(x)) vapply(x, kurtosis, numeric(1), na.rm = na.rm)
   else kurtosis(as.vector(x), na.rm = na.rm)
 }
 
@@ -119,9 +128,11 @@ get_truncation <- function(e, v, mu = TRUE, nu = 6, a = 0, b = Inf) {
   a0 <- pt(new_b, nu) - pt(new_a, nu)
   kappa <- gamma((nu+1)/2)/(a0 * gamma(nu/2) * sqrt(nu*pi))
   tauj <- function(j) (nu-2*j)/nu
-  m1 <- kappa*nu/(nu-1) * (((nu+new_a^2)/nu)^(-(nu-1)/2)-((nu+new_b^2)/nu)^(-(nu-1)/2))
+  m1 <- kappa*nu/(nu-1) *
+    (((nu+new_a^2)/nu)^(-(nu-1)/2)-((nu+new_b^2)/nu)^(-(nu-1)/2))
   if (mu) return (sqrt(eff_v)*m1+e)
-  m2 <- (nu-1)/tauj(1) * ((pt(new_b*sqrt(tauj(1)), nu-2)-pt(new_a*sqrt(tauj(1)), nu-2))/a0)-nu
+  m2 <- (nu-1)/tauj(1) *
+    ((pt(new_b*sqrt(tauj(1)), nu-2)-pt(new_a*sqrt(tauj(1)), nu-2))/a0)-nu
   new_v <- m2-m1^2
   return(eff_v*new_v)
 }
@@ -147,10 +158,18 @@ get_truncation <- function(e, v, mu = TRUE, nu = 6, a = 0, b = Inf) {
 #' @export
 subset_emulators <- function(emulators, output_names) {
   if (!is.null(emulators$mode1)) {
-    m1exp <- emulators$mode1$expectation[purrr::map_chr(emulators$mode1$expectation, ~.$output_name) %in% output_names]
-    m1var <- emulators$mode1$variance[purrr::map_chr(emulators$mode1$variance, ~.$output_name) %in% output_names]
-    m2exp <- emulators$mode2$expectation[purrr::map_chr(emulators$mode2$expectation, ~.$output_name) %in% output_names]
-    m2var <- emulators$mode2$variance[purrr::map_chr(emulators$mode2$variance, ~.$output_name) %in% output_names]
+    m1exp <- emulators$mode1$expectation[
+      purrr::map_chr(emulators$mode1$expectation,
+                     ~.$output_name) %in% output_names]
+    m1var <- emulators$mode1$variance[
+      purrr::map_chr(emulators$mode1$variance,
+                     ~.$output_name) %in% output_names]
+    m2exp <- emulators$mode2$expectation[
+      purrr::map_chr(emulators$mode2$expectation,
+                     ~.$output_name) %in% output_names]
+    m2var <- emulators$mode2$variance[
+      purrr::map_chr(emulators$mode2$variance,
+                     ~.$output_name) %in% output_names]
     collated <- list(
       mode1 = list(
         variance = m1var,
@@ -164,8 +183,12 @@ subset_emulators <- function(emulators, output_names) {
     )
   }
   else if (!is.null(emulators$variance)) {
-    mexp <- emulators$expectation[purrr::map_chr(emulators$expectation, ~.$output_name) %in% output_names]
-    mvar <- emulators$variance[purrr::map_chr(emulators$variance, ~.$output_name) %in% output_names]
+    mexp <- emulators$expectation[
+      purrr::map_chr(emulators$expectation,
+                     ~.$output_name) %in% output_names]
+    mvar <- emulators$variance[
+      purrr::map_chr(emulators$variance,
+                     ~.$output_name) %in% output_names]
     collated <- list(
       expectation = mexp,
       variance = mvar
@@ -196,22 +219,27 @@ subset_emulators <- function(emulators, output_names) {
 #' @noRd
 #' @keywords internal
 collect_emulators <- function(emulators) {
-  if ("Emulator" %in% class(emulators)) return(setNames(list(emulators), emulators$output_name))
+  if ("Emulator" %in% class(emulators))
+    return(setNames(list(emulators), emulators$output_name))
   if (all(purrr::map_lgl(emulators, ~"Emulator" %in% class(.)))) {
     em_names <- purrr::map_chr(emulators, ~.$output_name)
-    em_range_prods <- purrr::map_dbl(emulators, ~prod(purrr::map_dbl(.$ranges, diff)))
+    em_range_prods <- purrr::map_dbl(emulators,
+                                     ~prod(purrr::map_dbl(.$ranges, diff)))
     return(setNames(emulators[order(em_range_prods)], em_names))
   }
   if (!is.null(emulators[[1]]$expectation)) {
     exp_ems <- purrr::map(emulators, ~.$expectation)
     var_ems <- purrr::map(emulators, ~.$variance)
-    return(list(expectation = collect_emulators(exp_ems), variance = collect_emulators(var_ems)))
+    return(list(expectation = collect_emulators(exp_ems),
+                variance = collect_emulators(var_ems)))
   }
   if (!is.null(emulators[[1]]$mode1)) {
     m1ems <- purrr::map(emulators, ~.$mode1)
     m2ems <- purrr::map(emulators, ~.$mode2)
     prop_ems <- purrr::map(emulators, ~.$prop)
-    return(list(mode1 = collect_emulators(m1ems), mode2 = collect_emulators(m2ems), prop = collect_emulators(prop_ems)))
+    return(list(mode1 = collect_emulators(m1ems),
+                mode2 = collect_emulators(m2ems),
+                prop = collect_emulators(prop_ems)))
   }
   return(collect_emulators(unlist(emulators)))
 }
@@ -233,8 +261,15 @@ collect_emulators <- function(emulators) {
 getRanges <- function(emulators, minimal = TRUE) {
   emulators <- collect_emulators(emulators)
   if (!is.null(emulators$expectation)) emulators <- emulators$expectation
-  if (!is.null(emulators$mode1)) emulators <- c(emulators$mode1$expectation, emulators$mode2$expectation)
-  range_widths <- data.frame(do.call('rbind', purrr::map(emulators, ~purrr::map(.$ranges, diff))))
-  which_choose <- if (minimal) apply(range_widths, 2, which.min) else apply(range_widths, 2, which.max)
-  return(setNames(purrr::map(names(range_widths), ~emulators[[which_choose[[.]]]]$ranges[[.]]), names(range_widths)))
+  if (!is.null(emulators$mode1))
+    emulators <- c(emulators$mode1$expectation, emulators$mode2$expectation)
+  range_widths <- data.frame(
+    do.call(
+      'rbind', purrr::map(emulators, ~purrr::map(.$ranges, diff))))
+  which_choose <- if (minimal)
+    apply(range_widths, 2, which.min)
+  else apply(range_widths, 2, which.max)
+  return(setNames(purrr::map(names(range_widths),
+                             ~emulators[[which_choose[[.]]]]$ranges[[.]]),
+                  names(range_widths)))
 }

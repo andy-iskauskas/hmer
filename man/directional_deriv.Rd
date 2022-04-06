@@ -27,7 +27,7 @@ and a proposed direction \code{v}.
 \details{
 Given a point \code{x} and a direction \code{v}, we find the overlap between E[f'(x)] and
 \code{v}. The emulated derivative has uncertainty associated with it: the variance is taken
-into account using \eqn{v^T \text{Var}[f'(x)] v}.
+into account using \eqn{v^{T} Var[f'(x)] v}.
 
 If \code{sd == NULL}, then only the (normed) overlap between the derivative and the direction
 vector is returned. Otherwise a pair of values are returned: these are the normed overlap plus

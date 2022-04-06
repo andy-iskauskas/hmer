@@ -2,13 +2,18 @@
 exp_plot <- function(em, plotgrid = NULL, ppd = 30) {
   ranges <- em$ranges
   if (is.null(plotgrid)) {
-    plotgrid <- setNames(expand.grid(seq(ranges[[1]][1], ranges[[1]][2], length.out = ppd), seq(ranges[[2]][1], ranges[[2]][2], length.out = ppd)), names(ranges)[1:2])
+    plotgrid <- setNames(
+      expand.grid(
+        seq(ranges[[1]][1], ranges[[1]][2], length.out = ppd),
+        seq(ranges[[2]][1], ranges[[2]][2], length.out = ppd)),
+      names(ranges)[1:2])
     for (i in 3:length(ranges)) {
       plotgrid[[names(ranges)[i]]] <- sum(ranges[[i]])/2
     }
   }
   em_exp <- em$get_exp(plotgrid[,names(ranges)])
-  grid_data <- setNames(cbind(plotgrid[,1:2], em_exp), c(names(plotgrid)[1:2],"E"))
+  grid_data <- setNames(cbind(plotgrid[,1:2], em_exp),
+                        c(names(plotgrid)[1:2],"E"))
   g <- tryCatch(
     {
       ## To account for rounding problems in ggplot's pretty_isoband_levels
@@ -18,27 +23,53 @@ exp_plot <- function(em, plotgrid = NULL, ppd = 30) {
       rng[1] <- floor(rng[1]/ac)*ac
       rng[2] <- ceiling(rng[2]/ac)*ac
       bks <- seq(rng[1], rng[2], length.out = 26)
-      x_pos <- as.integer(factor(grid_data[,1], levels = sort(unique(grid_data[,1]))))
-      y_pos <- as.integer(factor(grid_data[,2], levels = sort(unique(grid_data[,2]))))
+      x_pos <- as.integer(factor(grid_data[,1],
+                                 levels = sort(unique(grid_data[,1]))))
+      y_pos <- as.integer(factor(grid_data[,2],
+                                 levels = sort(unique(grid_data[,2]))))
       raster <- matrix(NA_real_, nrow = max(y_pos), ncol = max(x_pos))
       raster[cbind(y_pos, x_pos)] <- grid_data$E
-      ibs <- isoband::isobands(x = sort(unique(grid_data[,1])), y = sort(unique(grid_data[,2])), z = raster, levels_low = bks[-length(bks)], levels_high = bks[-1])
+      ibs <- isoband::isobands(x = sort(unique(grid_data[,1])),
+                               y = sort(unique(grid_data[,2])),
+                               z = raster, levels_low = bks[-length(bks)],
+                               levels_high = bks[-1])
       int_lo <- gsub(":.*$", "", names(ibs))
       int_hi <- gsub("^[^:]*:", "", names(ibs))
       lab_lo <- format(as.numeric(int_lo), digits = 3, trim = TRUE)
       lab_hi <- format(as.numeric(int_hi), digits = 3, trim = TRUE)
       lab_check <- sprintf("(%s, %s]", lab_lo, lab_hi)
-      if (length(unique(lab_check)) == 1) warning("Can't produce contours natively due to internal accuracy issues.")
+      if (length(unique(lab_check)) == 1)
+        warning("Can't produce contours natively due to internal accuracy issues.")
       bns <- min(length(unique(lab_check)), 25)
-      ggplot(data = grid_data, aes(x = grid_data[,1], y = grid_data[,2])) + geom_contour_filled(aes(z = grid_data[,'E']), bins = bns, colour = 'black') + viridis::scale_fill_viridis(discrete = TRUE, option = "magma", name = "exp", guide = guide_legend(ncol = 1))
+      ggplot(data = grid_data, aes(x = grid_data[,1],
+                                   y = grid_data[,2])) +
+        geom_contour_filled(aes(z = grid_data[,'E']),
+                            bins = bns, colour = 'black') +
+        viridis::scale_fill_viridis(discrete = TRUE, option = "magma",
+                                    name = "exp",
+                                    guide = guide_legend(ncol = 1))
     },
     warning = function(w) {
-      exp_breaks <- seq(min(em_exp) - diff(range(em_exp))/(2 * 23), max(em_exp) + diff(range(em_exp))/(2*23), length.out = 25)
+      exp_breaks <- seq(min(em_exp) - diff(range(em_exp))/(2 * 23),
+                        max(em_exp) + diff(range(em_exp))/(2*23),
+                        length.out = 25)
       exp_breaks <- unique(signif(exp_breaks, 10))
-      if (length(exp_breaks) == 1) exp_breaks <- c(min(em_exp)-1e-6, max(em_exp)+1e-6)
+      if (length(exp_breaks) == 1) exp_breaks <- c(min(em_exp)-1e-6,
+                                                   max(em_exp)+1e-6)
       intervals <- findInterval(em_exp, exp_breaks)
-      fake_breaks <- 1:length(exp_breaks)
-      ggplot(data = grid_data, aes(x = grid_data[,1], y = grid_data[,2])) + geom_contour_filled(aes(z = intervals), breaks = fake_breaks, colour = 'black') + viridis::scale_fill_viridis(discrete = TRUE, option = "magma", name = "exp", guide = guide_legend(ncol = 1), labels = function(b) {signif(exp_breaks[as.numeric(stringr::str_extract(b, "\\d+"))], 6)})
+      fake_breaks <- seq_along(exp_breaks)
+      ggplot(data = grid_data, aes(x = grid_data[,1],
+                                   y = grid_data[,2])) +
+        geom_contour_filled(aes(z = intervals), breaks = fake_breaks,
+                            colour = 'black') +
+        viridis::scale_fill_viridis(discrete = TRUE, option = "magma",
+                                    name = "exp",
+                                    guide = guide_legend(ncol = 1),
+                                    labels = function(b)
+                                      {signif(
+                                        exp_breaks[as.numeric(
+                                          stringr::str_extract(b, "\\d+"))],
+                                        6)})
     }
   )
   if (is.null(em$em_type)) extra_ident <- NULL
@@ -46,7 +77,8 @@ exp_plot <- function(em, plotgrid = NULL, ppd = 30) {
   else if (em$em_type == "variance") extra_ident <- "Variance"
   else extra_ident <- em$em_type
   g <- g +
-    labs(title = paste(em$output_name, extra_ident, "Emulator Expectation"), x = names(grid_data)[1], y = names(grid_data)[2]) +
+    labs(title = paste(em$output_name, extra_ident, "Emulator Expectation"),
+         x = names(grid_data)[1], y = names(grid_data)[2]) +
     scale_x_continuous(expand = c(0,0)) +
     scale_y_continuous(expand = c(0,0)) +
     theme_minimal()
@@ -57,7 +89,17 @@ exp_plot <- function(em, plotgrid = NULL, ppd = 30) {
 var_plot <- function(em, plotgrid = NULL, ppd = 30, sd = FALSE) {
   ranges <- em$ranges
   if (is.null(plotgrid)) {
-    plotgrid <- setNames(expand.grid(seq(ranges[[1]][1], ranges[[1]][2], length.out = ppd), seq(ranges[[2]][1], ranges[[2]][2], length.out = ppd)), names(ranges)[1:2])
+    plotgrid <- setNames(
+      expand.grid(
+        seq(
+          ranges[[1]][1],
+          ranges[[1]][2],
+          length.out = ppd),
+        seq(
+          ranges[[2]][1],
+          ranges[[2]][2],
+          length.out = ppd)),
+      names(ranges)[1:2])
     for (i in 3:length(ranges)) {
       plotgrid[[names(ranges)[i]]] <- sum(ranges[[i]])/2
     }
@@ -66,7 +108,8 @@ var_plot <- function(em, plotgrid = NULL, ppd = 30, sd = FALSE) {
     em_cov <- sqrt(em$get_cov(plotgrid[,names(ranges)]))
   else
     em_cov <- em$get_cov(plotgrid[,names(ranges)])
-  grid_data <- setNames(cbind(plotgrid[,1:2], em_cov), c(names(plotgrid)[1:2], "V"))
+  grid_data <- setNames(cbind(plotgrid[,1:2], em_cov),
+                        c(names(plotgrid)[1:2], "V"))
   g <- tryCatch(
     {
       ## To account for rounding problems in ggplot's pretty_isoband_levels
@@ -76,27 +119,52 @@ var_plot <- function(em, plotgrid = NULL, ppd = 30, sd = FALSE) {
       rng[1] <- floor(rng[1]/ac)*ac
       rng[2] <- ceiling(rng[2]/ac)*ac
       bks <- seq(rng[1], rng[2], length.out = 26)
-      x_pos <- as.integer(factor(grid_data[,1], levels = sort(unique(grid_data[,1]))))
-      y_pos <- as.integer(factor(grid_data[,2], levels = sort(unique(grid_data[,2]))))
+      x_pos <- as.integer(factor(grid_data[,1],
+                                 levels = sort(unique(grid_data[,1]))))
+      y_pos <- as.integer(factor(grid_data[,2],
+                                 levels = sort(unique(grid_data[,2]))))
       raster <- matrix(NA_real_, nrow = max(y_pos), ncol = max(x_pos))
       raster[cbind(y_pos, x_pos)] <- grid_data$V
-      ibs <- isoband::isobands(x = sort(unique(grid_data[,1])), y = sort(unique(grid_data[,2])), z = raster, levels_low = bks[-length(bks)], levels_high = bks[-1])
+      ibs <- isoband::isobands(x = sort(unique(grid_data[,1])),
+                               y = sort(unique(grid_data[,2])),
+                               z = raster, levels_low = bks[-length(bks)],
+                               levels_high = bks[-1])
       int_lo <- gsub(":.*$", "", names(ibs))
       int_hi <- gsub("^[^:]*:", "", names(ibs))
       lab_lo <- format(as.numeric(int_lo), digits = 3, trim = TRUE)
       lab_hi <- format(as.numeric(int_hi), digits = 3, trim = TRUE)
       lab_check <- sprintf("(%s, %s]", lab_lo, lab_hi)
-      if (length(unique(lab_check)) == 1) warning("Can't produce contours natively due to internal accuracy issues.")
+      if (length(unique(lab_check)) == 1)
+        warning("Can't produce contours natively due to internal accuracy issues.")
       bns <- min(length(unique(lab_check)), 25)
-      ggplot(data = grid_data, aes(x = grid_data[,1], y = grid_data[,2])) + geom_contour_filled(aes(z = grid_data[,'V']), bins = bns, colour = 'black') + viridis::scale_fill_viridis(discrete = TRUE, option = "plasma", name = if(sd) "sd" else "var", guide = guide_legend(ncol = 1))
+      ggplot(data = grid_data, aes(x = grid_data[,1], y = grid_data[,2])) +
+        geom_contour_filled(aes(z = grid_data[,'V']), bins = bns,
+                            colour = 'black') +
+        viridis::scale_fill_viridis(discrete = TRUE, option = "plasma",
+                                    name = if(sd) "sd" else "var",
+                                    guide = guide_legend(ncol = 1))
     },
     warning = function(w) {
-      cov_breaks <- seq(min(em_cov) - diff(range(em_cov))/(2 * 23), max(em_cov) + diff(range(em_cov))/(2*23), length.out = 25)
+      cov_breaks <- seq(
+        min(em_cov) - diff(range(em_cov))/(2 * 23),
+        max(em_cov) + diff(range(em_cov))/(2*23),
+        length.out = 25)
       cov_breaks <- unique(signif(cov_breaks, 10))
-      if (length(cov_breaks) == 1) cov_breaks <- c(min(em_cov)-1e-6, max(em_cov)+1e-6)
+      if (length(cov_breaks) == 1) cov_breaks <- c(min(em_cov)-1e-6,
+                                                   max(em_cov)+1e-6)
       intervals <- findInterval(em_cov, cov_breaks)
-      fake_breaks <- 1:length(cov_breaks)
-      ggplot(data = grid_data, aes(x = grid_data[,1], y = grid_data[,2])) + geom_contour_filled(aes(z = intervals), breaks = fake_breaks, colour = 'black') + viridis::scale_fill_viridis(discrete = TRUE, option = "plasma", name = if (sd) "sd" else "var", guide = guide_legend(ncol = 1), labels = function(b) {signif(cov_breaks[as.numeric(stringr::str_extract(b, "\\d+"))], 6)})
+      fake_breaks <- seq_along(cov_breaks)
+      ggplot(data = grid_data, aes(x = grid_data[,1], y = grid_data[,2])) +
+        geom_contour_filled(aes(z = intervals), breaks = fake_breaks,
+                            colour = 'black') +
+        viridis::scale_fill_viridis(discrete = TRUE, option = "plasma",
+                                    name = if (sd) "sd" else "var",
+                                    guide = guide_legend(ncol = 1),
+                                    labels = function(b)
+                                      {signif(
+                                        cov_breaks[as.numeric(
+                                          stringr::str_extract(b, "\\d+"))],
+                                        6)})
     }
   )
   if (is.null(em$em_type)) extra_ident <- NULL
@@ -104,7 +172,9 @@ var_plot <- function(em, plotgrid = NULL, ppd = 30, sd = FALSE) {
   else if (em$em_type == "variance") extra_ident <- "Variance"
   else extra_ident <- em$em_type
   g <- g +
-    labs(title = paste(em$output_name, extra_ident, "Emulator", (if(sd) "Standard Deviation" else "Variance")), x = names(grid_data)[1], y = names(grid_data)[2]) +
+    labs(title = paste(em$output_name, extra_ident, "Emulator",
+                       (if(sd) "Standard Deviation" else "Variance")),
+         x = names(grid_data)[1], y = names(grid_data)[2]) +
     scale_x_continuous(expand = c(0,0)) +
     scale_y_continuous(expand = c(0,0)) +
     theme_minimal()
@@ -124,37 +194,63 @@ imp_plot <- function(em, z, plotgrid = NULL, ppd = 30, cb = FALSE, nth = NULL) {
   }
   else ranges <- em$ranges
   if (is.null(plotgrid)) {
-    plotgrid <- setNames(expand.grid(seq(ranges[[1]][1], ranges[[1]][2], length.out = ppd), seq(ranges[[2]][1], ranges[[2]][2], length.out = ppd)), names(ranges)[1:2])
+    plotgrid <- setNames(
+      expand.grid(
+        seq(
+          ranges[[1]][1],
+          ranges[[1]][2],
+          length.out = ppd),
+        seq(ranges[[2]][1],
+            ranges[[2]][2],
+            length.out = ppd)),
+      names(ranges)[1:2])
     for (i in 3:length(ranges)) {
       plotgrid[[names(ranges)[i]]] <- sum(ranges[[i]])/2
     }
   }
-  imp_breaks <- c(0, 0.3, 0.7, 1, 1.3, 1.7, 2, 2.3, 2.7, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 10, 15, Inf)
-  imp_names <- c(0, '', '', 1, '', '', 2, '', '', 3, '', '', '', 5, '', '', '', 10, 15, '')
+  imp_breaks <- c(0, 0.3, 0.7, 1, 1.3, 1.7, 2, 2.3, 2.7,
+                  3, 3.5, 4, 4.5, 5, 6, 7, 8, 10, 15, Inf)
+  imp_names <- c(0, '', '', 1, '', '', 2, '', '', 3, '',
+                 '', '', 5, '', '', '', 10, 15, '')
   if (!is.null(nth)) {
     if (!"Emulator" %in% class(em)) {
-      em_imp <- nth_implausible(em, plotgrid[names(ranges)], z, n = nth, max_imp = 99)
+      em_imp <- nth_implausible(em, plotgrid[names(ranges)],
+                                z, n = nth, max_imp = 99)
     }
-    else stop("Not all required parameters (emulator list, target list, nth) passed for nth maximum implausibility.")
+    else
+      stop(paste("Not all required parameters",
+                 "(emulator list, target list, nth)",
+                 "passed for nth maximum implausibility."))
   }
   else{
     em_imp <- em$implausibility(plotgrid[names(ranges)], z)
   }
   included <- c(purrr::map_lgl(imp_breaks[-1], ~any(em_imp < .)), TRUE)
-  grid_data <- setNames(cbind(plotgrid[,1:2], em_imp), c(names(plotgrid)[1:2],"I"))
+  grid_data <- setNames(
+    cbind(plotgrid[,1:2], em_imp), c(names(plotgrid)[1:2],"I"))
   col_scale <- if(cb) colourblind else redgreen
   g <- ggplot(data = grid_data, aes(x = grid_data[,1], y = grid_data[,2]))
   if (length(unique(em_imp)) == 1) {
     col <- col_scale[which.min(abs(imp_breaks - c(unique(em_imp))))]
-    g <- g + geom_raster(aes(fill = grid_data[,"I"])) + scale_fill_gradient(low = col, high = col, name = "I")
+    g <- g + geom_raster(aes(fill = grid_data[,"I"])) +
+      scale_fill_gradient(low = col, high = col, name = "I")
   }
   else
-    g <- g + geom_contour_filled(aes(z = grid_data[,"I"]), colour = 'black', breaks = imp_breaks[included]) + scale_fill_manual(values = col_scale[included], name = "I", labels = imp_names[included], guide = guide_legend(reverse = TRUE))
+    g <- g + geom_contour_filled(aes(z = grid_data[,"I"]),
+                                 colour = 'black',
+                                 breaks = imp_breaks[included]) +
+    scale_fill_manual(values = col_scale[included], name = "I",
+                      labels = imp_names[included],
+                      guide = guide_legend(reverse = TRUE))
   if (is.null(em$em_type)) extra_ident <- NULL
   else if (em$em_type == "mean") extra_ident <- "Mean"
   else if (em$em_type == "variance") extra_ident <- "Variance"
   else extra_ident <- em$em_type
-  g <- g + labs(title = paste(em$output_name, extra_ident, (if (is.null(nth)) "Emulator Implausibility" else paste(ns, "Maximum Implausibility"))), x = names(grid_data)[1], y = names(grid_data)[2]) +
+  g <- g + labs(title = paste(
+    em$output_name,
+    extra_ident,
+    (if (is.null(nth)) "Emulator Implausibility" else paste(ns, "Maximum Implausibility"))),
+    x = names(grid_data)[1], y = names(grid_data)[2]) +
     scale_x_continuous(expand = c(0,0)) +
     scale_y_continuous(expand = c(0,0)) +
     theme_minimal()
@@ -218,7 +314,9 @@ imp_plot <- function(em, z, plotgrid = NULL, ppd = 30, cb = FALSE, nth = NULL) {
 #'  emulator_plot(SIREmulators$ems, plot_type = 'nimp', cb = TRUE,
 #'   targets = SIREmulators$targets, nth = 2, ppd = 10)
 #'
-emulator_plot <- function(ems, plot_type = 'exp', ppd = 30, targets = NULL, cb = FALSE, params = NULL, fixed_vals = NULL, nth = 1) {
+emulator_plot <- function(ems, plot_type = 'exp', ppd = 30, targets = NULL,
+                          cb = FALSE, params = NULL, fixed_vals = NULL,
+                          nth = 1) {
   if ("Emulator" %in% class(ems)){
     ranges <- ems$ranges
     single_em <- TRUE
@@ -230,25 +328,40 @@ emulator_plot <- function(ems, plot_type = 'exp', ppd = 30, targets = NULL, cb =
     single_em <- FALSE
   }
   if (!is.null(ems$expectation)) ems <- ems$expectation
-  if (is.null(params) || length(params) != 2 || any(!params %in% names(ranges))) p_vals <- c(1,2)
+  if (is.null(params) ||
+      length(params) != 2 ||
+      any(!params %in% names(ranges))) p_vals <- c(1,2)
   else p_vals <- which(names(ranges) %in% params)
-  plotgrid <- setNames(expand.grid(seq(ranges[[p_vals[1]]][1], ranges[[p_vals[1]]][2], length.out = ppd), seq(ranges[[p_vals[2]]][1], ranges[[p_vals[2]]][2], length.out = ppd)), names(ranges)[p_vals])
+  plotgrid <- setNames(
+    expand.grid(
+      seq(
+        ranges[[p_vals[1]]][1],
+        ranges[[p_vals[1]]][2],
+        length.out = ppd),
+      seq(
+        ranges[[p_vals[2]]][1],
+        ranges[[p_vals[2]]][2],
+        length.out = ppd)),
+    names(ranges)[p_vals])
   if (!is.null(fixed_vals) && all(names(fixed_vals) %in% names(ranges))) {
-    for (i in 1:length(fixed_vals)) plotgrid[[names(fixed_vals)[i]]] <- fixed_vals[[names(fixed_vals)[i]]]
+    for (i in seq_along(fixed_vals))
+      plotgrid[[names(fixed_vals)[i]]] <- fixed_vals[[names(fixed_vals)[i]]]
     used_names <- c(names(ranges)[p_vals], names(fixed_vals))
   }
   else used_names <- names(ranges)[p_vals]
   used_names <- unique(used_names)
   if (length(used_names) < length(ranges)) {
     unused_nms <- names(ranges)[which(!names(ranges) %in% used_names)]
-    for (i in 1:length(unused_nms)) plotgrid[[unused_nms[i]]] <- sum(ranges[[unused_nms[i]]])/2
+    for (i in seq_along(unused_nms))
+      plotgrid[[unused_nms[i]]] <- sum(ranges[[unused_nms[i]]])/2
   }
   get_plot <- function(em) {
     if (plot_type == 'exp') return(exp_plot(em, plotgrid, ppd))
     if (plot_type == 'var') return(var_plot(em, plotgrid, ppd))
     if (plot_type == 'sd') return(var_plot(em, plotgrid, ppd, sd = TRUE))
     if (plot_type == 'imp') {
-      if (is.null(targets)) stop("Cannot plot implausibility without target value.")
+      if (is.null(targets))
+        stop("Cannot plot implausibility without target value.")
     }
     if (!is.null(targets$val)) return(imp_plot(em, targets, plotgrid, ppd, cb))
     else return(imp_plot(em, targets[[em$output_name]], plotgrid, ppd, cb))
@@ -258,7 +371,10 @@ emulator_plot <- function(ems, plot_type = 'exp', ppd = 30, targets = NULL, cb =
   else {
     plotlist <- purrr::map(ems, get_plot)
     replacement_function <- function(plots, title = NULL) {
-      titles <- purrr::map_chr(plots, ~sub("(.*) Emulator (Expectation|Variance|Implausibility)", "\\1", .$labels$title))
+      titles <- purrr::map_chr(
+        plots,
+        ~sub("(.*) Emulator (Expectation|Variance|Implausibility)",
+             "\\1", .$labels$title))
       create_name_plot <- function(name) {
         return(ggally_text(label = name, colour = 'black') + theme_void())
       }
@@ -286,12 +402,13 @@ emulator_plot <- function(ems, plot_type = 'exp', ppd = 30, targets = NULL, cb =
       }
       ggmatrix(plot_list, ncol = plot_cols, nrow = 2*plot_rows,
                xlab = plots[[1]]$labels$x, ylab = plots[[1]]$labels$y,
-               title = title, yProportions = rep(c(0.05, 1), plot_rows), progress = FALSE)
+               title = title, yProportions = rep(c(0.05, 1), plot_rows),
+               progress = FALSE)
     }
-    if (plot_type == "exp") plot_title = "Emulator Expectations"
-    else if (plot_type == "var") plot_title = "Emulator Variances"
-    else if (plot_type == "imp") plot_title = "Emulator Implausibilities"
-    else plot_title = NULL
+    if (plot_type == "exp") plot_title <- "Emulator Expectations"
+    else if (plot_type == "var") plot_title <- "Emulator Variances"
+    else if (plot_type == "imp") plot_title <- "Emulator Implausibilities"
+    else plot_title <- NULL
     return(replacement_function(plotlist, plot_title))
   }
 }
@@ -325,20 +442,27 @@ output_plot <- function(ems, targets, points = NULL, npoints = 1000) {
   if (is.null(points)) {
     points <- data.frame(purrr::map(ranges, ~runif(npoints, .[1], .[2])))
   }
-  em_exp <- setNames(data.frame(purrr::map(ems, ~.$get_exp(points))), names(targets))
-  em_exp$run <- 1:nrow(points)
+  em_exp <- setNames(
+    data.frame(purrr::map(ems, ~.$get_exp(points))), names(targets))
+  em_exp$run <- seq_len(nrow(points))
   em_exp <- pivot_longer(em_exp, cols = !'run')
-  for (i in 1:length(targets))
+  for (i in seq_along(targets))
   {
-    if (!is.atomic(targets[[i]])) targets[[i]] <- c(targets[[i]]$val - 3 * targets[[i]]$sigma, targets[[i]]$val + 3*targets[[i]]$sigma)
+    if (!is.atomic(targets[[i]]))
+      targets[[i]] <- c(targets[[i]]$val - 3 * targets[[i]]$sigma,
+                        targets[[i]]$val + 3*targets[[i]]$sigma)
   }
-  target_data <- data.frame(label = names(targets), mn = purrr::map_dbl(targets, ~.[1]), md = purrr::map_dbl(targets, mean), mx = purrr::map_dbl(targets, ~.[2]))
+  target_data <- data.frame(label = names(targets),
+                            mn = purrr::map_dbl(targets, ~.[1]),
+                            md = purrr::map_dbl(targets, mean),
+                            mx = purrr::map_dbl(targets, ~.[2]))
   name <- value <- run <- mn <- md <- mx <- label <- NULL
   em_exp$name <- factor(em_exp$name, levels = names(targets))
   ggplot(data = em_exp, aes(x = name, y = value)) +
     geom_line(colour = 'purple', aes(group = run), lwd = 1) +
     geom_point(data = target_data, aes(x = label, y = md), size = 2) +
-    geom_errorbar(data = target_data, aes(x = label, y = md, ymin = mn, ymax = mx), width = .1, size = 1.25) +
+    geom_errorbar(data = target_data, aes(x = label, y = md, ymin = mn,
+                                          ymax = mx), width = .1, size = 1.25) +
     labs(title = "Emulator Runs versus Observations")
 }
 
@@ -389,50 +513,77 @@ output_plot <- function(ems, targets, points = NULL, npoints = 1000) {
 #'  plot_lattice(SIREmulators$ems, SIREmulators$targets, ppd = 10)
 #'  plot_lattice(SIREmulators$ems$nS, SIREmulators$targets)
 #' }
-plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE, cutoff = 3, maxpoints = 5e4) {
+plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE,
+                         cutoff = 3, maxpoints = 5e4) {
   ems <- collect_emulators(ems)
   ranges <- if ("Emulator" %in% class(ems)) ems$ranges else ems[[1]]$ranges
   if (ppd^length(ranges) > maxpoints) {
-    point_grid <- setNames(data.frame(do.call('cbind', purrr::map(ranges, ~runif(maxpoints, .[[1]], .[[2]])))), names(ranges))
+    point_grid <- setNames(
+      data.frame(
+        do.call('cbind',
+                purrr::map(ranges, ~runif(maxpoints, .[[1]], .[[2]])))),
+      names(ranges))
     nbins <- 19
   }
   else {
     dim_bounds <- purrr::map(ranges, ~seq(.[[1]], .[[2]], length.out = ppd+1))
-    dim_unif <- purrr::map(dim_bounds, ~purrr::map_dbl(1:(length(.)-1), function(i) mean(.[i:(i+1)])))
+    dim_unif <- purrr::map(dim_bounds,
+                           ~purrr::map_dbl(1:(length(.)-1),
+                                           function(i) mean(.[i:(i+1)])))
     point_grid <- expand.grid(dim_unif)
   }
   point_grid$I <- nth_implausible(ems, point_grid, targets)
   one_dim <- function(data, parameter) {
-    param_seq <- seq(ranges[[parameter]][1], ranges[[parameter]][2], length.out = ppd + 1)
+    param_seq <- seq(
+      ranges[[parameter]][1],
+      ranges[[parameter]][2], length.out = ppd + 1)
     collection <- purrr::map(1:ppd, function(x) {
-      valid_points <- data[data[,parameter] >= param_seq[x] & data[,parameter] <= param_seq[x+1],]
-      how_many_valid <- if (nrow(valid_points) == 0) NA else sum(valid_points$I <= cutoff)/nrow(valid_points)
+      valid_points <- data[data[,parameter] >= param_seq[x] &
+                             data[,parameter] <= param_seq[x+1],]
+      how_many_valid <- if (nrow(valid_points) == 0)
+        NA
+      else
+        sum(valid_points$I <= cutoff)/nrow(valid_points)
       return(c(param_seq[x], how_many_valid))
     })
     setNames(do.call('rbind.data.frame', collection), c(parameter, 'op'))
   }
   two_dim <- function(data, parameters, op = FALSE) {
-    param_seqs <- purrr::map(ranges[parameters], ~seq(.[[1]], .[[2]], length.out = ppd + 1))
+    param_seqs <- purrr::map(ranges[parameters],
+                             ~seq(.[[1]], .[[2]], length.out = ppd + 1))
     param_list <- list()
     for (i in 1:ppd) {
       for (j in 1:ppd) {
-        valid_points <- data[data[,parameters[1]] >= param_seqs[[1]][i] & data[,parameters[1]] <= param_seqs[[1]][i+1] & data[,parameters[2]] >= param_seqs[[2]][j] & data[,parameters[2]] <= param_seqs[[2]][j+1],]
+        valid_points <- data[data[,parameters[1]] >= param_seqs[[1]][i] &
+                               data[,parameters[1]] <= param_seqs[[1]][i+1] &
+                               data[,parameters[2]] >= param_seqs[[2]][j] &
+                               data[,parameters[2]] <= param_seqs[[2]][j+1],]
         if (op) {
-          rel_stat <- if (nrow(valid_points) == 0) NA else sum(valid_points$I <= cutoff)/nrow(valid_points)
+          rel_stat <- if (nrow(valid_points) == 0)
+            NA
+          else
+            sum(valid_points$I <= cutoff)/nrow(valid_points)
         }
         else {
           rel_stat <- if (nrow(valid_points) == 0) NA else min(valid_points$I)
         }
-        param_list[[length(param_list)+1]] <- c(param_seqs[[1]][i], param_seqs[[2]][j], rel_stat)
+        param_list[[length(param_list)+1]] <- c(param_seqs[[1]][i],
+                                                param_seqs[[2]][j], rel_stat)
       }
     }
-    return(setNames(do.call('rbind.data.frame', param_list), c(parameters, if(op) "op" else "imp")))
+    return(setNames(do.call('rbind.data.frame', param_list),
+                    c(parameters, if(op) "op" else "imp")))
   }
   cols <- if(cb) colourblind else redgreen
-  imp_breaks <- c(0, 0.3, 0.7, 1, 1.3, 1.7, 2, 2.3, 2.7, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 10, 15, 100)
-  imp_names <- c(0, '', '', 1, '', '', 2, '', '', 3, '', '', '', 5, '', '', '', 10, 15, '')
-  parameter_combinations <- expand.grid(names(ranges), names(ranges), stringsAsFactors = FALSE)
-  plot_list <- purrr::map(1:nrow(parameter_combinations), function(x) {
+  imp_breaks <- c(0, 0.3, 0.7, 1, 1.3, 1.7, 2, 2.3, 2.7,
+                  3, 3.5, 4, 4.5, 5, 6, 7, 8, 10, 15, 100)
+  imp_names <- c(0, '', '', 1, '', '', 2, '', '', 3, '',
+                 '', '', 5, '', '', '', 10, 15, '')
+  parameter_combinations <- expand.grid(
+    names(ranges),
+    names(ranges),
+    stringsAsFactors = FALSE)
+  plot_list <- purrr::map(seq_len(nrow(parameter_combinations)), function(x) {
     parameters <- unlist(parameter_combinations[x,], use.names = FALSE)
     if (parameters[1] == parameters[2]) {
       pt <- one_dim(point_grid, parameters[1])
@@ -440,18 +591,24 @@ plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE, cutoff = 3, maxpoin
         geom_smooth(colour = 'black', se = FALSE) +
         scale_y_continuous(expand = c(0, 0), limits = c(0, 1)))
     }
-    else if (which(names(ranges) == parameters[1]) > which(names(ranges) == parameters[2])) {
+    else if (which(
+      names(ranges) == parameters[1]) >
+      which(names(ranges) == parameters[2])) {
       pt <- two_dim(point_grid, parameters)
       g <- ggplot(mapping = aes(x = pt[,1], y = pt[,2], z = pt[,3])) +
         geom_contour_filled(breaks = imp_breaks, colour = 'black') +
-        scale_fill_manual(values = cols, labels = imp_names, name = "Min. I", guide = guide_legend(reverse = TRUE), drop = FALSE) +
+        scale_fill_manual(values = cols, labels = imp_names,
+                          name = "Min. I",
+                          guide = guide_legend(reverse = TRUE), drop = FALSE) +
         scale_y_continuous(expand = c(0,0))
     }
     else {
       pt <- two_dim(point_grid, parameters, TRUE)
       g <- ggplot(mapping = aes(x = pt[,1], y = pt[,2], fill = pt[,3])) +
         geom_raster(interpolate = TRUE) +
-        scale_fill_gradient(low = 'black', high = 'white', breaks = seq(0, 1, by = 0.1), name = "Op. Depth") +
+        scale_fill_gradient(low = 'black', high = 'white',
+                            breaks = seq(0, 1, by = 0.1),
+                            name = "Op. Depth") +
         scale_y_continuous(expand = c(0,0))
     }
     return(g + scale_x_continuous(expand = c(0,0)) + theme_minimal())
@@ -463,10 +620,16 @@ plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE, cutoff = 3, maxpoin
   pointless_plot <- ggplot(data = pointless_data, aes(x = x, y = y)) +
     geom_line(aes(colour = fill)) +
     geom_contour_filled(aes(z = z), breaks = imp_breaks) +
-    scale_fill_manual(values = cols, labels = imp_names, name = "Min. Imp", drop = FALSE) +
-    scale_colour_gradient(low = 'black', high = 'white', breaks = seq(0, 1, by = 0.1), name = "Op. Depth") +
+    scale_fill_manual(values = cols, labels = imp_names,
+                      name = "Min. Imp", drop = FALSE) +
+    scale_colour_gradient(low = 'black', high = 'white',
+                          breaks = seq(0, 1, by = 0.1), name = "Op. Depth") +
     guides(fill = guide_legend(order = 1, reverse = TRUE))
-  return(ggmatrix(plot_list, length(ranges), length(ranges), title = "Minimum Implausibility and Optical Depth", xAxisLabels = names(ranges), yAxisLabels = names(ranges), showYAxisPlotLabels = FALSE, legend = grab_legend(pointless_plot)))
+  return(ggmatrix(plot_list, length(ranges), length(ranges),
+                  title = "Minimum Implausibility and Optical Depth",
+                  xAxisLabels = names(ranges), yAxisLabels = names(ranges),
+                  showYAxisPlotLabels = FALSE,
+                  legend = grab_legend(pointless_plot)))
 }
 
 #' Active variable plotting
@@ -500,10 +663,14 @@ plot_actives <- function(ems, output_names = NULL, input_names = NULL) {
     ems <- list(ems)
   }
   in_names <- names(ems[[1]]$ranges)
-  active_list <- setNames(data.frame(do.call('rbind', purrr::map(ems, ~.$active_vars))), in_names)
+  active_list <- setNames(
+    data.frame(
+      do.call('rbind', purrr::map(ems, ~.$active_vars))), in_names)
   if (!is.null(input_names)) active_list <- active_list[, input_names]
-  if (!is.null(output_names)) active_list <- active_list[row.names(active_list) %in% output_names, ]
-  if (nrow(active_list) == 0 || length(active_list) == 0) stop("No inputs/outputs to plot.")
+  if (!is.null(output_names))
+    active_list <- active_list[row.names(active_list) %in% output_names, ]
+  if (nrow(active_list) == 0 || length(active_list) == 0)
+    stop("No inputs/outputs to plot.")
   pivoted <- pivot_longer(active_list, cols = everything(), names_to = "Var2")
   pivoted$Var1 <- rep(row.names(active_list), each = length(active_list))
   pivoted$value <- as.factor(pivoted$value)
@@ -512,7 +679,8 @@ plot_actives <- function(ems, output_names = NULL, input_names = NULL) {
   Var1 <- Var2 <- value <- NULL
   g <- ggplot(data = pivoted, aes(x = Var2, y = Var1, fill = value)) +
     geom_tile(colour = 'black') +
-    scale_fill_manual(values = c('black', 'green'), labels = c("FALSE", "TRUE"), name = "Active?") +
+    scale_fill_manual(values = c('black', 'green'),
+                      labels = c("FALSE", "TRUE"), name = "Active?") +
     labs(title = "Active variables", x = "Parameter", y = "Output") +
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
@@ -541,8 +709,19 @@ plot_actives <- function(ems, output_names = NULL, input_names = NULL) {
 #'
 plot_wrap <- function(points, ranges = NULL, p_size = 0.5) {
   if (is.null(ranges))
-    boundary_points <- setNames(do.call('cbind.data.frame', purrr::map(names(points), ~c(min(points[,.]), max(points[,.])))), names(points))
+    boundary_points <- setNames(
+      do.call(
+        'cbind.data.frame',
+        purrr::map(names(points),
+                   ~c(min(points[,.]), max(points[,.])))), names(points))
   else
-    boundary_points <- setNames(do.call('rbind.data.frame', purrr::map(1:2, ~purrr::map_dbl(ranges, function(x) x[[.]]))), names(ranges))
-  plot(rbind(points, boundary_points), pch = 16, cex = p_size, col = c(rep('black', nrow(points)), 'white', 'white'))
+    boundary_points <- setNames(
+      do.call(
+        'rbind.data.frame',
+        purrr::map(
+          1:2,
+          ~purrr::map_dbl(ranges, function(x) x[[.]]))), names(ranges))
+  plot(rbind(points, boundary_points),
+       pch = 16, cex = p_size,
+       col = c(rep('black', nrow(points)), 'white', 'white'))
 }

@@ -21,7 +21,8 @@ get_dist <- function(df1, df2) {
   if (d < (833*p^2-198400*p+144350000)/(55550*p+6910000) || p > 2500) {
     return(apply(df1, 1, function(a) sqrt(colSums((a-t(df2))^2))))
   }
-  dists <- as.matrix(dist(rbind(df1, df2)))[((nrow(df1)+1):(nrow(df1)+nrow(df2))), 1:nrow(df1)]
+  all_dists <- as.matrix(dist(rbind(df1, df2)))
+  dists <- all_dists[((nrow(df1)+1):(nrow(df1)+nrow(df2))), seq_len(nrow(df1))]
   row.names(dists) <- colnames(dists) <- NULL
   return(dists)
 }
@@ -54,9 +55,12 @@ exp_sq_d <- function(x, xp, hp, xi, xpi = NULL) {
   diff_1 <- outer(x[,xi, drop = FALSE], xp[,xi, drop = FALSE], "-")[,,,1]
   if (is.null(nrow(diff_1))) diff_1 <- t(diff_1)
   if (is.null(xpi)) return(-2 * t(diff_1) * exp_sq(x, xp, hp)/hp$theta^2)
-  diff_2 <- if (is.null(xpi)) diff_1 else outer(x[,xpi, drop = FALSE], xp[,xpi, drop = FALSE], "-")[,,,1]
+  diff_2 <- if (is.null(xpi)) diff_1 else outer(x[,xpi, drop = FALSE],
+                                                xp[,xpi, drop = FALSE],
+                                                "-")[,,,1]
   if (is.null(nrow(diff_2))) diff_2 <- t(diff_2)
-  return(2/hp$theta^2 * (if (xi == xpi) 1 else 0) * exp_sq(x, xp, hp) - 4/hp$theta^4 * t(diff_1) * t(diff_2) * exp_sq(x, xp, hp))
+  return(2/hp$theta^2 * (if (xi == xpi) 1 else 0) * exp_sq(x, xp, hp) -
+           4/hp$theta^4 * t(diff_1) * t(diff_2) * exp_sq(x, xp, hp))
 }
 
 #' Matern correlation function
@@ -80,30 +84,49 @@ exp_sq_d <- function(x, xp, hp, xi, xpi = NULL) {
 #' matern(data.frame(a=1,b=2,c=-1),data.frame(a=1.5,b=2.9,c=-0.7), list(nu = 1.5, theta = 0.2))
 #' #> 0.0009527116
 matern <- function(x, xp, hp) {
-  if (floor(hp$nu*2) != hp$nu*2 || floor(hp$nu) == hp$nu) stop("Matern hyperparameter nu must be half-integer.")
+  if (floor(hp$nu*2) != hp$nu*2 || floor(hp$nu) == hp$nu)
+    stop("Matern hyperparameter nu must be half-integer.")
   p <- hp$nu-0.5
   d <- get_dist(x, xp)
-  exp(-sqrt(2*p+1)*d/hp$theta) * factorial(p)/factorial(2*p) * Reduce('+', purrr::map(0:p, ~factorial(p+.)/(factorial(.)*factorial(p-.)) * (2*sqrt(2*p+1)*d/hp$theta)^(p-.)))
+  exp(-sqrt(2*p+1)*d/hp$theta) * factorial(p)/factorial(2*p) *
+    Reduce('+', purrr::map(0:p, ~factorial(p+.)/(factorial(.)*factorial(p-.)) *
+                             (2*sqrt(2*p+1)*d/hp$theta)^(p-.)))
 }
 
 matern_d <- function(x, xp, hp, xi, xpi = NULL) {
-  if (floor(hp$nu*2) != hp$nu*2 || floor(hp$nu) == hp$nu) stop("Matern hyperparameter nu must be half-integer.")
-  if (floor(hp$nu) < 1) stop("This correlation function is not differentiable.")
-  if (floor(hp$nu) < 2 && !is.null(xpi)) stop("This correlation function is not twice differentiable.")
+  if (floor(hp$nu*2) != hp$nu*2 || floor(hp$nu) == hp$nu)
+    stop("Matern hyperparameter nu must be half-integer.")
+  if (floor(hp$nu) < 1)
+    stop("This correlation function is not differentiable.")
+  if (floor(hp$nu) < 2 && !is.null(xpi))
+    stop("This correlation function is not twice differentiable.")
   p <- hp$nu-0.5
   inner_arg <- sqrt(2*p+1) * get_dist(x, xp)/hp$theta
   diff_1 <- outer(xp[,xi, drop = FALSE], x[,xi, drop = FALSE], "-")[,,,1]
   if (is.null(nrow(diff_1))) diff_1 <- t(diff_1)
   if (is.null(xpi)) {
-    non_sum <- -4*hp$nu/hp$theta^2 * diff_1 * factorial(p)/factorial(2*p) * exp(-inner_arg)
-    sum <- Reduce('+', purrr::map(0:(p-1), ~factorial(p-1+.)/(factorial(.) * factorial(p-1-.)) * (2*inner_arg)^(p-1-.)))
+    non_sum <- -4*hp$nu/hp$theta^2 * diff_1 * factorial(p)/factorial(2*p) *
+      exp(-inner_arg)
+    sum <- Reduce('+', purrr::map(0:(p-1),
+                                  ~factorial(p-1+.)/(factorial(.) *
+                                                       factorial(p-1-.)) *
+                                    (2*inner_arg)^(p-1-.)))
     return(non_sum*sum)
   }
-  extra_bit <- if(xi == xpi) 4*hp$nu/hp$theta^2 * factorial(p)/factorial(2*p) * exp(-inner_arg) * Reduce('+', purrr::map(0:(p-1), ~factorial(p-1+.)/(factorial(.) * factorial(p-1-.)) * (2*inner_arg)^(p-1-.))) else 0
+  extra_bit <- if(xi == xpi) 4*hp$nu/hp$theta^2 * factorial(p)/factorial(2*p) *
+    exp(-inner_arg) * Reduce('+',
+                             purrr::map(0:(p-1),
+                                        ~factorial(p-1+.)/(factorial(.) *
+                                                             factorial(p-1-.)) *
+                                          (2*inner_arg)^(p-1-.))) else 0
   diff_2 <- outer(xp[,xpi, drop = FALSE], x[,xpi, drop = FALSE], "-")[,,,1]
   if (is.null(nrow(diff_2))) diff_2 <- t(diff_2)
-  non_sum <- -16*hp$nu^2/hp$theta^4 * diff_1 * diff_2 * factorial(p)/factorial(2*p) * exp(-inner_arg)
-  sum <- Reduce("+", purrr::map(0:(p-2), ~factorial(p-2+.)/(factorial(.)*factorial(p-2-.)) * (2*inner_arg)^(p-2-.)))
+  non_sum <- -16*hp$nu^2/hp$theta^4 * diff_1 * diff_2 *
+    factorial(p)/factorial(2*p) * exp(-inner_arg)
+  sum <- Reduce("+", purrr::map(0:(p-2),
+                                ~factorial(p-2+.)/
+                                  (factorial(.)*factorial(p-2-.)) *
+                                  (2*inner_arg)^(p-2-.)))
   return(extra_bit+non_sum*sum)
 }
 
@@ -158,7 +181,8 @@ orn_uhl <- function(x, xp, hp) {
 #' gamma_exp(data.frame(a=1,b=2,c=-1),data.frame(a=1.5,b=2.9,c=-0.7), list(gamma = 1.3, theta = 0.2))
 #' #> 0.0001399953
 gamma_exp <- function(x, xp, hp) {
-  if (hp$gamma > 2 || hp$gamma <= 0) stop("Gamma hyperparameter must be between 0 (exclusive) and 2 (inclusive)")
+  if (hp$gamma > 2 || hp$gamma <= 0)
+    stop("Gamma hyperparameter must be between 0 (exclusive) and 2 (inclusive)")
   dists <- get_dist(x, xp)
   exp(-(dists/hp$theta)^hp$gamma)
 }
@@ -194,11 +218,16 @@ rat_quad_d <- function(x, xp, hp, xi, xpi = NULL) {
   dists <- get_dist(x, xp)^2
   diff_1 <- outer(xp[,xi, drop = FALSE], x[,xi, drop = FALSE], "-")[,,,1]
   if (is.null(nrow(diff_1))) diff_1 <- t(diff_1)
-  if (is.null(xpi)) return(-diff_1/hp$theta^2 * (1+dists/(2*hp$alpha*hp$theta^2))^(-hp$alpha-1))
+  if (is.null(xpi))
+    return(-diff_1/hp$theta^2 * (1+dists/(2*hp$alpha*hp$theta^2))^(-hp$alpha-1))
   diff_2 <- outer(xp[,xpi, drop = FALSE], x[,xpi, drop = FALSE], "-")[,,,1]
   if (is.null(nrow(diff_2))) diff_2 <- t(diff_2)
-  extra_bit <- if(xi == xpi) (1+dists/(2*hp$alpha*hp$theta^2))^(-hp$alpha-1) else 0
-  return(-(hp$alpha+1)/hp$alpha * diff_1*diff_2/hp$theta^4 * (1+dists/(2*hp$alpha*hp$theta^2))^(-hp$alpha-2) + extra_bit)
+  if(xi == xpi)
+    extra_bit <- (1+dists/(2*hp$alpha*hp$theta^2))^(-hp$alpha-1)
+  else
+    extra_bit <- 0
+  return(-(hp$alpha+1)/hp$alpha * diff_1*diff_2/hp$theta^4 *
+           (1+dists/(2*hp$alpha*hp$theta^2))^(-hp$alpha-2) + extra_bit)
 }
 
 Correlator <- R6::R6Class(
@@ -218,24 +247,30 @@ Correlator <- R6::R6Class(
     get_corr = function(x, xp = NULL, actives = TRUE, use.nugget = TRUE) {
       if (is.null(xp) && nrow(x) == 1) return(1)
       if (is.null(xp)) return(self$get_corr(x, x, actives, use.nugget))
-      active <- self$corr_type(x[,actives, drop = FALSE], xp[,actives, drop = FALSE], self$hyper_p)
+      active <- self$corr_type(x[,actives, drop = FALSE],
+                               xp[,actives, drop = FALSE], self$hyper_p)
       if (!use.nugget) return(active)
-      extra <- as.matrix(dist(rbind(x, xp)))[(nrow(x)+1):(nrow(x)+nrow(xp)), 1:nrow(x)]
+      extra <- as.matrix(dist(rbind(x, xp)))[(nrow(x)+1):(nrow(x)+nrow(xp)),
+                                             seq_len(nrow(x))]
       extra[extra < 1e-10] <- 1
       extra[extra != 1] <- 0
       return((1 - self$nugget) * active + self$nugget * extra)
     },
-    get_corr_d = function(x, xp = NULL, p1, p2 = NULL, actives = rep(TRUE, length(x))) {
+    get_corr_d = function(x, xp = NULL, p1, p2 = NULL,
+                          actives = rep(TRUE, length(x))) {
       if (is.null(xp)) return(self$get_corr_d(x, x, p1, p2, actives))
-      if (!actives[p1] || (!is.null(p2) && !actives[p2])) return(matrix(0, nrow = nrow(xp), ncol = nrow(x)))
+      if (!actives[p1] || (!is.null(p2) && !actives[p2]))
+        return(matrix(0, nrow = nrow(xp), ncol = nrow(x)))
       active_p1 <- sum(actives[1:p1])
       active_p2 <- if (!is.null(p2)) sum(actives[1:p2]) else NULL
       d_func <- get(paste0(self$corr_name, "_d"))
-      return(d_func(x[,actives, drop = FALSE], xp[,actives, drop = FALSE], self$hyper_p, active_p1, active_p2))
+      return(d_func(x[,actives, drop = FALSE], xp[,actives, drop = FALSE],
+                    self$hyper_p, active_p1, active_p2))
     },
     set_hyper_p = function(new_hp, nug = self$nugget) {
       new_corr <- self$clone()
-      if (is.null(names(new_hp))) new_hp <- setNames(new_hp, names(self$hyper_p))
+      if (is.null(names(new_hp)))
+        new_hp <- setNames(new_hp, names(self$hyper_p))
       new_hp <- purrr::map(new_hp, ~.)
       new_corr$hyper_p <- new_hp
       new_corr$nugget <- nug
@@ -246,7 +281,9 @@ Correlator <- R6::R6Class(
     },
     print = function(prepend = NULL, ...) {
       cat(prepend, "Correlation type:", self$corr_name, "\n")
-      cat(prepend, "Hyperparameters: ", paste0(names(self$hyper_p), ": ", round(unlist(self$hyper_p), 4), collapse = "; "), "\n")
+      cat(prepend, "Hyperparameters: ", paste0(names(self$hyper_p), ": ",
+                                               round(unlist(self$hyper_p), 4),
+                                               collapse = "; "), "\n")
       cat(prepend, "Nugget term:", round(self$nugget, 4), "\n")
     }
   )

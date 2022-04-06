@@ -25,7 +25,9 @@ Emulator <- R6Class(
     output_name = NULL,
     disc = list(internal = 0, external = 0),
     multiplier = 1,
-    initialize = function(basis_f, beta, u, ranges, data = NULL, model = NULL, original_em = NULL, out_name = NULL, a_vars = NULL, discs = NULL, multiplier = 1) {
+    initialize = function(basis_f, beta, u, ranges, data = NULL, model = NULL,
+                          original_em = NULL, out_name = NULL, a_vars = NULL,
+                          discs = NULL, multiplier = 1) {
       self$model <- model
       self$model_terms <- tryCatch(
         c("1", labels(terms(self$model))),
@@ -36,7 +38,7 @@ Emulator <- R6Class(
       self$beta_mu <- beta$mu
       self$beta_sigma <- beta$sigma
       self$u_mu <- function(x) 0
-      self$multiplier = multiplier
+      self$multiplier <- multiplier
       if(is.numeric(u$sigma)) self$u_sigma <- self$multiplier * u$sigma
       else self$u_sigma <- function(x) self$multiplier * (u$sigma)(x)
       self$corr <- u$corr
@@ -51,32 +53,50 @@ Emulator <- R6Class(
         })
       }
       else self$active_vars <- a_vars
-      if (all(self$active_vars == FALSE)) self$active_vars <- rep(TRUE, length(ranges))
+      if (all(self$active_vars == FALSE))
+        self$active_vars <- rep(TRUE, length(ranges))
       if (!is.null(discs)) {
-        self$disc$internal <- ifelse(!is.null(discs$internal), discs$internal, 0)
-        self$disc$external <- ifelse(!is.null(discs$external), discs$external, 0)
+        self$disc$internal <- ifelse(!is.null(discs$internal),
+                                     discs$internal, 0)
+        self$disc$external <- ifelse(!is.null(discs$external),
+                                     discs$external, 0)
       }
       self$beta_u_cov <- function(x) rep(0, length(self$beta_mu))
       if (!is.null(data)) {
-        self$in_data <- data.matrix(eval_funcs(scale_input, data[,names(self$ranges)], self$ranges))
+        self$in_data <- data.matrix(eval_funcs(scale_input,
+                                               data[,names(self$ranges)],
+                                               self$ranges))
         self$out_data <- data[, !names(data) %in% names(self$ranges)]
       }
       if (!is.null(self$in_data)) {
         if (is.numeric(self$u_sigma))
-          d_corr <- self$u_sigma^2 * self$corr$get_corr(self$in_data, actives = self$active_vars)
+          d_corr <- self$u_sigma^2 *
+            self$corr$get_corr(self$in_data, actives = self$active_vars)
         else
-          d_corr <- diag(apply(self$in_data, 1, self$u_sigma)^2, nrow = nrow(self$in_data)) %*% self$corr$get_corr(self$in_data, actives = self$active_vars)
+          d_corr <- diag(
+            apply(
+              self$in_data, 1,
+              self$u_sigma)^2, nrow = nrow(self$in_data)) %*%
+            self$corr$get_corr(self$in_data, actives = self$active_vars)
         private$data_corrs <- tryCatch(
           private$data_corrs <- chol2inv(chol(d_corr)),
           error = function(e) {
             MASS::ginv(d_corr)
           }
         )
-        private$design_matrix <- t(apply(self$in_data, 1, function(x) purrr::map_dbl(self$basis_f, purrr::exec, x)))
-        if (nrow(private$design_matrix) == 1) private$design_matrix <- t(private$design_matrix)
-        private$u_var_modifier <- private$data_corrs %*% private$design_matrix %*% self$beta_sigma %*% t(private$design_matrix) %*% private$data_corrs
-        private$u_exp_modifier <- private$data_corrs %*% (self$out_data - private$design_matrix %*% self$beta_mu)
-        private$beta_u_cov_modifier <- self$beta_sigma %*% t(private$design_matrix) %*% private$data_corrs
+        private$design_matrix <- t(
+          apply(
+            self$in_data, 1, function(x)
+              purrr::map_dbl(self$basis_f, purrr::exec, x)))
+        if (nrow(private$design_matrix) == 1)
+          private$design_matrix <- t(private$design_matrix)
+        private$u_var_modifier <- private$data_corrs %*%
+          private$design_matrix %*% self$beta_sigma %*%
+          t(private$design_matrix) %*% private$data_corrs
+        private$u_exp_modifier <- private$data_corrs %*%
+          (self$out_data - private$design_matrix %*% self$beta_mu)
+        private$beta_u_cov_modifier <- self$beta_sigma %*%
+          t(private$design_matrix) %*% private$data_corrs
       }
     },
     get_exp = function(x, include_c = TRUE) {
@@ -84,11 +104,14 @@ Emulator <- R6Class(
         k <- ceiling(nrow(x)/1000)
         m <- ceiling(nrow(x)/k)
         s_df <- split(x, rep(1:k, each = m, length.out = nrow(x)))
-        return(unlist(purrr::map(s_df, ~self$get_exp(., include_c)), use.names = FALSE))
+        return(unlist(purrr::map(s_df, ~self$get_exp(., include_c)),
+                      use.names = FALSE))
       }
       x <- x[, names(self$ranges)[names(self$ranges) %in% names(x)]]
       x <- eval_funcs(scale_input, x, self$ranges)
-      g <- t(apply(x, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y)))
+      g <- t(
+        apply(
+          x, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y)))
       x <- data.matrix(x)
       bu <- t(apply(x, 1, self$beta_u_cov))
       if (length(self$beta_mu) == 1) beta_part <- g * self$beta_mu
@@ -98,15 +121,34 @@ Emulator <- R6Class(
         c_data <- self$corr$get_corr(self$in_data, x, self$active_vars)
         if (is.numeric(self$u_sigma)) {
           if (length(self$beta_mu) == 1)
-            u_part <- t(u_part + (t(bu) %*% t(private$design_matrix) + self$u_sigma^2 * c_data) %*% private$u_exp_modifier)
+            u_part <- t(u_part + (t(bu) %*% t(private$design_matrix) +
+                                    self$u_sigma^2 * c_data) %*%
+                          private$u_exp_modifier)
           else
-            u_part <- u_part + (bu %*% t(private$design_matrix) + self$u_sigma^2 * c_data) %*% private$u_exp_modifier
+            u_part <- u_part + (bu %*% t(private$design_matrix) +
+                                  self$u_sigma^2 * c_data) %*%
+              private$u_exp_modifier
         }
         else {
           if (length(self$beta_mu) == 1)
-            u_part <- t(u_part + (t(bu) %*% t(private$design_matrix) + sweep(sweep(c_data, 2, apply(self$in_data, 1, self$u_sigma), "*"), 1, apply(x, 1, self$u_sigma), "*")) %*% private$u_exp_modifier)
+            u_part <- t(u_part + (t(bu) %*% t(private$design_matrix) +
+                                    sweep(
+                                      sweep(
+                                        c_data, 2,
+                                        apply(
+                                          self$in_data, 1,
+                                          self$u_sigma), "*"), 1,
+                                      apply(x, 1, self$u_sigma), "*")) %*%
+                          private$u_exp_modifier)
           else
-            u_part <- u_part + (bu %*% t(private$design_matrix) + sweep(sweep(c_data, 2, apply(self$in_data, 1, self$u_sigma), "*"), 1, apply(x, 1, self$u_sigma), "*")) %*% private$u_exp_modifier
+            u_part <- u_part + (bu %*% t(private$design_matrix) +
+                                  sweep(
+                                    sweep(
+                                      c_data, 2,
+                                      apply(self$in_data, 1,
+                                            self$u_sigma), "*"), 1,
+                                    apply(x, 1, self$u_sigma), "*")) %*%
+              private$u_exp_modifier
         }
       }
       if (length(self$beta_mu) == 1) {
@@ -122,10 +164,14 @@ Emulator <- R6Class(
         k <- ceiling(nrow(x)/1000)
         m <- ceiling(nrow(x)/k)
         s_df <- split(x, rep(1:k, each = m, length.out = nrow(x)))
-        return(unlist(purrr::map(s_df, ~self$get_cov(., xp, FALSE, include_c)), use.names = FALSE))
+        return(unlist(purrr::map(s_df, ~self$get_cov(., xp, FALSE, include_c)),
+                      use.names = FALSE))
       }
-      x <- eval_funcs(scale_input, x[, names(self$ranges)[names(self$ranges) %in% names(x)]], self$ranges)
-      g_x <- apply(x, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y))
+      x <- eval_funcs(scale_input,
+                      x[, names(self$ranges)[names(self$ranges) %in% names(x)]],
+                      self$ranges)
+      g_x <- apply(x, 1, function(y)
+        purrr::map_dbl(self$basis_f, purrr::exec, y))
       x <- data.matrix(x)
       bupart_x <- apply(x, 1, self$beta_u_cov)
       null_flag <- FALSE
@@ -136,8 +182,12 @@ Emulator <- R6Class(
         bupart_xp <- bupart_x
       }
       else {
-        xp <- eval_funcs(scale_input, xp[, names(self$ranges)[names(self$ranges) %in% names(xp)]], self$ranges)
-        g_xp <- apply(xp, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y))
+        xp <- eval_funcs(
+          scale_input,
+          xp[, names(self$ranges)[names(self$ranges) %in% names(xp)]],
+          self$ranges)
+        g_xp <- apply(xp, 1,
+                      function(y) purrr::map_dbl(self$basis_f, purrr::exec, y))
         xp <- data.matrix(xp)
         bupart_xp <- apply(xp, 1, self$beta_u_cov)
       }
@@ -148,45 +198,77 @@ Emulator <- R6Class(
         if (is.numeric(self$u_sigma))
           u_part <- self$u_sigma^2 * x_xp_c
         else
-          u_part <- sweep(sweep(x_xp_c, 2, apply(xp, 1, self$u_sigma), "*"), 1, apply(x, 1, self$u_sigma), "*")
+          u_part <- sweep(
+            sweep(
+              x_xp_c, 2, apply(xp, 1, self$u_sigma), "*"), 1,
+            apply(x, 1, self$u_sigma), "*")
         if (!is.null(self$in_data)) {
           c_x <- self$corr$get_corr(self$in_data, x, self$active_vars)
-          c_xp <- if(null_flag) c_x else self$corr$get_corr(self$in_data, xp, self$active_vars)
+          c_xp <- if(null_flag) c_x else self$corr$get_corr(self$in_data,
+                                                            xp,
+                                                            self$active_vars)
           if(nrow(x) == 1) {
             c_x <- t(c_x)
             c_xp <- t(c_xp)
           }
           if (is.numeric(self$u_sigma)) {
-            u_part <- u_part - self$u_sigma^4 * c_x %*% (private$data_corrs - private$u_var_modifier) %*% t(c_xp)
-            bupart_x <- bupart_x - private$beta_u_cov_modifier %*% (private$design_matrix %*% bupart_x + self$u_sigma^2 * t(c_x))
-            bupart_xp <- if (null_flag) bupart_x else bupart_xp - private$beta_u_cov_modifier %*% (private$design_matrix %*% bupart_xp + self$u_sigma^2 * t(c_xp))
+            u_part <- u_part - self$u_sigma^4 * c_x %*%
+              (private$data_corrs - private$u_var_modifier) %*% t(c_xp)
+            bupart_x <- bupart_x - private$beta_u_cov_modifier %*%
+              (private$design_matrix %*% bupart_x + self$u_sigma^2 * t(c_x))
+            bupart_xp <- if (null_flag) bupart_x else bupart_xp -
+              private$beta_u_cov_modifier %*%
+              (private$design_matrix %*% bupart_xp + self$u_sigma^2 * t(c_xp))
           }
           else {
-            c_x <- sweep(sweep(matrix(c_x, nrow = nrow(x)), 2, apply(self$in_data, 1, self$u_sigma), "*"), 1, apply(x, 1, self$u_sigma), "*")
-            c_xp <- sweep(sweep(matrix(c_xp, nrow = nrow(xp)), 2, apply(self$in_data, 1, self$u_sigma), "*"), 1, apply(xp, 1, self$u_sigma), "*")
-            u_part <- u_part - c_x %*% (private$data_corrs - private$u_var_modifier) %*% t(c_xp)
-            bupart_x <- bupart_x - private$beta_u_cov_modifier %*% (private$design_matrix %*% bupart_x + t(c_x))
-            bupart_xp <- if(null_flag) bupart_x else bupart_xp - private$beta_u_cov_modifier %*% (private$design_matrix %*% bupart_xp + t(c_xp))
+            c_x <- sweep(
+              sweep(
+                matrix(
+                  c_x, nrow = nrow(x)), 2,
+                apply(self$in_data, 1, self$u_sigma), "*"), 1,
+              apply(x, 1, self$u_sigma), "*")
+            c_xp <- sweep(
+              sweep(
+                matrix(
+                  c_xp, nrow = nrow(xp)), 2,
+                apply(self$in_data, 1, self$u_sigma), "*"), 1,
+              apply(xp, 1, self$u_sigma), "*")
+            u_part <- u_part - c_x %*% (private$data_corrs -
+                                          private$u_var_modifier) %*% t(c_xp)
+            bupart_x <- bupart_x - private$beta_u_cov_modifier %*%
+              (private$design_matrix %*% bupart_x + t(c_x))
+            bupart_xp <- if(null_flag) bupart_x else bupart_xp -
+              private$beta_u_cov_modifier %*%
+              (private$design_matrix %*% bupart_xp + t(c_xp))
           }
           if (is.null(nrow(g_x))) {
             bupart_x <- t(bupart_x)
             bupart_xp <- t(bupart_xp)
           }
         }
-        if (is.null(nrow(g_x))) bupart <- outer(g_x, bupart_xp, "*") + outer(bupart_x, g_xp, "*")
+        if (is.null(nrow(g_x))) bupart <- outer(g_x, bupart_xp, "*") +
+            outer(bupart_x, g_xp, "*")
         else bupart <- t(g_x) %*% bupart_xp + t(bupart_x) %*% g_xp
       }
       else {
-        point_seq <- 1:nrow(x)
-        if (is.null(nrow(g_x))) beta_part <- diag(diag(self$beta_sigma) * outer(g_x, g_xp))
-        else beta_part <- purrr::map_dbl(point_seq, ~g_x[,.] %*% self$beta_sigma %*% g_xp[,.])
-        if (is.numeric(self$u_sigma))
-          u_part <- self$u_sigma^2 * diag(self$corr$get_corr(x, xp, self$active_vars))
+        point_seq <- seq_len(nrow(x))
+        if (is.null(nrow(g_x)))
+          beta_part <- diag(diag(self$beta_sigma) * outer(g_x, g_xp))
         else
-          u_part <- purrr::map_dbl(point_seq, ~self$u_sigma(x[.,]) * self$u_sigma(xp[.,])) * diag(self$corr$get_corr(x, xp, self$active_vars))
+          beta_part <- purrr::map_dbl(point_seq,
+                                      ~g_x[,.] %*% self$beta_sigma %*% g_xp[,.])
+        if (is.numeric(self$u_sigma))
+          u_part <- self$u_sigma^2 * diag(
+            self$corr$get_corr(x, xp, self$active_vars))
+        else
+          u_part <- purrr::map_dbl(
+            point_seq, ~self$u_sigma(x[.,]) * self$u_sigma(xp[.,])) *
+            diag(self$corr$get_corr(x, xp, self$active_vars))
         if (!is.null(self$in_data)) {
           c_x <- self$corr$get_corr(self$in_data, x, self$active_vars)
-          c_xp <- if(null_flag) c_x else self$corr$get_corr(self$in_data, xp, self$active_vars)
+          c_xp <- if(null_flag) c_x else self$corr$get_corr(self$in_data,
+                                                            xp,
+                                                            self$active_vars)
           if (nrow(x) == 1) {
             c_x <- t(c_x)
             c_xp <- t(c_xp)
@@ -196,15 +278,44 @@ Emulator <- R6Class(
             c_xp <- self$u_sigma^2 * c_xp
           }
           else {
-            c_x <- sweep(sweep(matrix(c_x, nrow = nrow(x)), 2, apply(self$in_data, 1, self$u_sigma), "*"), 1, apply(x, 1, self$u_sigma), "*")
-            c_xp <- sweep(sweep(matrix(c_xp, nrow = nrow(xp)), 2, apply(self$in_data, 1, self$u_sigma), "*"), 1, apply(xp, 1, self$u_sigma), "*")
+            c_x <- sweep(
+              sweep(
+                matrix(
+                  c_x, nrow = nrow(x)), 2, apply(
+                    self$in_data, 1, self$u_sigma), "*"), 1,
+              apply(x, 1, self$u_sigma), "*")
+            c_xp <- sweep(
+              sweep(
+                matrix(
+                  c_xp, nrow = nrow(xp)), 2, apply(
+                    self$in_data, 1, self$u_sigma), "*"), 1,
+              apply(xp, 1, self$u_sigma), "*")
           }
-          u_part <- u_part - rowSums((c_x %*% (private$data_corrs - private$u_var_modifier)) * c_xp)
-          bupart_x <- bupart_x - private$beta_u_cov_modifier %*% (private$design_matrix %*% bupart_x + t(c_x))
-          bupart_xp <- if(null_flag) bupart_x else bupart_xp - private$beta_u_cov_modifier %*% (private$design_matrix %*% bupart_xp + t(c_xp))
+          u_part <- u_part -
+            rowSums((c_x %*%
+                       (private$data_corrs - private$u_var_modifier)) * c_xp)
+          bupart_x <- bupart_x -
+            private$beta_u_cov_modifier %*%
+            (private$design_matrix %*% bupart_x + t(c_x))
+          bupart_xp <- if(null_flag) bupart_x else bupart_xp -
+            private$beta_u_cov_modifier %*%
+            (private$design_matrix %*% bupart_xp + t(c_xp))
         }
-        if(is.null(nrow(g_x))) bupart <- purrr::map_dbl(point_seq, ~t(purrr::map_dbl(self$basis_f, purrr::exec, x[.,])) * bupart_xp[.] + t(bupart_x[.] * purrr::map_dbl(self$basis_f, purrr::exec, xp[.,])))
-        else bupart <- purrr::map_dbl(point_seq, ~t(purrr::map_dbl(self$basis_f, purrr::exec, x[.,])) %*% bupart_xp[,.] + t(bupart_x[,.] %*% purrr::map_dbl(self$basis_f, purrr::exec, xp[.,])))
+        if(is.null(nrow(g_x)))
+          bupart <- purrr::map_dbl(
+            point_seq,
+            ~t(purrr::map_dbl(
+              self$basis_f,
+              purrr::exec, x[.,])) *
+              bupart_xp[.] +
+              t(bupart_x[.] * purrr::map_dbl(
+                self$basis_f, purrr::exec, xp[.,])))
+        else bupart <- purrr::map_dbl(
+          point_seq,
+          ~t(purrr::map_dbl(
+            self$basis_f, purrr::exec, x[.,])) %*% bupart_xp[,.] +
+            t(bupart_x[,.] %*%
+                purrr::map_dbl(self$basis_f, purrr::exec, xp[.,])))
       }
       ## I don't like this, but there's a lot of rounding error going on
       if (include_c)
@@ -220,27 +331,40 @@ Emulator <- R6Class(
         k <- ceiling(nrow(x)/1000)
         m <- ceiling(nrow(x)/k)
         s_df <- split(x, rep(1:k, each = m, length.out = nrow(x)))
-        return(unlist(purrr::map(s_df, ~self$get_exp_d(., p)), use.names = FALSE))
+        return(unlist(purrr::map(
+          s_df, ~self$get_exp_d(., p)), use.names = FALSE))
       }
       deriv_func <- tryCatch(
         get(paste0(self$corr$corr_name, "_d")),
         error = function(e) return(NULL)
       )
-      if(is.null(deriv_func)) stop("No derivative expression available for correlation function.")
+      if(is.null(deriv_func))
+        stop("No derivative expression available for correlation function.")
       range_scale <- diff(self$ranges[[p]])/2
       x <- x[, names(self$ranges)[names(self$ranges) %in% names(x)]]
       x <- eval_funcs(scale_input, x, self$ranges)
       if (!p %in% names(self$ranges)) return(0)
       p_ind <- which(names(self$ranges) == p)
       if (is.null(self$model_terms)) {
-        model_terms <- purrr::map_chr(self$basis_f, function_to_names, names(self$ranges), FALSE)
+        model_terms <- purrr::map_chr(
+          self$basis_f, function_to_names, names(self$ranges), FALSE)
         g_d <- purrr::map(model_terms, ~D(parse(text = .), p))
       }
       else {
         model_terms <- self$model_terms
-        g_d <- purrr::map(self$model_terms, ~D(parse(text = sub("I\\((\\w*\\^\\d*)\\)", "\\1", gsub(":", "*", .))), p))
+        g_d <- purrr::map(
+          self$model_terms,
+          ~D(parse(text = sub("I\\((\\w*\\^\\d*)\\)", "\\1",
+                              gsub(":", "*", .))), p))
       }
-      g <- matrix(unlist(do.call('rbind', purrr::map(seq_along(x[,1]), function(y) purrr::map(g_d, ~eval(., envir = x[y,]))))), nrow = nrow(x))
+      g <- matrix(
+        unlist(
+          do.call(
+            'rbind',
+            purrr::map(
+              seq_along(x[,1]),
+              function(y) purrr::map(g_d, ~eval(., envir = x[y,]))))),
+        nrow = nrow(x))
       g <- g/range_scale
       x <- data.matrix(x)
       bu <- t(apply(x, 1, self$beta_u_cov))
@@ -248,19 +372,40 @@ Emulator <- R6Class(
       else beta_part <- g %*% self$beta_mu
       u_part <- apply(x, 1, self$u_mu)
       if (!is.null(self$in_data)) {
-        c_data <- t(self$corr$get_corr_d(x, self$in_data, p_ind, actives = self$active_vars))
+        c_data <- t(self$corr$get_corr_d(x, self$in_data,
+                                         p_ind, actives = self$active_vars))
         c_data <- matrix(c_data/range_scale, nrow = nrow(x))
         if (is.numeric(self$u_sigma)) {
           if (length(self$beta_mu) == 1)
-            u_part <- c(t(u_part + (t(bu) %*% t(private$design_matrix) + self$u_sigma^2 * c_data) %*% private$u_exp_modifier))
+            u_part <- c(t(u_part + (t(bu) %*%
+                                      t(private$design_matrix) +
+                                      self$u_sigma^2 * c_data) %*%
+                            private$u_exp_modifier))
           else
-            u_part <- u_part + (bu %*% t(private$design_matrix) + self$u_sigma^2 * c_data) %*% private$u_exp_modifier
+            u_part <- u_part + (bu %*% t(private$design_matrix) +
+                                  self$u_sigma^2 * c_data) %*%
+              private$u_exp_modifier
         }
         else {
           if (length(self$beta_mu) == 1)
-            u_part <- c(t(u_part + (t(bu) %*% t(private$design_matrix) + sweep(sweep(c_data, 2, apply(self$in_data, 1, self$u_sigma), "*"), 1, apply(x, 1, self$u_sigma), "*")) %*% private$u_exp_modifier))
+            u_part <- c(t(u_part + (t(bu) %*%
+                                      t(private$design_matrix) +
+                                      sweep(
+                                        sweep(
+                                          c_data, 2,
+                                          apply(
+                                            self$in_data, 1,
+                                            self$u_sigma), "*"), 1,
+                                        apply(x, 1, self$u_sigma), "*")) %*%
+                            private$u_exp_modifier))
           else
-            u_part <- u_part + (bu %*% t(private$design_matrix) + sweep(sweep(c_data, 2, apply(self$in_data, 1, self$u_sigma), "*"), 1, apply(x, 1, self$u_sigma), "*")) %*% private$u_exp_modifier
+            u_part <- u_part +
+              (bu %*% t(private$design_matrix) + sweep(
+                sweep(
+                  c_data, 2,
+                  apply(self$in_data, 1,
+                        self$u_sigma), "*"), 1,
+                apply(x, 1, self$u_sigma), "*")) %*% private$u_exp_modifier
         }
       }
       if (length(self$beta_mu) == 1) return(c(beta_part + u_part))
@@ -271,13 +416,15 @@ Emulator <- R6Class(
         k <- ceiling(nrow(x)/1000)
         m <- ceiling(nrow(x)/k)
         s_df <- split(x, rep(1:k, each = m, length.out = nrow(x)))
-        return(unlist(purrr::map(s_df, ~self$get_cov_d(., p1, xp, p2, FALSE)), use.names = FALSE))
+        return(unlist(purrr::map(
+          s_df, ~self$get_cov_d(., p1, xp, p2, FALSE)), use.names = FALSE))
       }
       deriv_func <- tryCatch(
         get(paste0(self$corr$corr_name, "_d")),
         error = function(e) return(NULL)
       )
-      if(is.null(deriv_func)) stop("No derivative expression available for correlation function.")
+      if(is.null(deriv_func))
+        stop("No derivative expression available for correlation function.")
       range_scale1 <- diff(self$ranges[[p1]])/2
       x <- x[, names(self$ranges)[names(self$ranges) %in% names(x)]]
       x <- eval_funcs(scale_input, x, self$ranges)
@@ -290,17 +437,39 @@ Emulator <- R6Class(
       p1_ind <- which(names(self$ranges) == p1)
       p2_ind <- which(names(self$ranges) == p2)
       if (is.null(self$model_terms)) {
-        model_terms <- purrr::map_chr(self$basis_f, function_to_names, names(self$ranges), FALSE)
+        model_terms <- purrr::map_chr(self$basis_f,
+                                      function_to_names,
+                                      names(self$ranges), FALSE)
         g_d1 <- purrr::map(model_terms, ~D(parse(text = .), p1))
         g_d2 <- purrr::map(model_terms, ~D(parse(text = .), p2))
       }
       else {
         model_terms <- self$model_terms
-        g_d1 <- purrr::map(self$model_terms, ~D(parse(text = sub("I\\((\\w*\\^\\d*)\\)", "\\1", gsub(":", "*", .))), p1))
-        g_d2 <- purrr::map(self$model_terms, ~D(parse(text = sub("I\\((\\w*\\^\\d*)\\)", "\\1", gsub(":", "*", .))), p2))
+        g_d1 <- purrr::map(self$model_terms,
+                           ~D(parse(text = sub("I\\((\\w*\\^\\d*)\\)",
+                                               "\\1", gsub(":", "*", .))), p1))
+        g_d2 <- purrr::map(self$model_terms,
+                           ~D(parse(text = sub("I\\((\\w*\\^\\d*)\\)",
+                                               "\\1", gsub(":", "*", .))), p2))
       }
-      g_x <- t(matrix(unlist(do.call('rbind', purrr::map(seq_along(x[,1]), function(y) purrr::map(g_d1, ~eval(., envir = x[y,]))))), nrow = nrow(x)))
-      gp_x <- t(matrix(unlist(do.call('rbind', purrr::map(seq_along(x[,1]), function(y) purrr::map(g_d2, ~eval(., envir = x[y,]))))), nrow = nrow(x)))
+      g_x <- t(
+        matrix(
+          unlist(
+            do.call(
+              'rbind', purrr::map(
+                seq_along(x[,1]),
+                function(y) purrr::map(g_d1,
+                                       ~eval(., envir = x[y,]))))),
+          nrow = nrow(x)))
+      gp_x <- t(
+        matrix(
+          unlist(
+            do.call(
+              'rbind', purrr::map(
+                seq_along(x[,1]),
+                function(y) purrr::map(g_d2,
+                                       ~eval(., envir = x[y,]))))),
+          nrow = nrow(x)))
       x <- data.matrix(x)
       bupart_x <- apply(x, 1, self$beta_u_cov)
       null_flag <- FALSE
@@ -310,82 +479,164 @@ Emulator <- R6Class(
         bupart_xp <- bupart_x
       }
       else {
-        xp <- eval_funcs(scale_input, xp[, names(self$ranges)[names(self$ranges) %in% names(xp)]], self$ranges)
-        gp_x <- t(matrix(unlist(do.call('rbind', purrr::map(seq_along(xp[,1]), function(y) purrr::map(g_d2, ~eval(., envir = xp[y,]))))), nrow = nrow(xp)))
+        xp <- eval_funcs(
+          scale_input,
+          xp[, names(self$ranges)[names(self$ranges) %in% names(xp)]],
+          self$ranges)
+        gp_x <- t(
+          matrix(
+            unlist(
+              do.call(
+                'rbind',
+                purrr::map(
+                  seq_along(xp[,1]),
+                  function(y) purrr::map(g_d2,
+                                         ~eval(., envir = xp[y,]))))),
+            nrow = nrow(xp)))
         xp <- data.matrix(xp)
         bupart_xp <- apply(xp, 1, self$beta_u_cov)
       }
       g_x <- g_x/range_scale1
       gp_x <- gp_x/range_scale2
       if (full || nrow(x) != nrow(xp)) {
-          x_xp_c <- t(self$corr$get_corr_d(x, xp, p1_ind, p2_ind, self$active_vars))/(range_scale1*range_scale2)
+          x_xp_c <- t(self$corr$get_corr_d(x, xp, p1_ind, p2_ind,
+                                           self$active_vars))/
+            (range_scale1*range_scale2)
         if (is.null(nrow(g_x))) beta_part <- g_x %*% self$beta_sigma %*% gp_x
         else beta_part <- t(g_x) %*% self$beta_sigma %*% gp_x
         if (is.numeric(self$u_sigma))
           u_part <- self$u_sigma^2 * x_xp_c
         else
-          u_part <- sweep(sweep(x_xp_c, 2, apply(xp, 1, self$u_sigma), "*"), 1, apply(x, 1, self$u_sigma), "*")
+          u_part <- sweep(
+            sweep(
+              x_xp_c, 2,
+              apply(xp, 1,
+                    self$u_sigma), "*"), 1,
+            apply(x, 1, self$u_sigma), "*")
         if (!is.null(self$in_data)) {
-          c_x <- t(self$corr$get_corr_d(x, self_in_data, p1_ind, p2 = NULL, self$active_vars))/range_scale1
+          c_x <- t(self$corr$get_corr_d(x, self_in_data,
+                                        p1_ind, p2 = NULL, self$active_vars))/
+            range_scale1
           c_xp <- if(null_flag)
             -1*c_x
           else
-            -1*t(self$corr$get_corr_d(x, self$in_data, p2_ind, p2 = NULL, self$active_vars))/range_scale2
+            -1*t(self$corr$get_corr_d(x, self$in_data,
+                                      p2_ind, p2 = NULL, self$active_vars))/
+            range_scale2
           if (is.numeric(self$u_sigma)) {
             c_x <- self$u_sigma^2 * c_x
             c_xp <- self$u_sigma^2 * c_xp
           }
           else {
-            c_x <- sweep(sweep(matrix(c_x, nrow = nrow(x)), 2, apply(self$in_data, 1, self$u_sigma), "*"), 1, apply(x, 1, self$u_sigma), "*")
-            c_xp <- sweep(sweep(matrix(c_xp, nrow = nrow(xp)), 2, apply(self$in_data, 1, self$u_sigma), "*"), 1, apply(xp, 1, self$u_sigma), "*")
+            c_x <- sweep(
+              sweep(
+                matrix(
+                  c_x, nrow = nrow(x)), 2,
+                apply(self$in_data, 1,
+                      self$u_sigma), "*"), 1,
+              apply(x, 1, self$u_sigma), "*")
+            c_xp <- sweep(
+              sweep(
+                matrix(
+                  c_xp, nrow = nrow(xp)), 2,
+                apply(self$in_data, 1, self$u_sigma), "*"), 1,
+              apply(xp, 1, self$u_sigma), "*")
           }
-          u_part <- u_part - c_x %*% (private$data_corrs - private$u_var_modifier) %*% t(c_xp)
-          bupart_x <- bupart_x - private$beta_u_cov_modifier %*% (private$design_matrix %*% bupart_x + t(c_x))
-          bupart_xp <- if(null_flag) bupart_x else bupart_xp - private$beta_u_cov_modifier %*% (private$design_matrix %*% bupart_xp + t(c_xp))
+          u_part <- u_part - c_x %*%
+            (private$data_corrs - private$u_var_modifier) %*% t(c_xp)
+          bupart_x <- bupart_x -
+            private$beta_u_cov_modifier %*%
+            (private$design_matrix %*% bupart_x + t(c_x))
+          bupart_xp <- if(null_flag) bupart_x else bupart_xp -
+            private$beta_u_cov_modifier %*%
+            (private$design_matrix %*% bupart_xp + t(c_xp))
           if (is.null(nrow(g_x))) {
             bupart_x <- t(bupart_x)
             bupart_xp <- t(bupart_xp)
           }
         }
-        if (is.null(nrow(g_x))) bupart <- outer(g_x, bupart_xp, "*") + outer(bupart_x, gp_x, "*")
+        if (is.null(nrow(g_x))) bupart <- outer(g_x, bupart_xp, "*") +
+            outer(bupart_x, gp_x, "*")
         else bupart <- t(g_x) %*% bupart_xp + t(bupart_x) %*% gp_x
       }
       else {
-        point_seq <- 1:nrow(x)
-        if (is.null(nrow(g_x))) beta_part <- diag(diag(self$beta_sigma) * outer(g_x, gp_x))
-        else beta_part <- purrr::map_dbl(point_seq, ~g_x[,.] %*% self$beta_sigma %*% gp_x[,.])
-        if (is.numeric(self$u_sigma)) u_part <- self$u_sigma^2 * diag(self$corr$get_corr_d(x, xp, p1_ind, p2_ind, self$active_vars))/(range_scale1*range_scale2)
-        else u_part <- purrr::map_dbl(point_seq, ~self$u_sigma(x[.,])*self$u_sigma(x[.,])) * diag(self$corr$get_corr_d(x, xp, p1_ind, p2_ind, self$active_vars))/(range_scale1*range_scale2)
+        point_seq <- seq_len(nrow(x))
+        if (is.null(nrow(g_x))) beta_part <- diag(diag(self$beta_sigma) *
+                                                    outer(g_x, gp_x))
+        else beta_part <- purrr::map_dbl(
+          point_seq, ~g_x[,.] %*% self$beta_sigma %*% gp_x[,.])
+        if (is.numeric(self$u_sigma))
+          u_part <- self$u_sigma^2 * diag(
+            self$corr$get_corr_d(x, xp, p1_ind, p2_ind, self$active_vars))/
+            (range_scale1*range_scale2)
+        else u_part <- purrr::map_dbl(
+          point_seq,
+          ~self$u_sigma(x[.,])*self$u_sigma(x[.,])) *
+            diag(self$corr$get_corr_d(x, xp, p1_ind,
+                                      p2_ind, self$active_vars))/
+            (range_scale1*range_scale2)
         if (!is.null(self$in_data)) {
-          c_x <- t(self$corr$get_corr_d(x, self$in_data, p1_ind, p2 = NULL, self$active_vars))/range_scale1
+          c_x <- t(self$corr$get_corr_d(x, self$in_data,
+                                        p1_ind, p2 = NULL, self$active_vars))/
+            range_scale1
           c_xp <- if(null_flag)
             -1*c_x
           else
-            -1*t(self$corr$get_corr_d(xp, self$in_data, p2_ind, p2 = NULL, self$active_vars))/range_scale2
+            -1*t(self$corr$get_corr_d(xp, self$in_data, p2_ind,
+                                      p2 = NULL, self$active_vars))/
+            range_scale2
           if (is.numeric(self$u_sigma)) {
             c_x <- self$u_sigma^2 * c_x
             c_xp <- self$u_sigma^2 * c_xp
           }
           else {
-            c_x <- sweep(sweep(matrix(c_x, nrow = nrow(x)), 2, apply(self$in_data, 1, self$u_sigma), "*"), 1, apply(x, 1, self$u_sigma), "*")
-            c_xp <- sweep(sweep(matrix(c_xp, nrow = nrow(xp)), 2, apply(self$in_data, 1, self$u_sigma), "*"), 1, apply(xp, 1, self$u_sigma), "*")
+            c_x <- sweep(
+              sweep(
+                matrix(c_x, nrow = nrow(x)), 2,
+                apply(self$in_data, 1, self$u_sigma), "*"), 1,
+              apply(x, 1, self$u_sigma), "*")
+            c_xp <- sweep(
+              sweep(
+                matrix(c_xp, nrow = nrow(xp)), 2,
+                apply(self$in_data, 1, self$u_sigma), "*"), 1,
+              apply(xp, 1, self$u_sigma), "*")
           }
-          u_part <- u_part - rowSums((c_x %*% (private$data_corrs - private$u_var_modifier)) * c_xp)
-          bupart_x <- bupart_x - private$beta_u_cov_modifier %*% (private$design_matrix %*% bupart_x + t(c_x))
-          bupart_xp <- if(null_flag) bupart_x else bupart_xp - private$beta_u_cov_modifier %*% (private$design_matrix %*% bupart_xp + t(c_xp))
+          u_part <- u_part -
+            rowSums((c_x %*%
+                       (private$data_corrs - private$u_var_modifier)) * c_xp)
+          bupart_x <- bupart_x -
+            private$beta_u_cov_modifier %*%
+            (private$design_matrix %*% bupart_x + t(c_x))
+          bupart_xp <- if(null_flag) bupart_x else bupart_xp -
+            private$beta_u_cov_modifier %*%
+            (private$design_matrix %*% bupart_xp + t(c_xp))
         }
-        if(is.null(nrow(g_x))) bupart <- purrr::map_dbl(point_seq, ~t(purrr::map_dbl(self$basis_f, purrr::exec, x[.,])) * bupart_xp[.] + t(bupart_x[.] * purrr::map_dbl(self$basis_f, purrr::exec, xp[.,])))
-        else bupart <- purrr::map_dbl(point_seq, ~t(purrr::map_dbl(self$basis_f, purrr::exec, x[.,])) %*% bupart_xp[,.] + t(bupart_x[,.] %*% purrr::map_dbl(self$basis_f, purrr::exec, xp[.,])))
+        if(is.null(nrow(g_x)))
+          bupart <- purrr::map_dbl(
+            point_seq,
+            ~t(purrr::map_dbl(
+              self$basis_f, purrr::exec, x[.,])) *
+              bupart_xp[.] + t(bupart_x[.] * purrr::map_dbl(
+                self$basis_f, purrr::exec, xp[.,])))
+        else bupart <- purrr::map_dbl(
+          point_seq,
+          ~t(purrr::map_dbl(self$basis_f, purrr::exec, x[.,])) %*%
+            bupart_xp[,.] + t(bupart_x[,.] %*% purrr::map_dbl(
+              self$basis_f, purrr::exec, xp[.,])))
       }
       return(round(beta_part + u_part + bupart, 10))
     },
     implausibility = function(x, z, cutoff = NULL) {
-      if (is.null(nrow(x))) x <- setNames(data.frame(matrix(x, ncol = 1)), names(self$ranges))
+      if (is.null(nrow(x))) x <- setNames(
+        data.frame(matrix(x, ncol = 1)), names(self$ranges))
       if (nrow(x) > 1000) {
         k <- ceiling(nrow(x)/1000)
         m <- ceiling(nrow(x)/k)
         s_df <- split(x, rep(1:k, each = m, length.out = nrow(x)))
-        return(unlist(purrr::map(s_df, ~self$implausibility(., z = z, cutoff = cutoff)), use.names = FALSE))
+        return(unlist(
+          purrr::map(
+            s_df, ~self$implausibility(., z = z, cutoff = cutoff)),
+          use.names = FALSE))
       }
       disc_quad <- sum(purrr::map_dbl(self$disc, ~.^2))
       if (!is.numeric(z) && !is.null(z$val)) {
@@ -418,14 +669,16 @@ Emulator <- R6Class(
       return(imp <= cutoff)
     },
     adjust = function(data, out_name) {
-      this_data_in <- data.matrix(eval_funcs(scale_input, data[,names(self$ranges)], self$ranges))
+      this_data_in <- data.matrix(eval_funcs(
+        scale_input, data[,names(self$ranges)], self$ranges))
       this_data_out <- data[,out_name]
       if (all(eigen(self$beta_sigma)$values == 0)) {
         new_beta_var <- self$beta_sigma
         new_beta_exp <- self$beta_mu
       }
       else {
-        G <- apply(this_data_in, 1, function(x) purrr::map_dbl(self$basis_f, purrr::exec, x))
+        G <- apply(this_data_in, 1,
+                   function(x) purrr::map_dbl(self$basis_f, purrr::exec, x))
         Ot <- self$corr$get_corr(this_data_in, actives = self$active_vars)
         O <- tryCatch(
           chol2inv(chol(Ot)),
@@ -445,13 +698,17 @@ Emulator <- R6Class(
             MASS::ginv(G %*% O %*% (if(is.null(nrow(G))) G else t(G)) + siginv)
           }
         )
-        new_beta_exp <- new_beta_var %*% (siginv %*% self$beta_mu + G %*% O %*% this_data_out)
+        new_beta_exp <- new_beta_var %*%
+          (siginv %*% self$beta_mu + G %*% O %*% this_data_out)
       }
-      new_em <- Emulator$new(self$basis_f, beta = list(mu = new_beta_exp, sigma = new_beta_var),
+      new_em <- Emulator$new(self$basis_f,
+                             beta = list(mu = new_beta_exp, sigma = new_beta_var),
                              u = list(sigma = self$u_sigma, corr = self$corr),
-                             ranges = self$ranges, data = data[, c(names(self$ranges), out_name)],
-                             original_em = self, out_name = out_name, model = self$model,
-                             a_vars = self$active_vars, discs = self$disc, multiplier = self$multiplier)
+                             ranges = self$ranges,
+                             data = data[, c(names(self$ranges), out_name)],
+                             original_em = self, out_name = out_name,
+                             model = self$model, a_vars = self$active_vars,
+                             discs = self$disc, multiplier = self$multiplier)
       return(new_em)
     },
     set_sigma = function(sigma) {
@@ -462,7 +719,12 @@ Emulator <- R6Class(
       }
       new_o_em <- self$o_em$clone()
       new_o_em$u_sigma <- sigma
-      dat <- setNames(data.frame(cbind(eval_funcs(scale_input, data.frame(self$in_data), self$ranges, FALSE), self$out_data)), c(names(self$ranges), self$output_name))
+      dat <- setNames(
+        data.frame(
+          cbind(
+            eval_funcs(scale_input,
+                       data.frame(self$in_data), self$ranges, FALSE),
+            self$out_data)), c(names(self$ranges), self$output_name))
       return(new_o_em$adjust(dat, self$output_name))
     },
     mult_sigma = function(m) {
@@ -473,12 +735,18 @@ Emulator <- R6Class(
       }
       new_o_em <- self$o_em$clone()
       new_o_em$multiplier <- new_o_em$multiplier * m
-      dat <- setNames(data.frame(cbind(eval_funcs(scale_input, data.frame(self$in_data), self$ranges, FALSE), self$out_data)), c(names(self$ranges), self$output_name))
+      dat <- setNames(
+        data.frame(
+          cbind(
+            eval_funcs(scale_input,
+                       data.frame(self$in_data), self$ranges, FALSE),
+            self$out_data)), c(names(self$ranges), self$output_name))
       return(new_o_em$adjust(dat, self$output_name))
     },
     set_hyperparams = function(hp, nugget = self$corr$nugget) {
       current_u <- self$corr
-      if (all(names(current_u$hyper_p) != names(hp))) stop("Hyperparameter specification does not match current correlation function.")
+      if (all(names(current_u$hyper_p) != names(hp)))
+        stop("Hyperparameter specification does not match current correlation function.")
       if (is.null(self$o_em)) {
         new_em <- self$clone()
         new_em$corr <- new_em$corr$set_hyper_p(hp, nugget)
@@ -486,24 +754,46 @@ Emulator <- R6Class(
       }
       new_o_em <- self$o_em$clone()
       new_o_em$corr <- new_o_em$corr$set_hyper_p(hp, nugget)
-      dat <- setNames(data.frame(cbind(eval_funcs(scale_input, data.frame(self$in_data), self$ranges, FALSE), self$out_data)), c(names(self$ranges), self$output_name))
+      dat <- setNames(
+        data.frame(
+          cbind(
+            eval_funcs(
+              scale_input,
+              data.frame(self$in_data), self$ranges, FALSE), self$out_data)),
+        c(names(self$ranges), self$output_name))
       return(new_o_em$adjust(dat, self$output_name))
     },
     print = function(...) {
-      cat("Parameters and ranges: ", paste(names(self$ranges), paste0(purrr::map(self$ranges, round, 4)), sep = ": ", collapse = ": "), "\n")
+      cat("Parameters and ranges: ",
+          paste(names(self$ranges),
+                paste0(purrr::map(self$ranges, round, 4)),
+                sep = ": ", collapse = ": "), "\n")
       cat("Specifications: \n")
         if (!is.null(self$model))
-          cat("\t Basis functions: ", paste0(names(self$model$coefficients), collapse="; "), "\n")
+          cat("\t Basis functions: ",
+              paste0(names(self$model$coefficients), collapse="; "), "\n")
         else if (!is.null(self$o_em$model))
-          cat("\t Basis Functions: ", paste0(names(self$o_em$model$coefficients), collapse="; "), "\n")
+          cat("\t Basis Functions: ",
+              paste0(names(self$o_em$model$coefficients), collapse="; "), "\n")
         else
-          cat("\t Basis functions: ", paste0(purrr::map_chr(self$basis_f, function_to_names, names(self$ranges), FALSE), collapse = "; "), "\n")
-      cat("\t Active variables", paste0(names(self$ranges)[self$active_vars], collapse = "; "), "\n")
-      cat("\t Regression Surface Expectation: ", paste(round(self$beta_mu, 4), collapse = "; "), "\n")
-      cat("\t Regression surface Variance (eigenvalues): ", paste(round(eigen(self$beta_sigma)$values, 4), collapse = "; "), "\n")
+          cat("\t Basis functions: ",
+              paste0(purrr::map_chr(
+                self$basis_f, function_to_names, names(self$ranges), FALSE),
+                collapse = "; "), "\n")
+      cat("\t Active variables",
+          paste0(names(self$ranges)[self$active_vars], collapse = "; "), "\n")
+      cat("\t Regression Surface Expectation: ",
+          paste(round(self$beta_mu, 4), collapse = "; "), "\n")
+      cat("\t Regression surface Variance (eigenvalues): ",
+          paste(round(eigen(self$beta_sigma)$values, 4), collapse = "; "), "\n")
       cat("Correlation Structure: \n")
-      if (!is.null(private$data_corrs)) cat("Bayes-adjusted emulator - prior specifications listed. \n")
-      cat("\t Variance (Representative): ", if (is.numeric(self$u_sigma)) self$u_sigma^2 else self$u_sigma(purrr::map_dbl(self$ranges, mean))^2, "\n")
+      if (!is.null(private$data_corrs))
+        cat("Bayes-adjusted emulator - prior specifications listed. \n")
+      cat("\t Variance (Representative): ",
+          if (is.numeric(self$u_sigma))
+            self$u_sigma^2
+          else
+            self$u_sigma(purrr::map_dbl(self$ranges, mean))^2, "\n")
       cat("\t Expectation: ", self$u_mu(rep(0, length(ranges))), "\n")
       self$corr$print(prepend = "\t")
       cat("Mixed covariance: ", self$beta_u_cov(rep(0, length(ranges))), "\n")

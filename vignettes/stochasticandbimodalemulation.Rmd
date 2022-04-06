@@ -95,7 +95,7 @@ get_results <- function(params, nreps = 100, outs = c("I", "R"), times = seq(0, 
 The methods described here represent advanced usage of the package, and are under active development. The training of stochastic and/or bimodal emulators is not automatically instigated (for example, by `full_wave`) and as such requires user attention to ensure that results are sensible and that the approach is appropriate for the model under consideration. Each of these extensions to the deterministic emulation comes with an increased computational load, and for weakly stochastic or weakly bimodal systems a standard approach may be a more sensible route to history matching and emulation.
 
 ## Stochastic Emulation
-Frequently, disease models as well as those in other fields cannot be adequately represented by a deterministic system of differential equations or functions. An Individual-based Model (IBM) for example relies on the behaviour of individual nodes in the model to accurately express the dynamics of the spread of a disease through a population, as well as the effect of any interventions. In such a model, multiple runs at the same point in parameter space can give different values, and the spread of these repetitions can vary considerably across the input space. Even a simple model such as the first one we consider demonstrates this: if we consider the number of people in a population and have a high value for the birth rate, the result will have higher variability than running the model with a low birth rate.
+Frequently, disease models (as well as models in other fields) cannot be adequately represented by a deterministic system of differential equations or functions. An Individual-based Model (IBM), for example, relies on the behaviour of individuals in the model to accurately express the dynamics of the spread of a disease through a population, as well as the effect of any interventions. In such a model, multiple model evaluations at the same point in parameter space can give different values, and the spread of these repetitions can vary considerably across the input space. Even a simple model such as the first one we consider demonstrates this: if we consider the number of people in a population and have a high value for the birth rate, the result will have higher variability than running the model with a low birth rate.
 
 Such stochasticity can be treated by assuming that the inherent variability in the model can be subsumed into the emulator uncertainty, but where we have heteroskedasticity a flat increase to the variance may not be appropriate or, when it is, it may obscure important features of the model. We therefore have an means by which the variance of a system, as well as the output, can be emulated - the emulated variance serves to inform the uncertainty of the predicted output in a nuanced way.
 
@@ -103,7 +103,7 @@ The example we will use initially is a very simple birth-death model. We represe
 
 $\emptyset \overset{\lambda}\to Y,\hspace{5mm}Y \overset{\mu}\to \emptyset.$
 
-Including in the package is a dataset, generated using the Gillespie algorithm, for this system. This dataset is split into two parts: a training set and a validation set, much like the deterministic example used before. However, it differs in that the dataset contains duplicate input points corresponding to repetitions of the model. The training dataset consists of $5$ points in the very centre and at each of the four corners of the $(\lambda, \mu)$ space, each of which has $100$ repetitions; a further $15$ points are sampled uniformly from the space and each receives only $10$ repetitions. This mirrors a common feature of stochastic systems, where some regions of parameter space are quicker to run the model at than others, and we therefore have access to a set of 'high-rep' runs and some 'low-rep' ones. The output value is of the population $Y$ at time $t=15$; the initial condition was that $Y(0)=100$.
+Including in the package is a dataset, `BirthDeath`, generated using the Gillespie algorithm for this system. This dataset is split into two parts: a training set and a validation set, much like the deterministic example used before. However, it differs in that the dataset contains duplicate input points corresponding to repetitions of the model. The training dataset consists of $5$ points in the very centre and at each of the four corners of the $(\lambda, \mu)$ space, each of which has $100$ repetitions; a further $15$ points are sampled uniformly from the space and each receives only $10$ repetitions. This mirrors a common feature of stochastic systems, where some regions of parameter space are quicker to run the model at than others, and we therefore have access to a set of 'high-rep' runs and some 'low-rep' ones. The output value is of the population $Y$ at time $t=15$; the initial condition was that $Y(0)=100$.
 
 ```{r birth-death-plot, fig.height = 7, fig.width = 7}
 plot(unique(BirthDeath$training[,1:2]), pch = 16, col = c(rep('red', 5), rep('black', 15)))
@@ -122,14 +122,14 @@ targets = list(
 )
 ```
 
-We can train stochastic emulators to this data by passing the whole training dataset, with repetitions, to `variance_emulator_from_data`. This works outwardly the same fashion as `emulator_from_data`, but the output has a different form. For details about how hierarchical emulators are constructed, see the section at the bottom of this document.
+We can train stochastic emulators to this data by passing the whole training dataset, with repetitions, to `variance_emulator_from_data`. This works outwardly in the same fashion as `emulator_from_data`, but the output has a different form. For details about how hierarchical emulators are constructed, see the section at the bottom of this document.
 
 ```{r make-variance-em}
 stochastic_em <- variance_emulator_from_data(BirthDeath$training, names(targets), ranges)
 stochastic_em
 ```
 
-Here we see that, despite providing one output to emulate, we have obtained two emulators labelled `variance` and `expectation`. If provided with more than $n$ outputs, the same structure would be present: each of `variance` and `emulator` would contain $n$ emulator objects. The output has superficial similarity to a deterministic emulation were we to simply consider `stochastic_em$expectation`.
+Here we see that, despite providing one output to emulate, we have obtained two emulators labelled `variance` and `expectation` corresponding to approximations of the variance surface and mean surface respectively. If provided with more than $n$ outputs, the same structure would be present: each of `variance` and `emulator` would contain $n$ emulator objects. The output has superficial similarity to a deterministic emulation were we to simply consider `stochastic_em$expectation`.
 
 Variance emulators share much of the structure with their deterministic equivalents; however, the means by which quantities are calculated differ and we can determine that we (and functions within the package) are dealing with a stochastic emulator by checking its class.
 
@@ -160,7 +160,7 @@ The usual plots still apply: we can of course consider the implausibility across
 emulator_plot(stochastic_em$expectation$Y, 'imp', targets = targets)
 ```
 
-Of interest here is the fact that the very-lowest right section of the space has been deemed unlikely to produce acceptable fits. This would not be the case were it not for the fact that the emulator knows that the value around this region has been 'pinned down' by a high-repetition run.
+Of interest here is the fact that the very-lowest right section of the space has begun to be deemed unlikely to produce acceptable fits. This would not be the case were it not for the fact that the emulator knows that the value around this region has been 'pinned down' by a high-repetition run.
 
 We may also perform diagnostics on the emulators, for both the mean and variance emulators: we use the validation set provided in `BirthDeath`, though as always in the absence of a validation dataset k-fold cross-validation will be performed.
 
@@ -189,7 +189,7 @@ plot_wrap(new_points, ranges)
 
 ## Bimodality
 
-The previous example displayed the stochastic behaviour we wished to consider, but the simple nature of the model meant that it was a limited demonstration of the issues that can be faced when dealing with stochastic models. One extremely common (and often problematic) feature of stochastic disease models is bimodality: dependent on starting conditions, one can perform multiple repetitions at a given input point and find two distinct classes of behaviour. The most common exmaple of this is 'take off vs die out', where if the initial number of infected people is low the disease might infrequently find its way into the population, but blowing up on those rare circumstances it does. In such a situation, it does not make sense to try to emulate the output as an individual entity, as even at a single point there are two very different situations occuring. Instead, we provide a framework to handle bimodality.
+The previous example displayed the stochastic behaviour we wished to consider, but the simple nature of the model meant that it was a limited demonstration of the issues that can be faced when dealing with stochastic models. One extremely common (and often problematic) feature of stochastic disease models is bimodality: dependent on starting conditions, one can perform multiple repetitions at a given input point and find two distinct classes of behaviour. The most common example of this is 'take off vs die out', where if the initial number of infected people is low the disease might infrequently find its way into the population, but blowing up on those rare circumstances it does. In such a situation, it does not make sense to try to emulate the output as an individual entity, as even at a single point there are two very different situations occuring. Instead, we provide a basic framework to handle bimodality.
 
 We may revisit the 'deterministic' example touched upon before - the SIRS model. In the previous examples, we started the simulation with an adequate number of infected people to avoid bimodality: 5% of the population started out infected. Here we will instead start with 0.5% of the population infected. Even in a simple model such as this, we can still find bimodality.
 
@@ -222,7 +222,7 @@ bim_targets <- list(
 )
 ```
 
-The data has a similar form to that of the variance emulation discussed above, and a cursory glance would not be sufficient to decide whether bimodality is present. In principle, any data containing replicates can be treated as bimodality, but it is possible that the computational cost of emulating multiple modes (where they exist) are unnecessary where the data is in fact unimodal (or extremely close to unimodal). Judgement should be used as to whether this more involved approach to emulation is warranted.
+The data has a similar form to that of the variance emulation discussed above, and a cursory glance would not be sufficient to decide whether bimodality is present. In principle, any data containing replicates can be treated as bimodal, but it is possible that the computational cost of emulating multiple modes (where they exist) are unnecessary where the data is in fact unimodal (or extremely close to unimodal). Judgement should be used as to whether this more involved approach to emulation is warranted.
 
 In any event, if we feel that the model exhibits strong bimodality, we may use the (imaginatively titled) `bimodal_emulator_from_data`. The usage follows the standard behaviour of the `emulator_from_data` family.
 
@@ -246,7 +246,7 @@ We can validate in the same fashion as always, using the validation set generate
 bim_invalid <- validation_diagnostics(bim_ems, bim_targets, validation)
 ```
 
-Close inspection reveals that, despite providing $20$ validation points to the emulators, some of the plots have over $20$ distinguishable points in them. This is no accident: when validating we test against both modes of emulators, which results in an approximate doubling of points. It is only approximate, as it is possible that one parameter set contributes solely to one mode. We can also see, particularly in the output for R50, the nature of the bimodality: in the comparison plot we can see a cluster of results near $0$, a gap between $200$ and $\sim400$, and then another set of results beyond that.
+Close inspection reveals that, despite providing $20$ validation points to the emulators, some of the plots have over $20$ distinguishable points in them. This is no accident: when validating we test against both modes of emulators, which results in an approximate doubling of points (it is only approximate as it is possible that one parameter set contributes solely to one mode, so the other mode would not need to be validated against that point). We can also see, particularly in the output for R50, the nature of the bimodality: in the comparison plot we can see a cluster of results near $0$, a gap between $200$ and $\sim400$, and then another set of results beyond that.
 
 We can also consider implausibility for the emulators. The usual plotting functions (expectation, variance, standard deviation) work in the same manner as for non-bimodal emulators, with the caveat that one must specify which mode we wish to plot:
 
@@ -279,8 +279,10 @@ plot_wrap(new_points, SIR_ranges)
 
 When emulating stochastic systems, we wish to have an adequate understanding of the change in variance across the space as a consequence of the stochasticity. There are a multitude of ways to address this issue:
 
-- The most straightforward (and conservative) would be to treat the stochasticity as a flat overall additional source of uncertainty at any point in the input space. We could train 'vanilla' emulators to the data and include this extra uncertainty as an external factor: this would be tantamount to modifying the `em$disc` quantities in the Emulator object. If well-chosen, this safeguards against incorrectly ruling out regions of parameter space, but lack nuance.
+- The most straightforward (and conservative) would be to treat the stochasticity as a flat overall additional source of uncertainty at any point in the input space. We could train 'vanilla' emulators to the data and include this extra uncertainty as an external factor: this would be tantamount to modifying the `em$disc` quantities in the Emulator object. If well-chosen, this safeguards against incorrectly ruling out regions of parameter space, but lacks nuance.
+
 - We could represent the variance in the parameter space $x = (x_1, x_2, \dots, x_p)$ by some function $s(x)$, and use this as a prior for the variance $\sigma^2$ in the correlation structure of the emulator. The procedure would be identical to normal cases, except for the fact that the prior (and Bayes Linear adjusted) $\sigma^2$ is now functional rather than constant. This is a powerful approach provided we know, or have a very strong belief about, the 'true' variance across the space.
+
 - If we do not wish to add a blanket inflationary factor to the variance, and do not believe that we can accurately make judgments about a functional form for it (for example, if we do not have sufficient points from the space or repetitions therein to clearly identify the nature of the heteroskedasticity), then we may instead emulate the variance, taking into account the fact that we have an incomplete picture available to us. This latter approach is the one we demonstrate here.
 
 Suppose we have parameter sets $[x_1, x_2, \dots, x_k]$, which when applied to the model give realisations $[y_{11}, y_{12}, \dots, y_{1n_1}, y_{21}, \dots, y_{kn_k}]$. Here $y_{ab}$ is the $b^{th}$ realisation of the model applied to the point $x_a$, $f(x_a)$. We need not have the same number of repetitions at each input point; we therefore index the number of repetitions by $n_1, n_2, \dots, n_k$. From each collection of repetitions identified by input point $x_i$, we can obtain a sample estimate of the mean at this point and the variance. For sufficiently high-repetition points, we may even be able to make a sensible guess at the higher order quantities at that point; for example, the kurtosis.

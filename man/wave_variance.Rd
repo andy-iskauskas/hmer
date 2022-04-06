@@ -8,7 +8,7 @@ wave_variance(
   waves,
   output_names,
   plot_dirs = names(waves[[1]][[1]]$ranges)[1:2],
-  wave_numbers = 1:length(waves),
+  wave_numbers = seq_along(waves),
   ppd = 20,
   sd = FALSE
 )

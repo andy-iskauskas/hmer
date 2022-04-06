@@ -1,13 +1,15 @@
 # Code to check emulator implausibilities sequentially
 sequential_imp <- function(ems, x, z, n = 1, cutoff = 3) {
   t_ems <- ems
-  results <- purrr::map_lgl(1:nrow(x), function(a) {
+  results <- purrr::map_lgl(seq_len(nrow(x)), function(a) {
     current_fails <- 0
     i <- 1
     while (i <= length(t_ems)) {
-      if (!t_ems[[i]]$implausibility(x[a,], z[[t_ems[[i]]$output_name]], cutoff)) {
+      if (!t_ems[[i]]$implausibility(x[a,],
+                                     z[[t_ems[[i]]$output_name]], cutoff)) {
         current_fails <- current_fails + 1
-        this_output <- which(purrr::map_chr(t_ems, ~.$output_name) == t_ems[[i]]$output_name)
+        this_output <- which(
+          purrr::map_chr(t_ems, ~.$output_name) == t_ems[[i]]$output_name)
         t_ems <- t_ems[-this_output]
         how_many_before <- sum(this_output <= i)
         i <- i - how_many_before
@@ -89,25 +91,37 @@ sequential_imp <- function(ems, x, z, n = 1, cutoff = 3) {
 #' nth_implausible(v_ems, unique(BirthDeath$validation[,1:2]), v_targs$expectation)
 #'
 nth_implausible <- function(ems, x, z, n = 1,
-                            max_imp = Inf, cutoff = NULL, sequential = FALSE, get_raw = FALSE) {
+                            max_imp = Inf, cutoff = NULL,
+                            sequential = FALSE, get_raw = FALSE) {
   ems <- collect_emulators(ems)
   ## Preprocessing for variance emulation
   if (!is.null(ems$expectation) && !is.null(ems$variance)) {
-    n <- ifelse(length(unique(purrr::map_chr(ems$expectation, ~.$output_name))) > 10, 2, 1)
+    n <- ifelse(length(unique(purrr::map_chr(
+      ems$expectation, ~.$output_name))) > 10, 2, 1)
     if (!is.null(z$expectation) && !is.null(z$variance)) {
-      imps_list <- list(expectation = nth_implausible(ems$expectation, x, z$expectation, n, max_imp, cutoff, FALSE, TRUE),
-                        variance = nth_implausible(ems$variance, x, z$variance, n, max_imp, cutoff, FALSE, TRUE))
+      imps_list <- list(
+        expectation = nth_implausible(ems$expectation, x,
+                                      z$expectation, n, max_imp,
+                                      cutoff, FALSE, TRUE),
+        variance = nth_implausible(ems$variance, x,
+                                   z$variance, n, max_imp,
+                                   cutoff, FALSE, TRUE))
       imp_mat <- cbind.data.frame(imps_list$expectation, imps_list$variance)
       if (get_raw) {
-        return(setNames(imp_mat, c(paste0(purrr::map_chr(ems$expectation, ~.$output_name), "Exp"), paste0(purrr::map_chr(ems$variance, ~.$output_name), "Var"))))
+        return(setNames(
+          imp_mat,
+          c(paste0(purrr::map_chr(ems$expectation, ~.$output_name), "Exp"),
+            paste0(purrr::map_chr(ems$variance, ~.$output_name), "Var"))))
       }
     }
     else {
-      return(nth_implausible(ems$expectation, x, z, n, max_imp, cutoff, sequential, get_raw))
+      return(nth_implausible(ems$expectation, x, z, n,
+                             max_imp, cutoff, sequential, get_raw))
     }
   }
   else if (!is.null(z$expectation) && !is.null(z$variance)) {
-    return(nth_implausible(ems, x, z$expectation, n, max_imp, cutoff, sequential, get_raw))
+    return(nth_implausible(ems, x, z$expectation, n,
+                           max_imp, cutoff, sequential, get_raw))
   }
   else if (!is.null(ems$mode1) && !is.null(ems$mode2)) {
     imps1 <- nth_implausible(ems$mode1, x, z, n, max_imp, cutoff, FALSE, TRUE)
@@ -131,34 +145,52 @@ nth_implausible <- function(ems, x, z, n = 1,
   }
   else {
     n <- ifelse(length(unique(purrr::map_chr(ems, ~.$output_name))) > 10, 2, 1)
-    for (i in 1:length(z)) {
+    for (i in seq_along(z)) {
       if (length(z[[i]]) == 1) {
-        warning(paste("Target", names(z)[i], "is a single value. Assuming it's a val with sigma = 5%."))
+        warning(paste("Target",
+                      names(z)[i],
+                      "is a single value. Assuming it's a val with sigma = 5%."))
         z[[i]] <- list(val = z[[i]], sigma = 0.05*z[[i]])
       }
     }
     if ("Emulator" %in% class(ems)) {
-      if (!ems$output_name %in% names(z)) stop("Target not found corresponding to named emulator.")
+      if (!ems$output_name %in% names(z))
+        stop("Target not found corresponding to named emulator.")
       else return(ems$implausibility(x, z[[ems$output_name]], cutoff))
     }
     if (n > length(unique(purrr::map_chr(ems, ~.$output_name)))) {
-      warning("n cannot be greater than the number of targets to match to. Switching to minimum implausibility.")
+      warning(paste("n cannot be greater than the number of targets to match to.",
+                    "Switching to minimum implausibility."))
       n <- length(unique(purrr::map_chr(ems, ~.$output_name)))
     }
     if (length(cutoff) == 1) cutoff <- rep(cutoff, length(ems))
     if (!is.null(cutoff) && (length(ems) > 10 || sequential)) {
       return(sequential_imp(ems, x, z, n, cutoff[1]))
     }
-    implausibles <- do.call('cbind', purrr::map(seq_along(ems), ~ems[[.]]$implausibility(x, z[[ems[[.]]$output_name]], cutoff[[.]])))
-    d_implausibles <- setNames(data.frame(implausibles), purrr::map_chr(ems, ~.$output_name))
+    implausibles <- do.call(
+      'cbind', purrr::map(seq_along(ems),
+                          ~ems[[.]]$implausibility(x,
+                                                   z[[ems[[.]]$output_name]],
+                                                   cutoff[[.]])))
+    d_implausibles <- setNames(
+      data.frame(implausibles),
+      purrr::map_chr(ems, ~.$output_name))
     if (!is.null(cutoff))
-      imp_mat <- t(apply(d_implausibles, 1, function(x) purrr::map_lgl(unique(names(x)), ~all(x[names(x) == .]))))
+      imp_mat <- t(apply(
+        d_implausibles, 1,
+        function(x) purrr::map_lgl(unique(names(x)), ~all(x[names(x) == .]))))
     else
-      imp_mat <- t(apply(d_implausibles, 1, function(x) purrr::map_dbl(unique(names(x)), ~max(x[names(x) == .]))))
+      imp_mat <- t(apply(
+        d_implausibles, 1,
+        function(x) purrr::map_dbl(unique(names(x)), ~max(x[names(x) == .]))))
   }
-  if (length(ems) == 1 || (!is.null(ems$expectation) && length(ems$expectation) == 1)) return(t(imp_mat))
+  if (length(ems) == 1 ||
+      (!is.null(ems$expectation) &&
+       length(ems$expectation) == 1)) return(t(imp_mat))
   if (nrow(imp_mat) == 1 && nrow(x) != 1) imp_mat <- t(imp_mat)
-  if (get_raw) return(setNames(data.frame(imp_mat), unique(purrr::map_chr(ems, ~.$output_name))))
+  if (get_raw)
+    return(setNames(data.frame(imp_mat),
+                    unique(purrr::map_chr(ems, ~.$output_name))))
   if (!is.null(cutoff)) {
     return(apply(imp_mat, 1, function(x) sum(x) > length(x)-n))
   }
