@@ -155,7 +155,7 @@ All of these plots, as well as `wave_points`, are wrapped into a single function
 Each of the functions in constructing emulators has a number of options with which the default behaviour can be modified. However, if investigation of the emulator structure is not required and one simply wants the next set of proposed points, then the `full_wave` function allows this. It requires only a set of points to train the emulators on. If applying this at later waves, the emulators from previous waves are provided as a list to the `old_emulators` argument.
 
 ```{r full-wave}
-f_w <- suppressWarnings(full_wave(SIRSample$training, list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05)), targets))
+f_w <- suppressWarnings(full_wave(do.call('rbind.data.frame', SIRSample), list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05)), targets))
 ```
 
 This provides two things: a next set of points to evaluate the model on, and the emulators that gave rise to them.

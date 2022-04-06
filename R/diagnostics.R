@@ -617,10 +617,10 @@ validation_diagnostics <- function(emulators, targets = NULL, validation = NULL,
 #' @export
 #'
 #' @examples
-#' individual_errors(SIREmulators$ems$nS, SIRSample$validation)
-#' individual_errors(SIREmulators$ems$nS, SIRSample$validation, "chol", "em")
-#' individual_errors(SIREmulators$ems$nS, SIRSample$validation, "eigen", plottype = "qq")
-#' individual_errors(SIREmulators$ems$nS, SIRSample$validation, "cholpivot", xtype = "aSI")
+#' i1 <- individual_errors(SIREmulators$ems$nS, SIRSample$validation)
+#' i2 <- individual_errors(SIREmulators$ems$nS, SIRSample$validation, "chol", "em")
+#' i3 <- individual_errors(SIREmulators$ems$nS, SIRSample$validation, "eigen", plottype = "qq")
+#' i4 <- individual_errors(SIREmulators$ems$nS, SIRSample$validation, "cholpivot", xtype = "aSI")
 #'
 individual_errors <- function(em, validation, errtype = "normal", xtype = "index", plottype = "normal") {
   if (!errtype %in% c("normal", "eigen", "chol", "cholpivot"))

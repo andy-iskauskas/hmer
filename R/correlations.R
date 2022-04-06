@@ -103,7 +103,7 @@ matern_d <- function(x, xp, hp, xi, xpi = NULL) {
   diff_2 <- outer(xp[,xpi, drop = FALSE], x[,xpi, drop = FALSE], "-")[,,,1]
   if (is.null(nrow(diff_2))) diff_2 <- t(diff_2)
   non_sum <- -16*hp$nu^2/hp$theta^4 * diff_1 * diff_2 * factorial(p)/factorial(2*p) * exp(-inner_arg)
-  sum <- sum(purrr::map_dbl(0:(p-2), ~factorial(p-2+.)/(factorial(.)*factorial(p-2-.)) * (2*inner_arg)^(p-2-.)))
+  sum <- Reduce("+", purrr::map(0:(p-2), ~factorial(p-2+.)/(factorial(.)*factorial(p-2-.)) * (2*inner_arg)^(p-2-.)))
   return(extra_bit+non_sum*sum)
 }
 
@@ -191,7 +191,7 @@ rat_quad <- function(x, xp, hp) {
 }
 
 rat_quad_d <- function(x, xp, hp, xi, xpi = NULL) {
-  dists <- get_dist(x/hp$theta, xp/hp$theta)^2
+  dists <- get_dist(x, xp)^2
   diff_1 <- outer(xp[,xi, drop = FALSE], x[,xi, drop = FALSE], "-")[,,,1]
   if (is.null(nrow(diff_1))) diff_1 <- t(diff_1)
   if (is.null(xpi)) return(-diff_1/hp$theta^2 * (1+dists/(2*hp$alpha*hp$theta^2))^(-hp$alpha-1))

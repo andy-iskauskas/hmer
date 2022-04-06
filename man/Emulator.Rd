@@ -162,6 +162,12 @@ fake_data$c <- fake_data$a + 2*fake_data$b
 newem <- em$adjust(fake_data, 'c')
 all(round(newem$get_exp(fake_data[,names(ranges)]),5) == round(fake_data$c,5)) #>TRUE
 
+matern_em <- Emulator$new(basis_f = c(function(x) 1, function(x) x[[1]], function(x) x[[2]]),
+ beta = list(mu = c(1, 0.5, 2), sigma = diag(0, nrow = 3)),
+ u = list(corr = Correlator$new('matern', list(nu = 1.5, theta = 0.4))),
+ ranges = list(x = c(-1, 1), y = c(0, 3)))
+matern_em$get_exp(data.frame(x = 0.4, y = 2.3))
+
 newem_data <- Emulator$new(basis_functions, beta, u, ranges, data = fake_data)
 all(round(newem$get_exp(fake_data[,names(ranges)]),5)
    == round(newem_data$get_exp(fake_data[,names(ranges)]), 5)) #>TRUE

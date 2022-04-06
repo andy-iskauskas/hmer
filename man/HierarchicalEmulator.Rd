@@ -54,6 +54,11 @@ Creates a univariate emulator with hierarchical structure.
    \code{adjust} returns a HierarchicalEmulator rather than a standard one.
 }
 
+\examples{
+ h_em <- variance_emulator_from_data(BirthDeath$training, c('Y'),
+  list(lambda = c(0, 0.08), mu = c(0.04, 0.13)))
+ names(h_em) #> c("expectation', 'variance')
+}
 \references{
 Goldstein & Vernon (2016), in preparation
 }

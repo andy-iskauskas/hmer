@@ -28,7 +28,9 @@ sequential_imp <- function(ems, x, z, n = 1, cutoff = 3) {
 #' measures for a given set of observations. The maximum implausibility of a point,
 #' given a set of univariate emulators and an associated collection of target values,
 #' is the largest implausibility of the collected set of implausibilities. The 2nd
-#' maximum is the maximum of the set without the largest value, and so on.
+#' maximum is the maximum of the set without the largest value, and so on. By default,
+#' maximum implausibility will be considered when there are fewer than 10 targets to
+#' match to; otherwise second-maximum implausibility is considered.
 #'
 #' If \code{sequential = TRUE} and a specific \code{cutoff} has been provided, then the
 #' emulators' implausibility will be evaluated one emulator at a time. If a point

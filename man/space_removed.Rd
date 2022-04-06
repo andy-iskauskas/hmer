@@ -25,7 +25,7 @@ space_removed(
 
 \item{intervals}{The interval values of the implausibility cutoff at which to evaluate.}
 
-\item{modified}{The statistic to modify: disc, var or hp (see above)}
+\item{modified}{The statistic to modify: obs, disc, var or hp (see above)}
 
 \item{maxpoints}{The maximum number of points to evaluate at}
 }

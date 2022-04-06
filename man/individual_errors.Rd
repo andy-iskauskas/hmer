@@ -55,10 +55,10 @@ Q-Q plots are not plotted for a non-decomposed set of errors, as the correlation
 between errors makes it much harder to interpret.
 }
 \examples{
-individual_errors(SIREmulators$ems$nS, SIRSample$validation)
-individual_errors(SIREmulators$ems$nS, SIRSample$validation, "chol", "em")
-individual_errors(SIREmulators$ems$nS, SIRSample$validation, "eigen", plottype = "qq")
-individual_errors(SIREmulators$ems$nS, SIRSample$validation, "cholpivot", xtype = "aSI")
+i1 <- individual_errors(SIREmulators$ems$nS, SIRSample$validation)
+i2 <- individual_errors(SIREmulators$ems$nS, SIRSample$validation, "chol", "em")
+i3 <- individual_errors(SIREmulators$ems$nS, SIRSample$validation, "eigen", plottype = "qq")
+i4 <- individual_errors(SIREmulators$ems$nS, SIRSample$validation, "cholpivot", xtype = "aSI")
 
 }
 \references{

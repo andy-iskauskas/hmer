@@ -326,6 +326,11 @@ likelihood_estimate <- function(inputs, outputs, h, corr_name = 'exp_sq', hp_ran
 #'   # If only one set of hyperparameters are provided to c_lengths, they are used for all
 #'   ems_matern3 <- emulator_from_data(SIRSample$training, out_vars, ranges,
 #'                                     corr_name = 'matern', c_lengths = matern_hp[[1]])
+#'   # "Custom" correlation function with user-specified ranges: gamma exponential
+#'   # 'gamma_exp' can be substituted for any correlation function - see Correlator documentation
+#'   ems_gamma <- emulator_from_data(SIRSample$training, out_vars, ranges,
+#'                                     corr_name = 'gamma_exp',
+#'                                     theta_ranges = list(gamma = c(0.01, 2), theta = c(1/3, 2)))
 #' }
 #'
 emulator_from_data <- function(input_data, output_names, ranges,
@@ -357,7 +362,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
   if (check.ranges) {
     ranges <- setNames(purrr::map(names(ranges), ~c(max(ranges[[.]][1], min(input_data[,.]) - 0.05 * diff(range(input_data[,.]))), min(ranges[[.]][2], max(input_data[,.]) + 0.05 * diff(range(input_data[,.]))))), names(ranges))
   }
-  if (nrow(input_data) < 10*length(ranges)) print(paste("Fewer than", 10*length(ranges), "non-NA points in", length(ranges), "dimensions - treat the emulated outputs with caution, or include more training points (minimum 10 times the number of input parameters)."))
+  if (nrow(input_data) < 10*length(ranges) && verbose) print(paste("Fewer than", 10*length(ranges), "non-NA points in", length(ranges), "dimensions - treat the emulated outputs with caution, or include more training points (minimum 10 times the number of input parameters)."))
   data <- setNames(cbind(eval_funcs(scale_input, input_data[,names(ranges)], ranges), input_data[,output_names]), c(names(ranges), output_names))
   if (!"data.frame" %in% class(data)) data <- setNames(data.frame(data), c(names(ranges), output_names))
   if (is.null(list(...)[['more_verbose']]))

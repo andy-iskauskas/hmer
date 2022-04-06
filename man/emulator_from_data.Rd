@@ -166,6 +166,11 @@ ems_linear # Printout of the key information.
   # If only one set of hyperparameters are provided to c_lengths, they are used for all
   ems_matern3 <- emulator_from_data(SIRSample$training, out_vars, ranges,
                                     corr_name = 'matern', c_lengths = matern_hp[[1]])
+  # "Custom" correlation function with user-specified ranges: gamma exponential
+  # 'gamma_exp' can be substituted for any correlation function - see Correlator documentation
+  ems_gamma <- emulator_from_data(SIRSample$training, out_vars, ranges,
+                                    corr_name = 'gamma_exp',
+                                    theta_ranges = list(gamma = c(0.01, 2), theta = c(1/3, 2)))
 }
 
 }

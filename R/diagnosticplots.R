@@ -131,7 +131,7 @@ behaviour_plot <- function(ems, points, model = missing(ems), out_names = unique
 #' @param ppd The number of points per input dimension to sample at.
 #' @param u_mod The proportional values by which to inflate/deflate the relevant statistic.
 #' @param intervals The interval values of the implausibility cutoff at which to evaluate.
-#' @param modified The statistic to modify: disc, var or hp (see above)
+#' @param modified The statistic to modify: obs, disc, var or hp (see above)
 #' @param maxpoints The maximum number of points to evaluate at
 #'
 #' @return A ggplot object

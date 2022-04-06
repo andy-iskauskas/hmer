@@ -216,7 +216,7 @@ collect_emulators <- function(emulators) {
   return(collect_emulators(unlist(emulators)))
 }
 
-#' Obtain the parameter ranges from a colletion of emulators
+#' Obtain the parameter ranges from a collection of emulators
 #'
 #' This is a more complex version of the \code{em$ranges} command, which accommodates
 #' the recursive structure of hierarchical, bimodal, and multiwave emulators. The minimal
