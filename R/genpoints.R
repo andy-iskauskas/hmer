@@ -106,7 +106,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #'  pts <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
 #'  measure.method = 'maximin', distro = 'sphere', resample = 0)
 #'  pts_optical <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
-#'   method = c('optical'), plausible_set = pts)
+#'   method = c('optical'))
 #'  pts_slice <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
 #'   method = c('slice'))
 #'  pts_no_importance <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,

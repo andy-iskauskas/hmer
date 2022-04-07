@@ -308,11 +308,13 @@ imp_plot <- function(em, z, plotgrid = NULL, ppd = 30, cb = FALSE, nth = NULL) {
 #'  emulator_plot(SIREmulators$ems, ppd = 10)
 #'  emulator_plot(SIREmulators$ems$nS, ppd = 10)
 #'  emulator_plot(SIREmulators$ems, plot_type = 'var', ppd = 10, params = c('aIR', 'aSR'))
-#'  emulator_plot(SIREmulators$ems, plot_type = 'imp', ppd = 10,
-#'   targets = SIREmulators$targets,
-#'   fixed_vals = list(aSR = 0.02))
-#'  emulator_plot(SIREmulators$ems, plot_type = 'nimp', cb = TRUE,
-#'   targets = SIREmulators$targets, nth = 2, ppd = 10)
+#'  \donttest{
+#'     emulator_plot(SIREmulators$ems, plot_type = 'imp', ppd = 10,
+#'      targets = SIREmulators$targets,
+#'      fixed_vals = list(aSR = 0.02))
+#'     emulator_plot(SIREmulators$ems, plot_type = 'nimp', cb = TRUE,
+#'      targets = SIREmulators$targets, nth = 2, ppd = 10)
+#'  }
 #'
 emulator_plot <- function(ems, plot_type = 'exp', ppd = 30, targets = NULL,
                           cb = FALSE, params = NULL, fixed_vals = NULL,

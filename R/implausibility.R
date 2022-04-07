@@ -79,7 +79,7 @@ sequential_imp <- function(ems, x, z, n = 1, cutoff = 3) {
 #' i3 <- nth_implausible(SIREmulators$ems, grid, SIREmulators$targets, n = 4)
 #' # Vector of booleans (note different output to i2)
 #' i4 <- nth_implausible(SIREmulators$ems, grid, SIREmulators$targets,
-#'  cutoff = c(4, 2.5, 1))
+#'  cutoff = c(4, 2.5, 2))
 #'
 #' # Variance Emulators
 #' v_ems <- variance_emulator_from_data(BirthDeath$training, c('Y'),

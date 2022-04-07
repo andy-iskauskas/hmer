@@ -17,3 +17,4 @@ Tested with
 * R 4.1.3 (Windows) `devtools::check_win_release()`
 * R 4.2.0 alpha (Windows) `devtools::check_win_devel()`
 * `rhub::check_for_cran()`
+* `use_github_actions()`

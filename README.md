@@ -9,9 +9,9 @@
 ## Overview
 
 The goal of hmer is to make the process of history matching and
-emulation accessible and easily useable by modellers, particularly in
+emulation accessible and easily usable by modellers, particularly in
 epidemiology. The central object of the process is an `Emulator`: a
-statistical approximator for the output of a complex (and often
+statistical approximation for the output of a complex (and often
 expensive) model that, given a relatively small number of model
 evaluations, can give predictions of the model output at unseen points
 with the appropriate uncertainty built-in. Using these we may follow a
@@ -35,18 +35,21 @@ devtools::install_github("andy-iskauskas/hmer")
 
 ## Example
 
-The core functions of the package are detailed below, using built-in toy
-data.
+The three core functions of the package are called below, using built-in
+toy data.
 
 ``` r
 library(hmer)
 #> Registered S3 method overwritten by 'GGally':
 #>   method from   
 #>   +.gg   ggplot2
+## Train a set of emulators to data
 ems <- emulator_from_data(input_data = SIRSample$training,
                           output_names = names(SIREmulators$targets),
                           ranges = list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05)))
+## Perform diagnostics on the emulators
 validation <- validation_diagnostics(ems, SIREmulators$targets, SIRSample$validation, plt = FALSE)
+## Propose new points from the emulators
 new_points <- generate_new_runs(ems, 50, SIREmulators$targets)
 ```
 
@@ -54,11 +57,26 @@ new_points <- generate_new_runs(ems, 50, SIREmulators$targets)
 
 There is a wealth of published information on Bayes Linear emulation,
 history matching, and the more general framework of uncertainty
-quantification; the easiest way to learn how to use the hmer package,
-however, is to look through the vignettes within. The “Low Dimensional
-Examples” vignette is a good place to start.
+quantification, upon which this package is based. The easiest way to
+learn how to use the hmer package, however, is to look through the
+vignettes within.
 
 ``` r
 browseVignettes("hmer")
 vignette("low-dimensional-examples", package = 'hmer')
 ```
+
+-   Low-dimensional examples `low-dimensional-examples` introduces the
+    basics of emulation and history matching and how to use `hmer` in
+    some low-dimensional toy models;
+
+-   Demonstration `demonstrating-the-hmer-package` serves as a broad
+    overview of most of the functions in the package;
+
+-   Stochastic and Bimodal Emulation `stochasticandbimodalemulation`
+    introduces the basics of dealing with stochastic systems, and
+    identifying bimodality;
+
+-   The “Emulation Handbook” `emulationhandbook` details some common
+    problems and considerations that occur when using the framework, and
+    serves as a broad FAQ for problems encountered.

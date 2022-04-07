@@ -1,6 +1,5 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
-UnitTesting.R
 changelog.txt
 ^doc$
 ^Meta$
