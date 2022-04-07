@@ -14,7 +14,7 @@ effect_strength(
 )
 }
 \arguments{
-\item{ems}{The Emulator object(s) to be analyzed.}
+\item{ems}{The Emulator object(s) to be analysed.}
 
 \item{line.plot}{Should a line plot be produced?}
 
@@ -39,7 +39,7 @@ parameters to the global part of the emulator (i.e. the regression surface). Thi
 function extracts the relevant information from a list of emulator objects.
 
 The parameter \code{quadratic} controls whether quadratic effect strength is
-calculated and plotted (an unecessary plot if, say, linear emulators have been trained).
+calculated and plotted (an unnecessary plot if, say, linear emulators have been trained).
 The remaining options control visual aspects of the plots: \code{line.plot} determines
 whether a line or bar (default) plot should be produced, \code{grid.plot} determines
 whether the results are plotted as a graph or a grid, and \code{labels} determines

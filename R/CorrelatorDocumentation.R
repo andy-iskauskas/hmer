@@ -29,7 +29,7 @@
 #'     presence of the nugget term accounts for the fact that points at the same
 #'     position in the active space need not be at the same position in the full space.
 #'
-#'     By default, \code{Correlator$new()} initalises with \code{corr = exp_sq},
+#'     By default, \code{Correlator$new()} initialises with \code{corr = exp_sq},
 #'     \code{hp = list(theta = 0.1)}, and \code{nug = 0}.
 #'
 #' @section Accessor Methods:

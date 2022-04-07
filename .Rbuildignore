@@ -8,3 +8,4 @@ changelog.txt
 ^\.travis\.yml$
 ^\.github$
 ^README\.Rmd$
+^CRAN-SUBMISSION$

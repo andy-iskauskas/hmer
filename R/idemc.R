@@ -147,14 +147,14 @@ idemc_step <- function(ems, targets, points, point_imps, ladder, clusters,
 #' that determine the walk can be a global step (determined by the second-order quantities of
 #' the entire rung) or a within-cluster step (where the point's cluster is determined and the
 #' second-order quantities are drawn from that particular cluster). Local, within-cluster,
-#' moves are chosen with probability \code{w}. The move is retained if the new point satisifes
+#' moves are chosen with probability \code{w}. The move is retained if the new point satisfies
 #' the constraints of its rung.
 #'
 #' Crossover: Points are reorganised in descending order of how active their variables are in
 #' the emulated outputs, and two different rungs are selected. The points are 'mixed' using a
 #' one-point crossover: given a randomly selected index k and two points x1, x2, the new points
 #' are y1 = (x11, x12, ..., x1k, x2(k+1), ... x2n) and similarly for y2. The move is retained
-#' if both new ponts satisfy the constraints on their respective rungs. Choices of rung where
+#' if both new points satisfy the constraints on their respective rungs. Choices of rung where
 #' the first is a later (more restrictive) rung are favoured.
 #'
 #' Exchange: Two adjacent rungs are chosen and their points swapped wholesale. The move is

@@ -273,3 +273,13 @@ getRanges <- function(emulators, minimal = TRUE) {
                              ~emulators[[which_choose[[.]]]]$ranges[[.]]),
                   names(range_widths)))
 }
+
+#' Pre-submission questions for CRAN submission
+#'
+#' @keywords internal
+#' @noRd
+release_quqestions <- function() {
+  c(
+    "Have you recompiled the vignettes using precompile.R?"
+    )
+}

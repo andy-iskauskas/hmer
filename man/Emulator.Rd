@@ -103,7 +103,7 @@ Creates a univariate emulator object.
    is performed with respect to.
 
    \code{get_cov_d(x, p1, xp = NULL, p2 = NULL, full = FALSE)} Returns the variance of
-   the derviative of the emulated function, Var[f'(x)]. The arguments are similar to
+   the derivative of the emulated function, Var[f'(x)]. The arguments are similar to
    that of \code{get_cov}, but for the addition of parameters \code{p1} and \code{p2},
    which indicate the derivative directions. Formally, the output of this function is
    equivalent to Cov[df/dp1, df/dp2].
@@ -120,7 +120,7 @@ Creates a univariate emulator object.
    The data should contain all input parameters, even inactive ones, and the
    single output that we wish to emulate. \code{adjust} creates a new \code{Emulator}
    object with the adjusted expectation and variance resulting from Bayes
-   Linear adjustment, allowing for the requisite predicitions to be made using
+   Linear adjustment, allowing for the requisite predictions to be made using
    \code{get_exp} and \code{get_cov}.
 
    \code{set_sigma(sigma)} Modifies the (usually constant) global variance of

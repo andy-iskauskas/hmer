@@ -103,7 +103,7 @@ behaviour_plot <- function(ems, points, model = missing(ems), out_names = unique
 #' structural discrepancy, emulator variance, or correlation hyperparameter(s).
 #'
 #' The reduction in space is found by evaluating a p^d regular grid, where p is chosen by
-#' \code{ppd} and d is the dimension of the input psace. Larger values of p will give a more
+#' \code{ppd} and d is the dimension of the input space. Larger values of p will give a more
 #' accurate reflection of the space removed, at a corresponding computational cost. For the
 #' purpose of quick-and-dirty diagnostics, \code{ppd = 5} is sufficient: the default is 10.
 #'
@@ -295,7 +295,7 @@ validation_pairs <- function(ems, points, targets, ranges, nth = 1, cb = FALSE) 
 #' function extracts the relevant information from a list of emulator objects.
 #'
 #' The parameter \code{quadratic} controls whether quadratic effect strength is
-#' calculated and plotted (an unecessary plot if, say, linear emulators have been trained).
+#' calculated and plotted (an unnecessary plot if, say, linear emulators have been trained).
 #' The remaining options control visual aspects of the plots: \code{line.plot} determines
 #' whether a line or bar (default) plot should be produced, \code{grid.plot} determines
 #' whether the results are plotted as a graph or a grid, and \code{labels} determines
@@ -304,7 +304,7 @@ validation_pairs <- function(ems, points, targets, ranges, nth = 1, cb = FALSE) 
 #'
 #' @import ggplot2
 #'
-#' @param ems The Emulator object(s) to be analyzed.
+#' @param ems The Emulator object(s) to be analysed.
 #' @param line.plot Should a line plot be produced?
 #' @param grid.plot Should the effect strengths be plotted as a grid?
 #' @param labels Whether or not the legend should be included.

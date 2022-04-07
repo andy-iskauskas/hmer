@@ -23,10 +23,12 @@
 #'
 #' @examples
 #'  wave_points(SIRMultiWaveData, c('aSI', 'aIR', 'aSR'))
-#'  wave_points(SIRMultiWaveData, c('aSI', 'aIR', 'aSR'), TRUE, 0.8)
-#'  # For many plots, it may be helpful to manually modify the font size
-#'  wave_points(SIRMultiWaveData, c('aSI', 'aIR', 'aSR')) +
-#'   ggplot2::theme(text = ggplot2::element_text(size = 5))
+#'  \donttest{
+#'      wave_points(SIRMultiWaveData, c('aSI', 'aIR', 'aSR'), TRUE, 0.8)
+#'      # For many plots, it may be helpful to manually modify the font size
+#'      wave_points(SIRMultiWaveData, c('aSI', 'aIR', 'aSR')) +
+#'       ggplot2::theme(text = ggplot2::element_text(size = 5))
+#'  }
 wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5,
                         zero_in = TRUE,
                         wave_numbers = ifelse(
@@ -529,7 +531,7 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL,
 
 #' Diagnostic plots for wave outputs
 #'
-#' A wrapper function for the set of diagnostic plots for mutliple waves.
+#' A wrapper function for the set of diagnostic plots for multiple waves.
 #'
 #' The functions \code{\link{simulator_plot}}, \code{\link{wave_points}}, \code{\link{wave_points}},
 #' and \code{\link{wave_dependencies}} are called, one after the other, to allow diagnosis of waves

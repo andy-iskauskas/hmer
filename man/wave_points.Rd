@@ -42,10 +42,12 @@ are also created on the diagonal.
 }
 \examples{
  wave_points(SIRMultiWaveData, c('aSI', 'aIR', 'aSR'))
- wave_points(SIRMultiWaveData, c('aSI', 'aIR', 'aSR'), TRUE, 0.8)
- # For many plots, it may be helpful to manually modify the font size
- wave_points(SIRMultiWaveData, c('aSI', 'aIR', 'aSR')) +
-  ggplot2::theme(text = ggplot2::element_text(size = 5))
+ \donttest{
+     wave_points(SIRMultiWaveData, c('aSI', 'aIR', 'aSR'), TRUE, 0.8)
+     # For many plots, it may be helpful to manually modify the font size
+     wave_points(SIRMultiWaveData, c('aSI', 'aIR', 'aSR')) +
+      ggplot2::theme(text = ggplot2::element_text(size = 5))
+ }
 }
 \seealso{
 Other visualisation tools: 

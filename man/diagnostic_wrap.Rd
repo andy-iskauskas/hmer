@@ -42,7 +42,7 @@ diagnostic_wrap(
 The set of plots (either into console or saved).
 }
 \description{
-A wrapper function for the set of diagnostic plots for mutliple waves.
+A wrapper function for the set of diagnostic plots for multiple waves.
 }
 \details{
 The functions \code{\link{simulator_plot}}, \code{\link{wave_points}}, \code{\link{wave_points}},

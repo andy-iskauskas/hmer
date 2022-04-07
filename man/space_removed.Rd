@@ -38,7 +38,7 @@ structural discrepancy, emulator variance, or correlation hyperparameter(s).
 }
 \details{
 The reduction in space is found by evaluating a p^d regular grid, where p is chosen by
-\code{ppd} and d is the dimension of the input psace. Larger values of p will give a more
+\code{ppd} and d is the dimension of the input space. Larger values of p will give a more
 accurate reflection of the space removed, at a corresponding computational cost. For the
 purpose of quick-and-dirty diagnostics, \code{ppd = 5} is sufficient: the default is 10.
 

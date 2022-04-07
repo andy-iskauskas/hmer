@@ -43,8 +43,8 @@ as whether very many points have either large or small errors.
 
 Comparison Diagnostics: Error bars around points, corresponding to emulator prediction plus or
 minus emulator uncertainty. A green line indicates where the emulator and simulator prediction
-would be in complete agreement: error bars that do not overlap with this line (colored red) are
-to be considered. Where targets are provided, the coloration is limited only to points where
+would be in complete agreement: error bars that do not overlap with this line (coloured red) are
+to be considered. Where targets are provided, the colouration is limited only to points where
 the simulator prediction would be close to the targets.
 
 Classification Error: A point plot comparing emulator implausibility to simulator

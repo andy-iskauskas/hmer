@@ -1,3 +1,8 @@
+## Resubmission
+This is a resubmission, due to automatic test failure: long build time on r-devel-windows-x86_64 due to vignette computational time. In this version I have:
+
+* Pre-compiled all vignettes to ensure acceptable checktime
+
 ## R CMD check results
 
 0 errors | 0 warnings | 1 note
