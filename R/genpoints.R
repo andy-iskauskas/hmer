@@ -140,7 +140,7 @@ generate_new_runs <- function(ems, n_points, z,
     warning(paste("Unrecognised method name(s)",
                   method[!method %in% possible_methods], "ignored."))
   if (missing(plausible_set) || 'lhs' %in% which_methods) {
-    if (verbose) print("Proposing from LHS...")
+    if (verbose) cat("Proposing from LHS...\n")
     if (!cluster) {
       lh_gen <- lhs_gen(ems, ranges, max(n_points, 10*length(ranges)),
                         z, cutoff, nth, ...)
@@ -168,8 +168,8 @@ generate_new_runs <- function(ems, n_points, z,
     point_imps <- nth_implausible(ems, plausible_set, z, n = nth, max_imp = Inf)
     optimal_cut <- sort(point_imps)[5*length(ranges)]
     if (optimal_cut > cutoff && (optimal_cut - sort(point_imps)[1] < c_tol)) {
-      print(paste("Point proposal seems to be asymptoting around implausibility",
-                  round(optimal_cut, 3), "- terminating."))
+      if (verbose) cat("Point proposal seems to be asymptoting around implausibility",
+                          round(optimal_cut, 3), "- terminating.\n")
       recent_ems <- ems[!duplicated(purrr::map_chr(ems, ~.$output_name))]
       recent_imps <- do.call(
         'cbind.data.frame',
@@ -184,13 +184,15 @@ generate_new_runs <- function(ems, n_points, z,
       name <- value <- NULL
       plot_imps <- tidyr::pivot_longer(recent_imps, cols = everything())
       plot_imps$name <- factor(plot_imps$name, levels = names(recent_ems))
-      print(ggplot(data = plot_imps, aes(x = name, y = value)) +
-        geom_boxplot() +
-        labs(title = "Implausibility Boxplot",
-             x = "Output", y = "Implausibility"))
-      print(paste("Inspect implausibility boxplot for problematic outputs,",
+      if (verbose) {
+        print(ggplot(data = plot_imps, aes(x = name, y = value)) +
+          geom_boxplot() +
+            labs(title = "Implausibility Boxplot",
+              x = "Output", y = "Implausibility"))
+        cat("Inspect implausibility boxplot for problematic outputs,",
                   "and consider transforming them or",
-                  "removing them from this wave."))
+                  "removing them from this wave.\n")
+      }
       if (!is.null(to_file))
         write.csv(plausible_set[point_imps <= optimal_cut,],
                   file = to_file, row.names = FALSE)
@@ -208,44 +210,43 @@ generate_new_runs <- function(ems, n_points, z,
     warning("No non-implausible points found from initial step.")
     return(points)
   }
-  if (verbose) print(paste0(n_current, " initial valid points generated for I=",
-                            round(this_cutoff, 3)))
+  if (verbose) cat(n_current, " initial valid points generated for I=",
+                            round(this_cutoff, 3), "\n", sep = "")
   if (!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
   if ("optical" %in% which_methods && nrow(points) < n_points) {
-    if (verbose) print("Performing optical depth sampling...")
+    if (verbose) cat("Performing optical depth sampling...\n")
     points <- op_depth_gen(ems, ranges, n_points, z, cutoff = this_cutoff,
                            nth = nth, plausible_set = points,
                            verbose = verbose, ...)
-    if (verbose) print(paste("Optical depth sampling generated",
-                             nrow(points)-n_current, "more points."))
+    if (verbose) cat("Optical depth sampling generated",
+                             nrow(points)-n_current, "more points.\n")
     n_current <- nrow(points)
   }
   if (!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
   if ("line" %in% which_methods && nrow(points) < n_points) {
-    if (verbose) print("Performing line sampling...")
+    if (verbose) cat("Performing line sampling...\n")
     points <- line_sample(ems, ranges, z, points,
                           cutoff = this_cutoff, nth = nth, ...)
-    if (verbose) print(paste("Line sampling generated",
-                             nrow(points)-n_current, "more points."))
+    if (verbose) cat("Line sampling generated",
+                        nrow(points)-n_current, "more points.\n")
     n_current <- nrow(points)
   }
   if ("slice" %in% which_methods) {
-    if (verbose) print("Performing slice sampling...")
+    if (verbose) cat("Performing slice sampling...\n")
     spoints <- slice_gen(ems, ranges, n_points, z, points,
                          this_cutoff, nth, ...)
-    if (verbose) print(paste("Slice sampling generated",
-                             nrow(spoints)-nrow(points), "more points."))
+    if (verbose) cat("Slice sampling generated",
+                        nrow(spoints)-nrow(points), "more points.\n")
     points <- spoints
     n_current <- nrow(points)
   }
   if (!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
-  if (!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
   if ("importance" %in% which_methods && nrow(points) < n_points) {
-    if (verbose) print("Performing importance sampling...")
+    if (verbose) cat("Performing importance sampling...\n")
     points <- importance_sample(ems, n_points, z, points,
                                 this_cutoff, nth, to_file = to_file, ...)
-    if (verbose) print(paste("Importance sampling generated",
-                             nrow(points)-n_current, "more points."))
+    if (verbose) cat("Importance sampling generated",
+                          nrow(points)-n_current, "more points.\n")
     n_current <- nrow(points)
   }
   if (this_cutoff - cutoff > i_tol) {
@@ -263,9 +264,9 @@ generate_new_runs <- function(ems, n_points, z,
   }
   else if (this_cutoff != cutoff) {
     if (verbose)
-      print(paste("Point implausibilities within tolerance.",
+      cat("Point implausibilities within tolerance.",
                   "Proposed points have maximum implausibility",
-                  round(this_cutoff, 3)))
+                  round(this_cutoff, 3), "\n")
   }
   if (!is.null(points$cutoff)) {
     cutoff <- points$cutoff
@@ -276,7 +277,7 @@ generate_new_runs <- function(ems, n_points, z,
        "line" %in% which_methods ||
        "slice" %in% which_methods) && resample > 0) {
     for (nsamp in 1:resample) {
-      if (verbose) print(paste("Resample", nsamp))
+      if (verbose) cat(paste("Resample", nsamp))
       c_measure <- op <- NULL
       for (i in 1:1000) {
         tp <- points[sample(nrow(points),
@@ -292,43 +293,43 @@ generate_new_runs <- function(ems, n_points, z,
       points <- op
       n_current <- nrow(points)
       if ("line" %in% which_methods) {
-        if (verbose) print("Performing line sampling...")
+        if (verbose) cat("Performing line sampling...\n")
         points <- line_sample(ems, ranges, z, points,
                               cutoff = cutoff, nth = nth, ...)
-        if (verbose) print(paste("Line sampling generated",
-                                 nrow(points)-n_current, "more points."))
+        if (verbose) cat("Line sampling generated",
+                                 nrow(points)-n_current, "more points.\n")
         if (!is.null(to_file)) write.csv(points, file = to_file,
                                          row.names = FALSE)
         n_current <- nrow(points)
       }
       if ("slice" %in% which_methods) {
-        if (verbose) print("Performing slice sampling...")
+        if (verbose) cat("Performing slice sampling...\n")
         spoints <- slice_gen(ems, ranges, n_points, z, points,
                              cutoff, nth, ...)
-        if (verbose) print(paste("Slice sampling generated",
-                                 nrow(spoints)-nrow(points), "more points."))
+        if (verbose) cat("Slice sampling generated",
+                                 nrow(spoints)-nrow(points), "more points.\n")
         points <- spoints
         if (!is.null(to_file)) write.csv(points, file = to_file,
                                          row.names = FALSE)
         n_current <- nrow(points)
       }
       if ("importance" %in% which_methods && nrow(points) < n_points) {
-        if (verbose) print("Performing importance sampling...")
+        if (verbose) cat("Performing importance sampling...\n")
         points <- importance_sample(ems, n_points, z, points, cutoff,
                                     nth, to_file = to_file, ...)
-        if (verbose) print(paste("Importance sampling generated",
-                                 nrow(points)-n_current, "more points."))
+        if (verbose) cat("Importance sampling generated",
+                                 nrow(points)-n_current, "more points.\n")
         n_current <- nrow(points)
       }
     }
   }
   if (seek > 0) {
-    if (verbose) print("Searching for high-probability match points...")
+    if (verbose) cat("Searching for high-probability match points...\n")
     extra_points <- seek_good(ems, seek, z, points, cutoff = cutoff, ...)
   }
   else extra_points <- NULL
   if (nrow(points) > n_points - seek) {
-    if (verbose) print("Selecting final points using maximin criterion...")
+    if (verbose) cat("Selecting final points using maximin criterion...\n")
     c_measure <- op <- NULL
     for (i in 1:1000) {
       tp <- points[sample(nrow(points), n_points-seek),]
@@ -364,7 +365,9 @@ lhs_gen <- function(ems, ranges, n_points, z, cutoff = 3,
   if (sum(point_imps <= cutoff) < required_points) {
     cutoff_current <- sort(point_imps)[required_points]
     if (sort(point_imps)[1] >= 20) {
-      warning("Parameter space has no points below implausibility 20; terminating early.")
+      warning(paste("Parameter space has no points below implausibility 20;",
+                    "terminating early. This may not indicate model inadequacy:",
+                    "inspect results and re-run if applicable."))
       return(list(points = points[point_imps <= 0,], cutoff = 0))
     }
   }
@@ -397,12 +400,12 @@ lhs_gen_cluster <- function(ems, ranges, n_points, z, cutoff = 3, nth = 1,
     p1 <- unique(do.call(c, purrr::map(c1, ~names(ranges)[.$active_vars])))
     p2 <- unique(do.call(c, purrr::map(c2, ~names(ranges)[.$active_vars])))
   }
-  if (verbose) print(paste("Clusters determined. Cluster 1 has length",
-                           length(c1), "with", length(p1),
-                           "active variables; cluster 2 has length",
-                           length(c2), "with", length(p2),
-                           "active variables -", length(pn), "shared."))
-  if (verbose) print("Proposing from clusters.")
+  if (verbose) cat("Clusters determined. Cluster 1 has length",
+                      length(c1), "with", length(p1),
+                      "active variables; cluster 2 has length",
+                      length(c2), "with", length(p2),
+                      "active variables -", length(pn), "shared.\n")
+  if (verbose) cat("Proposing from clusters.\n")
   lhs1 <- setNames(
     data.frame(2 * (lhs::randomLHS(n_points * 10, length(p1))-0.5)), p1)
   spare1 <- ranges[!names(ranges) %in% p1]
@@ -413,7 +416,9 @@ lhs_gen_cluster <- function(ems, ranges, n_points, z, cutoff = 3, nth = 1,
   if (sum(imps1 <= cutoff) < required_points) {
     cutoff_current <- sort(imps1)[required_points]
     if (sort(imps1)[1] >= 20) {
-      warning("Parameter space has no points below implausibility 20; terminating early.")
+      warning(paste("Parameter space has no points below implausibility 20;",
+      "terminating early. This may not indicate model inadequacy:",
+      "inspect results and re-run if applicable."))
       return(list(points = lhs1[imps1 <= 0,], cutoff = 0))
     }
   }
@@ -443,7 +448,9 @@ lhs_gen_cluster <- function(ems, ranges, n_points, z, cutoff = 3, nth = 1,
     if (sum(imps2 <= cutoff) < required_points) {
       coff <- sort(imps2)[required_points]
       if (sort(imps2)[1] >= 20) {
-        warning("Parameter space has no points below implausibility 20; terminating early.")
+        warning(paste("Parameter space has no points below implausibility 20;",
+                      "terminating early. This may not indicate model inadequacy:",
+                      "inspect results and re-run if applicable."))
         return(list(points = lhs2[imps2 <= 0, ], cutoff = 0))
       }
     }
@@ -453,7 +460,8 @@ lhs_gen_cluster <- function(ems, ranges, n_points, z, cutoff = 3, nth = 1,
   valid2 <- second_stage(valid1, cutoff_current, p1, p2,
                          ranges, n_points, c2, z, nth)
   while (valid2$cutoff - cutoff_current > c_tol) {
-    print(paste("Cutoff increase to", valid2$cutoff, "- resampling from cluster 1."))
+    if (verbose) cat("Cutoff increase to", valid2$cutoff,
+                          "- resampling from cluster 1.\n")
     cutoff_current <- valid2$cutoff
     valid1 <- lhs1[imps1 <= cutoff_current,]
     valid2 <- second_stage(valid1, cutoff_current, p1, p2,
@@ -773,7 +781,7 @@ op_depth_gen <- function(ems, ranges, n_points, z, n.runs = 100, cutoff = 3,
       matrix(out_stuff, nrow = n_points*10)), names(ranges))
   df <- df[nth_implausible(ems, df, z, n = nth, cutoff = cutoff),]
   if (nrow(df) > n_points) {
-    if(verbose) print("Selecting final points using maximin criterion...")
+    if(verbose) cat("Selecting final points using maximin criterion...\n")
     c_measure <- op <- NULL
     for (i in 1:100) {
       tp <- df[sample(nrow(df), n_points),]

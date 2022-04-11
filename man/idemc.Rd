@@ -16,7 +16,8 @@ idemc(
   pm = 0.9,
   w = 0.8,
   M = 10,
-  detailed = FALSE
+  detailed = FALSE,
+  verbose = interactive()
 )
 }
 \arguments{
@@ -43,6 +44,8 @@ idemc(
 \item{M}{The number of mutations to perform in an IDEMC step, if chosen}
 
 \item{detailed}{If TRUE, points from every ladder rung are returned}
+
+\item{verbose}{Should information about burn-in be displayed during the process?}
 }
 \value{
 Either a list of points (for each rung), or a single data.frame from the last rung.
@@ -94,8 +97,8 @@ the process is repeated. Once the desired implausibility has been reached, \code
 of the algorithm are performed on all rungs to determine final clusters.
 }
 \examples{
- \dontrun{
-  idemc_res <- idemc(SIREmulators$ems, 1000, SIREmulators$targets, s = 500, p = 0.3)
+ \donttest{
+  idemc_res <- idemc(SIREmulators$ems, 500, SIREmulators$targets, s = 250, p = 0.3)
  }
 
 }

@@ -17,13 +17,13 @@
 #' @param data The simulator data.
 #' @param targets The targets to match to, either as bounds or (val, sigma) pairs.
 #' @param coff The correlation value above which two outputs are assumed correlated.
-#' @param logging If a logger exists, it is provided here.
+#' @param verbose Should feedback be provided to console?
 #'
 #' @return NULL
 #'
 #' @keywords internal
 #' @noRd
-preflight <- function(data, targets, coff = 0.95, logging = NULL) {
+preflight <- function(data, targets, coff = 0.95, verbose = interactive()) {
   potential_problem <- FALSE
   applicable_targets <- intersect(names(data), names(targets))
   d_abridge <- data[,applicable_targets]
@@ -41,13 +41,11 @@ preflight <- function(data, targets, coff = 0.95, logging = NULL) {
     if (all(hom[,i] == 0)) {
       if (all(data[,i] < targets[[i]][1])) {
         potential_problem <- TRUE
-        if (!is.null(logging)) logging(level = "WARN", msg = paste("All output values for target",i,"are underestimates. This may suggest model inadequacy."))
-        else print(paste("Target", i, "consistently underestimated."))
+        if (verbose) cat("Target", i, "consistently underestimated.\n")
       }
       else {
         potential_problem <- TRUE
-        if (!is.null(logging)) logging(level = "WARN", msg = paste("All output values for target",i,"are overestimates. This may suggest model inadequacy."))
-        else print(paste("Target", i, "consistently overestimated."))
+        if (verbose) cat("Target", i, "consistently overestimated.\n")
       }
       hom[,i] <- NULL
     }
@@ -59,12 +57,12 @@ preflight <- function(data, targets, coff = 0.95, logging = NULL) {
       for (j in (i+1):length(df)) {
         cval <- cor(df[,c(i,j)])[1,2]
         if (cval < -coff) {
-          if (!is.null(logging)) logging(level = "WARN", msg = paste("Strong negative correlation between points satisfying", names(df)[i], "and", names(df)[j], "- this could mean that both targets cannot be hit simultaneously."))
-          else print(paste("Strong negative correlation between points satisfying", names(df)[i], "and", names(df)[j]))
+          if (verbose) cat("Strong negative correlation between points satisfying",
+                            names(df)[i], "and", names(df)[j], "\n")
         }
         if (cval > coff) {
-          if (!is.null(logging)) logging(level = "INFO", msg = paste("Strong positive correlation between points satisfying", names(df)[i], "and", names(df)[j], "- one of these targets may be sufficient."))
-          else print(paste("Strong positive correlation between points satisfying", names(df)[i], "and", names(df)[j]))
+          if (verbose) cat("Strong positive correlation between points satisfying",
+                            names(df)[i], "and", names(df)[j], "\n")
         }
       }
     }
@@ -78,12 +76,16 @@ preflight <- function(data, targets, coff = 0.95, logging = NULL) {
         for (k in (seq_along(df))[-c(i,j)]) {
           cval <- cor(log_and, df[,k])
           if (cval < -coff) {
-            if (!is.null(logging)) logging(level = "WARN", msg = paste("Strong negative correlation between points satisfying (",names(df)[i],", ",names(df)[j],") and ", names(df)[k], " - this could mean that the latter target cannot be hit if the other two are.", sep = ""))
-            else print(paste("Strong negative correlation between points satisfying (",names(df)[i],", ",names(df)[j],") and ", names(df)[k], sep = ""))
+            if (verbose)
+              cat("Strong negative correlation between points satisfying (",
+                    names(df)[i],", ",names(df)[j],
+                    ") and ",
+                    names(df)[k], "\n", sep = "")
           }
           if (cval > coff) {
-            if (!is.null(logging)) logging(level = "INFO", msg = paste("Strong positive correlation between points satisfying (",names(df)[i],", ",names(df)[j],") and ", names(df)[k], " - perhaps not all of these targets are necessary.", sep = ""))
-            else print(paste("Strong positive correlation between points satisfying", names(df)[i], "and", names(df)[j]))
+            if (verbose)
+              cat("Strong positive correlation between points satisfying",
+                    names(df)[i], "and", names(df)[j], "\n")
           }
         }
       }
@@ -138,6 +140,7 @@ preflight <- function(data, targets, coff = 0.95, logging = NULL) {
 #' @param prop_train What proportion of the data is used for training.
 #' @param cutoff The implausibility cutoff for point generation and diagnostics.
 #' @param nth The level of maximum implausibility to consider.
+#' @param verbose Should progress be printed to console?
 #' @param ... Any arguments to be passed to \code{\link{emulator_from_data}}.
 #'
 #' @return A list of two objects: \code{points} and \code{emulators}
@@ -155,7 +158,8 @@ preflight <- function(data, targets, coff = 0.95, logging = NULL) {
 #'   old_emulators = SIRMultiWaveEmulators[[1]])
 #'  }
 full_wave <- function(data, ranges, targets, old_emulators = NULL,
-                      prop_train = 0.7, cutoff = 3, nth = 1, ...) {
+                      prop_train = 0.7, cutoff = 3, nth = 1,
+                      verbose = interactive(), ...) {
   new_ranges <- setNames(
     purrr::map(
       names(ranges),
@@ -166,27 +170,27 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL,
   samp <- sample(seq_len(nrow(data)), floor(prop_train*nrow(data)))
   train <- data[samp,]
   valid <- data[-samp,]
-  print("Training emulators...")
+  if (verbose) cat("Training emulators...\n")
   tryCatch(
     ems <- emulator_from_data(train, names(targets), new_ranges, ...),
     error = function(e) {
-      print(paste("Problem with emulator training:", e))
+      stop(paste("Problem with emulator training:", e))
     }
   )
   for (i in seq_along(ems)) {
     if (ems[[i]]$u_sigma^2 < 1e-8)
       ems[[i]]$set_sigma(targets[[ems[[i]]$output_name]]$sigma * 0.1)
   }
-  print("Performing diagnostics...")
+  if (verbose) cat("Performing diagnostics...\n")
   invalid_ems <- c()
   for (i in seq_along(ems)) {
     comp_fail <- nrow(comparison_diag(ems[[i]], targets, valid, plt = FALSE))
     if (comp_fail > nrow(valid)/4) {
       invalid_ems <- c(invalid_ems, i)
-      print(paste("Emulator for output",
-                  ems[[i]]$output_name,
-                  "fails comparison diagnostics.",
-                  "It will not be matched to at this wave."))
+      if (verbose) cat("Emulator for output",
+                          ems[[i]]$output_name,
+                          "fails comparison diagnostics.",
+                          "It will not be matched to at this wave.\n")
     }
   }
   if (length(invalid_ems) > 0)
@@ -217,7 +221,7 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL,
   else
     working_ems <- ems
   targets <- targets[purrr::map_chr(working_ems, ~.$output_name)]
-  print("Generating new points...")
+  if (verbose) cat("Generating new points...\n")
   new_points <- generate_new_runs(working_ems, nrow(data), targets,
                                   cutoff = cutoff, verbose = FALSE, nth = nth)
   if (nrow(new_points) == 0)
@@ -226,7 +230,7 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL,
     if (!is.null(emulator_uncerts) &&
         all(emulator_uncerts < 1.02) &&
         length(emulator_uncerts) == length(targets))
-      print(paste("All emulator uncertainties are comparable to target",
-                  "uncertainties. More waves may be unnecessary."))
+      if (verbose) cat("All emulator uncertainties are comparable to target",
+                  "uncertainties. More waves may be unnecessary.\n")
   return(list(points = new_points, emulators = ems))
 }

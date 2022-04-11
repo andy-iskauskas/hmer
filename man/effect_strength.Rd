@@ -6,6 +6,7 @@
 \usage{
 effect_strength(
   ems,
+  plt = interactive(),
   line.plot = FALSE,
   grid.plot = FALSE,
   labels = TRUE,
@@ -15,6 +16,8 @@ effect_strength(
 }
 \arguments{
 \item{ems}{The Emulator object(s) to be analysed.}
+
+\item{plt}{Should the results be plotted?}
 
 \item{line.plot}{Should a line plot be produced?}
 

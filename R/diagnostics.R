@@ -135,17 +135,18 @@ summary_diag <- function(emulator, validation, verbose = interactive()) {
   q <- length(emulator$basis_f)
   indiv_errs <- outputs - emulator$get_exp(points)
   chi_sq_measure <- sum(indiv_errs^2/emulator$get_cov(points))
-  print(paste("Chi-squared:", round(chi_sq_measure,4), "against mean", m,
-              "with standard deviation", round(sqrt(2*m),4)))
+  if(verbose) cat("Chi-squared:", round(chi_sq_measure,4),
+                          "against mean", m,
+                          "with standard deviation", round(sqrt(2*m),4))
   cov_mat <- emulator$get_cov(points, full = TRUE)
   cov_inv <- tryCatch(
     chol2inv(chol(cov_mat)),
     error = function(e) {MASS::ginv(cov_mat)}
   )
   mahal_measure <- t(indiv_errs) %*% cov_inv %*% indiv_errs
-  if (verbose) print(paste("Mahalanobis:", round(mahal_measure,4),
+  if (verbose) cat("Mahalanobis:", round(mahal_measure,4),
                            "against mean", m, "with standard deviation",
-                           round(sqrt(2*m*(m+n-q-2)/(n-q-4)),4)))
+                           round(sqrt(2*m*(m+n-q-2)/(n-q-4)),4))
   chi_valid <- (abs(chi_sq_measure - m)/sqrt(2*m) <= 3)
   mahal_valid <- (abs(mahal_measure - m)/sqrt(2*m*(m+n-q-2)/(n-q-4)) <= 3)
   return(c(chi_valid, mahal_valid))
@@ -572,6 +573,8 @@ validation_diagnostics <- function(emulators, targets = NULL,
                                    which_diag = c('cd', 'ce', 'se'),
                                    analyze = TRUE,
                                    diagnose = "expectation", ...) {
+  oldpar <- par(no.readonly = TRUE)
+  on.exit(par(oldpar))
   if ("Emulator" %in% class(emulators))
     emulators <- setNames(list(emulators), emulators$output_name)
   if (length(which_diag) == 1 && which_diag == 'all') actual_diag <- c('cd', 'ce', 'se')

@@ -188,6 +188,7 @@ idemc_step <- function(ems, targets, points, point_imps, ladder, clusters,
 #' @param w The probability of local random walk moves in the mutation step
 #' @param M The number of mutations to perform in an IDEMC step, if chosen
 #' @param detailed If TRUE, points from every ladder rung are returned
+#' @param verbose Should information about burn-in be displayed during the process?
 #'
 #' @return Either a list of points (for each rung), or a single data.frame from the last rung.
 #'
@@ -197,14 +198,14 @@ idemc_step <- function(ems, targets, points, point_imps, ladder, clusters,
 #'  Vernon & Williamson (2013) <arXiv:1309.3520>
 #'
 #' @examples
-#'  \dontrun{
-#'   idemc_res <- idemc(SIREmulators$ems, 1000, SIREmulators$targets, s = 500, p = 0.3)
+#'  \donttest{
+#'   idemc_res <- idemc(SIREmulators$ems, 500, SIREmulators$targets, s = 250, p = 0.3)
 #'  }
 #'
 #' @export
 idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)),
                   sn = s, p = 0.4, thin = 1, pm = 0.9, w = 0.8,
-                  M = 10, detailed = FALSE) {
+                  M = 10, detailed = FALSE, verbose = interactive()) {
   ems <- collect_emulators(ems)
   ranges <- getRanges(ems, FALSE)
   order_active <- names(ranges)[order(
@@ -307,9 +308,10 @@ idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)),
   imps <- all_imps[,ncol(all_imps)]
   points_list <- purrr::map(all_points, ~.[nrow(.),])
   ## Burn in done: generate points
-  print(paste0("Completed burn-in: implausibility ladder is (",
+  if (verbose) cat("Completed burn-in: implausibility ladder is (",
                round(orig_imp, 3), "; ", paste0(round(ladder[-1], 3),
-                                                collapse = "; "), ")."))
+                                                collapse = "; "), ").\n",
+               sep = "")
   clusters_list <- purrr::map(seq_along(all_points), function(i) {
     if (i == 1) return(list(ranges = ranges))
     return(list(cluster = Mclust(all_points[[i]], G = 1:4,
@@ -318,7 +320,7 @@ idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)),
                 total = list(mean = apply(all_points[[i]], 2, mean),
                              sigma = var(all_points[[i]]))))
   })
-  print("Performing final point generation...")
+  if (verbose) cat("Performing final point generation...\n")
   all_points <- list()
   for (i in seq_along(points_list)) {
     df <- setNames(

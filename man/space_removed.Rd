@@ -57,7 +57,9 @@ points deemed non-implausible is checked at a set of implausibility cutoffs defi
 \code{intervals}, and a plot is returned showing the relevant data.
 }
 \examples{
-space_removed(SIREmulators$ems, SIREmulators$targets, ppd = 5)
+ space_removed(SIREmulators$ems, SIREmulators$targets, ppd = 5)
+ space_removed(SIREmulators$ems$nS, SIREmulators$targets,
+  ppd = 5, u_mod = seq(0.75, 1.25, by = 0.25), intervals = seq(2, 6, by = 0.1))
 }
 \seealso{
 \code{\link{space_removal}} for a numeric representation of space removed.

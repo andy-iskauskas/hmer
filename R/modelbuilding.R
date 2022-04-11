@@ -420,12 +420,13 @@ emulator_from_data <- function(input_data, output_names, ranges,
                                corr_name = 'exp_sq', targets = NULL, ...) {
   if(!is.null(targets) &&
      length(intersect(names(targets), output_names) == length(output_names))) {
-    do_preflight <- preflight(input_data, targets[output_names])
-    if (do_preflight) {
-      print(paste("Some outputs may not be adequately emulated,",
-                  "due to consistent over/underestimation in training data."))
-      print(paste("Consider looking at the outputs (using, eg, behaviour_plot);",
-                  "some outputs may require extra runs and/or transformation."))
+    do_preflight <- preflight(input_data, targets[output_names],
+                              verbose = verbose)
+    if (do_preflight && verbose) {
+      cat("Some outputs may not be adequately emulated,",
+                "due to consistent over/underestimation in training data.\n")
+      cat("Consider looking at the outputs (using, eg, behaviour_plot);",
+                "some outputs may require extra runs and/or transformation.\n")
     }
   }
   model_beta_mus <- model_u_sigmas <- model_u_corrs <- NULL
@@ -454,8 +455,8 @@ emulator_from_data <- function(input_data, output_names, ranges,
             max(input_data[,.]) + 0.05 * diff(range(input_data[,.]))))),
       names(ranges))
   }
-  if (nrow(input_data) < 10*length(ranges) &&
-      verbose) print(paste("Fewer than", 10*length(ranges),
+  if (nrow(input_data) < 10*length(ranges) && verbose)
+    warning(paste("Fewer than", 10*length(ranges),
                            "non-NA points in", length(ranges),
                            "dimensions - treat the emulated",
                            "outputs with caution, or include more",
@@ -474,7 +475,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
     more_verbose <- if (length(output_names) > 10) TRUE else FALSE
   else more_verbose <- list(...)[['more_verbose']]
   if (missing(funcs)) {
-    if (verbose) print("Fitting regression surfaces...")
+    if (verbose) cat("Fitting regression surfaces...\n")
     if (quadratic) {
       does_add <- (choose(length(input_names)+2,
                           length(input_names)) > nrow(data))
@@ -541,14 +542,14 @@ emulator_from_data <- function(input_data, output_names, ranges,
     model_u_sigmas <- purrr::map(u, ~.$sigma)
     model_u_corrs <- purrr::map(u, ~.$corr)
   }
-  if (verbose) print("Building correlation structures..")
+  if (verbose) cat("Building correlation structures...\n")
   if (any(is.null(model_beta_mus) ||
           is.null(model_u_sigmas) ||
           is.null(model_u_corrs))) {
     corr_func <- tryCatch(
       get(corr_name),
       error = function(e) {
-        print(paste("Can't find correlation function of type",
+        warning(paste("Can't find correlation function of type",
                     corr_name, "- reverting to exp_sq"))
         return(NULL)
       }
@@ -559,7 +560,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
         if (!corr_name %in% c('exp_sq', 'orn_uhl', 'matern', 'rat_quad')) {
           th_ra <- list(...)[["theta_ranges"]]
           if (is.null(th_ra)) {
-            print(paste("User defined correlation function", corr_name,
+            warning(paste("User defined correlation function", corr_name,
                         "found but no corresponding hyperparameter ranges via",
                         "theta_ranges. Please provide -",
                         "reverting to exponential squared."))
@@ -633,7 +634,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
       discrepancies <- purrr::map(discrepancies,
                                   ~list(internal = ., external = 0))
   }
-  if (verbose) print("Creating emulators...")
+  if (verbose) cat("Creating emulators...\n")
   if (!has.hierarchy) {
     out_ems <- setNames(
       purrr::map(
@@ -671,7 +672,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
   for (i in seq_along(out_ems))
     out_ems[[i]]$output_name <- output_names[[i]]
   if (adjusted) {
-    if (verbose) print("Performing Bayes linear adjustment...")
+    if (verbose) cat("Performing Bayes linear adjustment...\n")
     out_ems <- purrr::map(out_ems, ~.$adjust(input_data, .$output_name))
   }
   return(out_ems)
@@ -720,7 +721,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges,
     input_data[apply(input_data[,names(ranges)], 1, hash) == x,]
   })
   data_by_point <- data_by_point[purrr::map_lgl(data_by_point, ~nrow(.)>1)]
-  if (verbose) print("Separated dataset by unique points...")
+  if (verbose) cat("Separated dataset by unique points...\n")
   collected_stats <- do.call('rbind', lapply(data_by_point, function(x) {
     n_points <- nrow(x)
     if (length(output_names) == 1) {
@@ -752,7 +753,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges,
     collected_df_var <- collected_df[
       apply(collected_df[,paste0(output_names, "var")], 1,
             function(a) !any(is.na(a))),]
-  if (verbose) print("Computed summary statistics...")
+  if (verbose) cat("Computed summary statistics...\n")
   variance_emulators <- list()
   for (i in output_names) {
     is_high_rep <- !is.na(collected_df_var[,paste0(i,"kurt")])
@@ -815,7 +816,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges,
     variance_emulators <- c(variance_emulators, v_em)
   }
   variance_emulators <- setNames(variance_emulators, output_names)
-  if (verbose) print("Completed variance emulators. Training mean emulators...")
+  if (verbose) cat("Completed variance emulators. Training mean emulators...\n")
   exp_mods <- purrr::map(variance_emulators, ~function(x, n) .$get_exp(x)/n)
   exp_data <- setNames(
     collected_df[,c(input_names, paste0(output_names, 'mean'))],
@@ -876,7 +877,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges,
 #' @export
 #'
 #' @examples
-#'  \dontrun{
+#'  \donttest{
 #'   # Use the stochastic SIR dataset
 #'   SIR_ranges <- list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05))
 #'   SIR_names <- c("I10", "I25", "I50", "R10", "R25", "R50")
@@ -891,7 +892,7 @@ bimodal_emulator_from_data <- function(data, output_names, ranges,
   param_sets <- purrr::map(uids, function(x) {
     data[apply(data[,input_names], 1, hash) == x,]
   })
-  if(verbose) print("Separated dataset by unique points.")
+  if(verbose) cat("Separated dataset by unique points.\n")
   modNames <- mclust.options("emModelNames")[
     !mclust.options("emModelNames") == "EEE"]
   proportion <- purrr::map_dbl(param_sets, function(x) {
@@ -903,10 +904,10 @@ bimodal_emulator_from_data <- function(data, output_names, ranges,
   prop_df <- setNames(
     data.frame(cbind(unique_points, proportion)),
     c(names(unique_points), 'prop'))
-  if (verbose) print("Training emulator to proportion in modes.")
+  if (verbose) cat("Training emulator to proportion in modes.\n")
   prop_em <- emulator_from_data(prop_df,
                                 c('prop'), ranges, verbose = FALSE, ...)
-  if (verbose) print("Performing clustering to identify modes.")
+  if (verbose) cat("Performing clustering to identify modes.\n")
   has_bimodality <- setNames(
     do.call('rbind.data.frame', purrr::map(param_sets, function(x) {
     purrr::map_lgl(output_names, function(y) {
@@ -921,15 +922,15 @@ bimodal_emulator_from_data <- function(data, output_names, ranges,
     return(variance_emulator_from_data(
       data, output_names, ranges, verbose = FALSE, ...))
   if (!all(is_bimodal_target)) {
-    if (verbose) print("Training to unimodal targets.")
+    if (verbose) cat("Training to unimodal targets.\n")
     non_bimodal <- variance_emulator_from_data(
       data, output_names[!is_bimodal_target], ranges, verbose = FALSE, ...)
   }
   else {
-    if (verbose) print("No targets appear to be unimodal.")
+    if (verbose) cat("No targets appear to be unimodal.\n")
     non_bimodal <- NULL
   }
-  if (verbose) print("Training to bimodal targets.")
+  if (verbose) cat("Training to bimodal targets.\n")
   bimodal <- purrr::map(output_names[is_bimodal_target], function(x) {
     c1_data <- list()
     c2_data <- list()
@@ -951,23 +952,21 @@ bimodal_emulator_from_data <- function(data, output_names, ranges,
     m1em <- tryCatch(
       variance_emulator_from_data(mode1_dat, x, ranges, verbose = FALSE, ...),
       error = function(e) {
-        print(paste("Problem training mode 1 emulator for target", x))
-        print(e)
+        cat("Problem training mode 1 emulator for target ", x, "\n", e, sep = "")
         return(list(expectation = NA, variance = NA))
       }
     )
     m2em <- tryCatch(
       variance_emulator_from_data(mode2_dat, x, ranges, verbose = FALSE, ...),
       error = function(e) {
-        print(paste("Problem training mode 2 emulator for target", x))
-        print(e)
+        cat("Problem training mode 2 emulator for target ", x, "\n", e, sep = "")
         return(list(expectation = NA, variance = NA))
       }
     )
     return(list(m1 = m1em, m2 = m2em))
   })
   bimodals <- setNames(bimodal, output_names[is_bimodal_target])
-  if (verbose) print("Trained emulators. Collating.")
+  if (verbose) cat("Trained emulators. Collating.\n")
   m1exps <- m2exps <- m1vars <- m2vars <- list()
   for (i in output_names) {
     if (i %in% names(non_bimodal$expectation)) {

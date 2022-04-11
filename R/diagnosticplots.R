@@ -32,6 +32,8 @@
 #'  #> Throws a warning
 #'  behaviour_plot(SIRMultiWaveEmulators, model = TRUE, targets = SIREmulators$targets)
 behaviour_plot <- function(ems, points, model = missing(ems), out_names = unique(names(collect_emulators(ems))), targets = NULL) {
+  oldpar <- par(no.readonly = TRUE)
+  on.exit(par(oldpar))
   if (missing(ems) && missing(points))
     stop("One of 'ems' or 'points' must be supplied.")
   if (missing(points) && model) {
@@ -142,9 +144,9 @@ behaviour_plot <- function(ems, points, model = missing(ems), out_names = unique
 #' @seealso \code{\link{space_removal}} for a numeric representation of space removed.
 #'
 #' @examples
-#' space_removed(SIREmulators$ems, SIREmulators$targets, ppd = 5)
-#  space_removed(SIREmulators$ems$nS, SIREmulators$targets,
-#   ppd = 5, u_mod = seq(0.75, 1.25, by = 0.25), intervals = seq(2, 6, by = 0.1))
+#'  space_removed(SIREmulators$ems, SIREmulators$targets, ppd = 5)
+#'  space_removed(SIREmulators$ems$nS, SIREmulators$targets,
+#'   ppd = 5, u_mod = seq(0.75, 1.25, by = 0.25), intervals = seq(2, 6, by = 0.1))
 space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1), intervals = seq(0, 10, length.out = 200), modified = 'obs', maxpoints = 50000) {
   value <- name <- cutoff <- NULL
   if ("Emulator" %in% class(ems))
@@ -305,6 +307,7 @@ validation_pairs <- function(ems, points, targets, ranges, nth = 1, cb = FALSE) 
 #' @import ggplot2
 #'
 #' @param ems The Emulator object(s) to be analysed.
+#' @param plt Should the results be plotted?
 #' @param line.plot Should a line plot be produced?
 #' @param grid.plot Should the effect strengths be plotted as a grid?
 #' @param labels Whether or not the legend should be included.
@@ -320,8 +323,9 @@ validation_pairs <- function(ems, points, targets, ranges, nth = 1, cb = FALSE) 
 #'  effect <- effect_strength(SIREmulators$ems)
 #'  effect_line <- effect_strength(SIREmulators$ems, line.plot = TRUE)
 #'  effect_grid <- effect_strength(SIREmulators$ems, grid.plot = TRUE)
-effect_strength <- function(ems, line.plot = FALSE, grid.plot = FALSE,
-                            labels = TRUE, quadratic = TRUE, xvar = TRUE) {
+effect_strength <- function(ems, plt = interactive(), line.plot = FALSE,
+                            grid.plot = FALSE, labels = TRUE, quadratic = TRUE,
+                            xvar = TRUE) {
   get_effect_strength <- function(em, quad = FALSE) {
     es <- c()
     for (i in seq_along(em$ranges)) {
@@ -366,117 +370,119 @@ effect_strength <- function(ems, line.plot = FALSE, grid.plot = FALSE,
                          levels = purrr::map_chr(ems, ~.$output_name))
   lin.mat$Var2 <- factor(lin.mat$Var2, levels = names(ranges))
   Var1 <- Var2 <- value <- NULL
-  if (grid.plot) {
-    g <- ggplot(data = lin.mat, aes(x = Var2, y = Var1, fill = value)) +
-      geom_tile(colour = 'black') +
-      scale_fill_gradient2(low = 'red', mid = 'white', high = 'blue',
-                           midpoint = 0, name = "Strength") +
-      labs(title = "Linear Effect Strength", x = "Parameter", y = "Output")
-    print(g)
-    if (quadratic) {
-      g <- ggplot(data = quad.mat, aes(x = Var2, y = Var1, fill = value)) +
+  if (plt) {
+    if (grid.plot) {
+      g <- ggplot(data = lin.mat, aes(x = Var2, y = Var1, fill = value)) +
         geom_tile(colour = 'black') +
         scale_fill_gradient2(low = 'red', mid = 'white', high = 'blue',
                              midpoint = 0, name = "Strength") +
-        labs(title = "Quadratic Effect Strength", x = "Parameter", y = "Output")
+        labs(title = "Linear Effect Strength", x = "Parameter", y = "Output")
       print(g)
+      if (quadratic) {
+        g <- ggplot(data = quad.mat, aes(x = Var2, y = Var1, fill = value)) +
+          geom_tile(colour = 'black') +
+          scale_fill_gradient2(low = 'red', mid = 'white', high = 'blue',
+                               midpoint = 0, name = "Strength") +
+          labs(title = "Quadratic Effect Strength", x = "Parameter", y = "Output")
+        print(g)
+      }
     }
-  }
-  else if (xvar) {
-    if (line.plot) {
-      g <- ggplot(data = lin.mat,
-                  aes(x = Var2, y = value, group = Var1, colour = Var1)) +
-          geom_line(lwd = 1.2) +
-          viridis::scale_color_viridis(discrete = TRUE, name = "Output") +
+    else if (xvar) {
+      if (line.plot) {
+        g <- ggplot(data = lin.mat,
+                    aes(x = Var2, y = value, group = Var1, colour = Var1)) +
+            geom_line(lwd = 1.2) +
+            viridis::scale_color_viridis(discrete = TRUE, name = "Output") +
+            theme_bw() +
+            labs(title = "Linear Effect Strength",
+                 x = "Parameter", y = "Strength") +
+            theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+        if (!labels) g <- g + theme(legend.position = 'none')
+        print(g)
+        if(quadratic) {
+          g <- ggplot(data = quad.mat,
+                      aes(x = Var2, y = value, group = Var1, colour = Var1)) +
+            geom_line(lwd = 1.2) +
+            viridis::scale_color_viridis(discrete = TRUE, name = "Output") +
+            theme_bw() +
+            labs(title = "Quadratic Effect Strength",
+                 x = "Parameter", y = "Strength") +
+            theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+          if (!labels) g <- g + theme(legend.position = 'none')
+          print(g)
+        }
+      }
+      else {
+        g <- ggplot(data = lin.mat,
+                    aes(x = Var2, y = value, group = Var1, fill = Var1)) +
+          geom_col(position = 'dodge', colour = 'black') +
+          viridis::scale_fill_viridis(discrete = TRUE, name = "Output") +
           theme_bw() +
           labs(title = "Linear Effect Strength",
                x = "Parameter", y = "Strength") +
           theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-      if (!labels) g <- g + theme(legend.position = 'none')
-      print(g)
-      if(quadratic) {
-        g <- ggplot(data = quad.mat,
-                    aes(x = Var2, y = value, group = Var1, colour = Var1)) +
-          geom_line(lwd = 1.2) +
-          viridis::scale_color_viridis(discrete = TRUE, name = "Output") +
-          theme_bw() +
-          labs(title = "Quadratic Effect Strength",
-               x = "Parameter", y = "Strength") +
-          theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
         if (!labels) g <- g + theme(legend.position = 'none')
         print(g)
+        if (quadratic) {
+          g <-ggplot(data = quad.mat,
+                     aes(x = Var2, y = value, group = Var1, fill = Var1)) +
+            geom_col(position = 'dodge', colour = 'black') +
+            viridis::scale_fill_viridis(discrete = TRUE, name = "Output") +
+            theme_bw() +
+            labs(title = "Quadratic Effect Strength",
+                 x = "Parameter", y = "Strength") +
+            theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+          if (!labels) g <- g + theme(legend.position = 'none')
+          print(g)
+        }
       }
     }
     else {
-      g <- ggplot(data = lin.mat,
-                  aes(x = Var2, y = value, group = Var1, fill = Var1)) +
-        geom_col(position = 'dodge', colour = 'black') +
-        viridis::scale_fill_viridis(discrete = TRUE, name = "Output") +
-        theme_bw() +
-        labs(title = "Linear Effect Strength",
-             x = "Parameter", y = "Strength") +
-        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-      if (!labels) g <- g + theme(legend.position = 'none')
-      print(g)
-      if (quadratic) {
-        g <-ggplot(data = quad.mat,
-                   aes(x = Var2, y = value, group = Var1, fill = Var1)) +
-          geom_col(position = 'dodge', colour = 'black') +
-          viridis::scale_fill_viridis(discrete = TRUE, name = "Output") +
-          theme_bw() +
-          labs(title = "Quadratic Effect Strength",
-               x = "Parameter", y = "Strength") +
-          theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-        if (!labels) g <- g + theme(legend.position = 'none')
-        print(g)
-      }
-    }
-  }
-  else {
-    if (line.plot) {
-      g <- ggplot(data = lin.mat,
-                  aes(x = Var1, y = value, group = Var2, colour = Var2)) +
-        geom_line(lwd = 1.2) +
-        viridis::scale_color_viridis(discrete = TRUE, name = "Parameter") +
-        theme_bw() +
-        labs(title = "Linear Effect Strength", x = "Output", y = "Strength") +
-        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-      if (!labels) g <- g + theme(legend.position = 'none')
-      print(g)
-      if(quadratic) {
-        g <- ggplot(data = quad.mat,
+      if (line.plot) {
+        g <- ggplot(data = lin.mat,
                     aes(x = Var1, y = value, group = Var2, colour = Var2)) +
           geom_line(lwd = 1.2) +
           viridis::scale_color_viridis(discrete = TRUE, name = "Parameter") +
           theme_bw() +
-          labs(title = "Quadratic Effect Strength",
-               x = "Output", y = "Strength") +
+          labs(title = "Linear Effect Strength", x = "Output", y = "Strength") +
           theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
         if (!labels) g <- g + theme(legend.position = 'none')
         print(g)
+        if(quadratic) {
+          g <- ggplot(data = quad.mat,
+                      aes(x = Var1, y = value, group = Var2, colour = Var2)) +
+            geom_line(lwd = 1.2) +
+            viridis::scale_color_viridis(discrete = TRUE, name = "Parameter") +
+            theme_bw() +
+            labs(title = "Quadratic Effect Strength",
+                 x = "Output", y = "Strength") +
+            theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+          if (!labels) g <- g + theme(legend.position = 'none')
+          print(g)
+        }
       }
-    }
-    else {
-      g <- ggplot(data = lin.mat,
-                  aes(x = Var1, y = value, group = Var2, fill = Var2)) +
-        geom_col(position = 'dodge', colour = 'black') +
-        viridis::scale_fill_viridis(discrete = TRUE, name = "Parameter") +
-        theme_bw() +
-        labs(title = "Linear Effect Strength", x = "Output", y = "Strength") +
-        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-      if (!labels) g <- g + theme(legend.position = 'none')
-      print(g)
-      if (quadratic) {
-        g <-ggplot(data = quad.mat,
-                   aes(x = Var1, y = value, group = Var2, fill = Var2)) +
+      else {
+        g <- ggplot(data = lin.mat,
+                    aes(x = Var1, y = value, group = Var2, fill = Var2)) +
           geom_col(position = 'dodge', colour = 'black') +
           viridis::scale_fill_viridis(discrete = TRUE, name = "Parameter") +
           theme_bw() +
-          labs(title = "Quadratic Effect Strength",
-               x = "Output", y = "Strength") +
+          labs(title = "Linear Effect Strength", x = "Output", y = "Strength") +
           theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
         if (!labels) g <- g + theme(legend.position = 'none')
         print(g)
+        if (quadratic) {
+          g <-ggplot(data = quad.mat,
+                     aes(x = Var1, y = value, group = Var2, fill = Var2)) +
+            geom_col(position = 'dodge', colour = 'black') +
+            viridis::scale_fill_viridis(discrete = TRUE, name = "Parameter") +
+            theme_bw() +
+            labs(title = "Quadratic Effect Strength",
+                 x = "Output", y = "Strength") +
+            theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+          if (!labels) g <- g + theme(legend.position = 'none')
+          print(g)
+        }
       }
     }
   }

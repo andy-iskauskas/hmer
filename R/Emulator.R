@@ -652,9 +652,9 @@ Emulator <- R6Class(
             if (y > z[2]) return(1)
           })},
           error = function(e) {
-            print(pred)
-            print(z)
-            stop(e)
+            stop(
+              paste("Problem with form of targets: perhaps target missing?", e)
+              )
           }
         )
         which_compare <- purrr::map_dbl(bound_check, function(y) {

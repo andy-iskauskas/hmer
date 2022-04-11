@@ -12,6 +12,7 @@ full_wave(
   prop_train = 0.7,
   cutoff = 3,
   nth = 1,
+  verbose = interactive(),
   ...
 )
 }
@@ -29,6 +30,8 @@ full_wave(
 \item{cutoff}{The implausibility cutoff for point generation and diagnostics.}
 
 \item{nth}{The level of maximum implausibility to consider.}
+
+\item{verbose}{Should progress be printed to console?}
 
 \item{...}{Any arguments to be passed to \code{\link{emulator_from_data}}.}
 }
