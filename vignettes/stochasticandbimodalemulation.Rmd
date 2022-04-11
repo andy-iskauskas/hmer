@@ -1,7 +1,7 @@
 ---
 title: "Stochastic Emulation"
 author: "Andy Iskauskas"
-date: "2022-04-07"
+date: "2022-04-11"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Stochastic Emulation}
@@ -55,12 +55,12 @@ We can train stochastic emulators to this data by passing the whole training dat
 
 ```r
 stochastic_em <- variance_emulator_from_data(BirthDeath$training, names(targets), ranges)
-#> [1] "Separated dataset by unique points..."
-#> [1] "Computed summary statistics..."
-#> [1] "Completed variance emulators. Training mean emulators..."
-#> [1] "Fitting regression surfaces..."
-#> [1] "Building correlation structures.."
-#> [1] "Creating emulators..."
+#> Separated dataset by unique points...
+#> Computed summary statistics...
+#> Completed variance emulators. Training mean emulators...
+#> Fitting regression surfaces...
+#> Building correlation structures...
+#> Creating emulators...
 stochastic_em
 #> $variance
 #> $variance$Y
@@ -186,9 +186,9 @@ Finally, we briefly mention that point generation operates in the same manner as
 
 ```r
 new_points <- generate_new_runs(stochastic_em, 30, targets, resample = 0)
-#> [1] "Proposing from LHS..."
-#> [1] "122 initial valid points generated for I=3"
-#> [1] "Selecting final points using maximin criterion..."
+#> Proposing from LHS...
+#> 122 initial valid points generated for I=3
+#> Selecting final points using maximin criterion...
 plot_wrap(new_points, ranges)
 ```
 
@@ -240,12 +240,11 @@ In any event, if we feel that the model exhibits strong bimodality, we may use t
 
 ```r
 bim_ems <- bimodal_emulator_from_data(training, names(bim_targets), SIR_ranges)
-#> [1] "Separated dataset by unique points."
-#> [1] "Training emulator to proportion in modes."
-#> [1] "Performing clustering to identify modes."
-#> [1] "No targets appear to be unimodal."
-#> [1] "Training to bimodal targets."
-#> [1] "Trained emulators. Collating."
+#> Separated dataset by unique points.
+#> Training emulator to proportion in modes.
+#> Performing clustering to identify modes.
+#> No targets appear to be unimodal.
+#> Training to bimodal targets.Trained emulators. Collating.
 names(bim_ems)
 #> [1] "mode1" "mode2" "prop"
 ```
@@ -322,13 +321,13 @@ Finally, generating new points from bimodal emulators has an identical form to i
 
 ```r
 new_points <- generate_new_runs(bim_ems, 100, bim_targets, resample = 0)
-#> [1] "Proposing from LHS..."
-#> [1] "55 initial valid points generated for I=3"
-#> [1] "Performing line sampling..."
-#> [1] "Line sampling generated 40 more points."
-#> [1] "Performing importance sampling..."
-#> [1] "Importance sampling generated 6 more points."
-#> [1] "Selecting final points using maximin criterion..."
+#> Proposing from LHS...
+#> 55 initial valid points generated for I=3
+#> Performing line sampling...
+#> Line sampling generated 40 more points.
+#> Performing importance sampling...
+#> Importance sampling generated 6 more points.
+#> Selecting final points using maximin criterion...
 plot_wrap(new_points, SIR_ranges)
 ```
 

@@ -1,7 +1,7 @@
 ---
 title: "Low Dimensional Examples"
 author: "Andy Iskauskas"
-date: "2022-04-07"
+date: "2022-04-11"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Low Dimensional Examples}
@@ -14,9 +14,6 @@ vignette: >
 
 ```r
 library(hmer)
-#> Registered S3 method overwritten by 'GGally':
-#>   method from   
-#>   +.gg   ggplot2
 library(lhs)
 library(ggplot2)
 set.seed(1)
@@ -58,10 +55,10 @@ We therefore define the ranges of the parameters (in this case, just one paramet
 ```r
 ranges1d <- list(x = c(0, 0.6))
 em1d <- emulator_from_data(data1d, c('f'), ranges1d)
-#> [1] "Fitting regression surfaces..."
-#> [1] "Building correlation structures.."
-#> [1] "Creating emulators..."
-#> [1] "Performing Bayes linear adjustment..."
+#> Fitting regression surfaces...
+#> Building correlation structures...
+#> Creating emulators...
+#> Performing Bayes linear adjustment...
 em1d
 #> $f
 #> Parameters and ranges:  x: c(0, 0.6) 
@@ -86,9 +83,9 @@ The print statement also indicates that Bayes Linear adjustment has been applied
 
 ```r
 emulator_from_data(data1d, c('f'), ranges1d, adjusted = FALSE)$f
-#> [1] "Fitting regression surfaces..."
-#> [1] "Building correlation structures.."
-#> [1] "Creating emulators..."
+#> Fitting regression surfaces...
+#> Building correlation structures...
+#> Creating emulators...
 #> Parameters and ranges:  x: c(0, 0.6) 
 #> Specifications: 
 #> 	 Basis functions:  (Intercept) 
@@ -122,8 +119,8 @@ The trained emulator, by virtue of having been provided the training points, 'kn
 
 ```r
 em1d$f$get_exp(data1d) - data1d$f
-#>  [1] -5.911938e-15 -7.882583e-15 -2.187139e-14 -4.374279e-14 -5.573320e-14 -3.552714e-14 -1.160183e-14  9.992007e-16  9.325873e-15
-#> [10] -2.220446e-16
+#>  [1] -5.911938e-15 -7.882583e-15 -2.187139e-14 -4.374279e-14 -5.573320e-14 -3.552714e-14
+#>  [7] -1.160183e-14  9.992007e-16  9.325873e-15 -2.220446e-16
 em1d$f$get_cov(data1d)
 #> 11 12 13 14 15 16 17 18 19 20 
 #>  0  0  0  0  0  0  0  0  0  0
@@ -198,9 +195,9 @@ The `generate_new_runs` function is used to propose new points. There are a mult
 
 ```r
 new_points1d <- generate_new_runs(em1d, 10, target1d, method = 'lhs')
-#> [1] "Proposing from LHS..."
-#> [1] "40 initial valid points generated for I=3"
-#> [1] "Selecting final points using maximin criterion..."
+#> Proposing from LHS...
+#> 40 initial valid points generated for I=3
+#> Selecting final points using maximin criterion...
 ```
 
 The necessary parameters here are the (list of) emulators, the number of points (here, 10), and the target(s).
@@ -244,10 +241,10 @@ The second wave is very similar to the first, so little needs to be explained.
 new_data1d <- data.frame(x = unlist(new_points1d, use.names = F), f = func(unlist(new_points1d, use.names = F)))
 
 em1d_2 <- emulator_from_data(new_data1d, c('f'), ranges1d)
-#> [1] "Fitting regression surfaces..."
-#> [1] "Building correlation structures.."
-#> [1] "Creating emulators..."
-#> [1] "Performing Bayes linear adjustment..."
+#> Fitting regression surfaces...
+#> Building correlation structures...
+#> Creating emulators...
+#> Performing Bayes linear adjustment...
 
 plot1d_2 <- data.frame(
   x = plot1d$x, f = plot1d$f,
@@ -271,9 +268,9 @@ This plot underlines the importance of using all waves of emulation. The first w
 
 ```r
 new_new_points1d <- generate_new_runs(c(em1d_2, em1d), 10, z = target1d, method = 'lhs')
-#> [1] "Proposing from LHS..."
-#> [1] "29 initial valid points generated for I=3"
-#> [1] "Selecting final points using maximin criterion..."
+#> Proposing from LHS...
+#> 29 initial valid points generated for I=3
+#> Selecting final points using maximin criterion...
 
 plot(data = plot1d_2, f ~ x, ylim = c(min(plot1d_2[,-1]), max(plot1d_2[,-1])),
      type = 'l', main = "Emulator of a Simple 1-dimensional Function: Wave 2", xlab = "Parameter value", ylab = "Function value")
@@ -335,10 +332,10 @@ We have placed a much tighter bound of $f_2$, suggesting that this target should
 
 ```r
 ems2d <- emulator_from_data(initial_data, c('f1','f2'), ranges2d)
-#> [1] "Fitting regression surfaces..."
-#> [1] "Building correlation structures.."
-#> [1] "Creating emulators..."
-#> [1] "Performing Bayes linear adjustment..."
+#> Fitting regression surfaces...
+#> Building correlation structures...
+#> Creating emulators...
+#> Performing Bayes linear adjustment...
 ems2d
 #> $f1
 #> Parameters and ranges:  x: c(-1.5708, 1.5708): y: c(-1, 1) 
@@ -469,9 +466,9 @@ We can now generate new points for a second wave of emulation. We again make a s
 
 ```r
 new_points2d <- generate_new_runs(ems2d, 40, targets2d, resample = 0)
-#> [1] "Proposing from LHS..."
-#> [1] "111 initial valid points generated for I=3"
-#> [1] "Selecting final points using maximin criterion..."
+#> Proposing from LHS...
+#> 111 initial valid points generated for I=3
+#> Selecting final points using maximin criterion...
 new_data2d <- data.frame(x = new_points2d$x, y = new_points2d$y,
                          f1 = apply(new_points2d, 1, func1), f2 = apply(new_points2d, 1, func2))
 plot_wrap(new_data2d[,1:2], ranges2d)
@@ -494,10 +491,10 @@ We train the new emulators, but first we redefine the range over which the emula
 ```r
 new_ranges2d <- list(x = c(-pi/2, 0.6), y = c(-1, 1))
 ems2d_2 <- emulator_from_data(train2d, c('f1', 'f2'), new_ranges2d)
-#> [1] "Fitting regression surfaces..."
-#> [1] "Building correlation structures.."
-#> [1] "Creating emulators..."
-#> [1] "Performing Bayes linear adjustment..."
+#> Fitting regression surfaces...
+#> Building correlation structures...
+#> Creating emulators...
+#> Performing Bayes linear adjustment...
 ems2d_2
 #> $f1
 #> Parameters and ranges:  x: c(-1.5708, 0.6): y: c(-1, 1) 
@@ -562,9 +559,9 @@ Finally, we propose points from a combination of this wave and the previous wave
 
 ```r
 new_new_points2d <- generate_new_runs(c(ems2d_2, ems2d), 40, targets2d, resample = 0)
-#> [1] "Proposing from LHS..."
-#> [1] "157 initial valid points generated for I=3"
-#> [1] "Selecting final points using maximin criterion..."
+#> Proposing from LHS...
+#> 157 initial valid points generated for I=3
+#> Selecting final points using maximin criterion...
 plot_wrap(new_new_points2d, ranges2d)
 ```
 

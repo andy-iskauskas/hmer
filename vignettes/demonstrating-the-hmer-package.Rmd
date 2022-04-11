@@ -1,7 +1,7 @@
 ---
 title: "Demonstrating the hmer Package"
 author: "Andrew Iskauskas"
-date: "2022-04-07"
+date: "2022-04-11"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Demonstrating the hmer Package}
@@ -31,10 +31,10 @@ The first step, given a dataset (here the `SIRSample` training set), is to train
 input_ranges <- list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05))
 output_names <- c('nS', 'nI', 'nR')
 wave1_emulators <- emulator_from_data(SIRSample$training, output_names, input_ranges)
-#> [1] "Fitting regression surfaces..."
-#> [1] "Building correlation structures.."
-#> [1] "Creating emulators..."
-#> [1] "Performing Bayes linear adjustment..."
+#> Fitting regression surfaces...
+#> Building correlation structures...
+#> Creating emulators...
+#> Performing Bayes linear adjustment...
 ```
 
 An emulator is an R6 object, with the requisite print statement giving the core details of the emulator. It also contains a Correlator object with similar R6 properties.
@@ -74,10 +74,10 @@ Any of these default behaviours can be modified; for instance, manually setting 
 
 ```r
 custom_emulators <- emulator_from_data(SIRSample$training, output_names, input_ranges, c_lengths = c(0.6, 0.7, 0.85))
-#> [1] "Fitting regression surfaces..."
-#> [1] "Building correlation structures.."
-#> [1] "Creating emulators..."
-#> [1] "Performing Bayes linear adjustment..."
+#> Fitting regression surfaces...
+#> Building correlation structures...
+#> Creating emulators...
+#> Performing Bayes linear adjustment...
 custom_emulators$nR$corr
 #>  Correlation type: exp_sq 
 #>  Hyperparameters:  theta: 0.85 
@@ -89,10 +89,10 @@ One could instead specify a different correlation function, for instance Matérn
 
 ```r
 matern_emulators <- emulator_from_data(SIRSample$training, output_names, input_ranges, corr_name = "matern")
-#> [1] "Fitting regression surfaces..."
-#> [1] "Building correlation structures.."
-#> [1] "Creating emulators..."
-#> [1] "Performing Bayes linear adjustment..."
+#> Fitting regression surfaces...
+#> Building correlation structures...
+#> Creating emulators...
+#> Performing Bayes linear adjustment...
 ```
 
 In any event, having trained emulators it is crucial to ensure that they are accurately representing the model behaviour, at the very least over the region of potential interest. The `validation_diagnostics` function produces some simple plots to check this. It requires a separate hold-out or validation set of model runs. Some of the diagnostic functions also require a set of targets - values which we expect the model to match to. These can be specified as a named list, each element consisting of an observation value `val` and an associated uncertainty `sigma`; alternatively we can provide an upper and lower bound $[a,b]$ corresponding to the target range. A combination thereof can be provided in a given set of targets.
@@ -198,22 +198,21 @@ Eventually, the aim of history matching is to propose new points which can enter
 
 ```r
 new_points <- generate_new_runs(wave1_emulators, 90, targets)
-#> [1] "Proposing from LHS..."
-#> [1] "15 initial valid points generated for I=3.806"
-#> [1] "Performing line sampling..."
-#> [1] "Line sampling generated 38 more points."
-#> [1] "Performing importance sampling..."
-#> [1] "Importance sampling generated 50 more points."
-#> [1] "75 initial valid points generated for I=3"
-#> [1] "Performing line sampling..."
-#> [1] "Line sampling generated 40 more points."
-#> [1] "Selecting final points using maximin criterion..."
-#> [1] "Resample 1"
-#> [1] "Performing line sampling..."
-#> [1] "Line sampling generated 40 more points."
-#> [1] "Performing importance sampling..."
-#> [1] "Importance sampling generated 8 more points."
-#> [1] "Selecting final points using maximin criterion..."
+#> Proposing from LHS...
+#> 15 initial valid points generated for I=3.806
+#> Performing line sampling...
+#> Line sampling generated 38 more points.
+#> Performing importance sampling...
+#> Importance sampling generated 50 more points.
+#> 75 initial valid points generated for I=3
+#> Performing line sampling...
+#> Line sampling generated 40 more points.
+#> Selecting final points using maximin criterion...
+#> Resample 1Performing line sampling...
+#> Line sampling generated 40 more points.
+#> Performing importance sampling...
+#> Importance sampling generated 8 more points.
+#> Selecting final points using maximin criterion...
 plot(rbind(rbind(SIRSample$training, SIRSample$validation)[,names(input_ranges)], new_points), pch = 16, cex = 0.8, col = rep(c('black', 'blue'), each = 90))
 ```
 
@@ -269,13 +268,13 @@ Each of the functions in constructing emulators has a number of options with whi
 
 ```r
 f_w <- suppressWarnings(full_wave(do.call('rbind.data.frame', SIRSample), list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05)), targets))
-#> [1] "Training emulators..."
-#> [1] "Fitting regression surfaces..."
-#> [1] "Building correlation structures.."
-#> [1] "Creating emulators..."
-#> [1] "Performing Bayes linear adjustment..."
-#> [1] "Performing diagnostics..."
-#> [1] "Generating new points..."
+#> Training emulators...
+#> Fitting regression surfaces...
+#> Building correlation structures...
+#> Creating emulators...
+#> Performing Bayes linear adjustment...
+#> Performing diagnostics...
+#> Generating new points...
 ```
 
 This provides two things: a next set of points to evaluate the model on, and the emulators that gave rise to them. One should exercise caution when using this - while the function does what it can to ensure that emulators trained and points proposed are done in the most reasonable way, it is no substitute for expert judgement and consideration. Nevertheless, it can be a useful tool for a 'first pass' at emulating a system.
