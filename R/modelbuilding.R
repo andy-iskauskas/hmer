@@ -66,7 +66,7 @@ convertRanges <- function(object) {
 #'
 get_coefficient_model <- function(data, ranges, output_name, add = FALSE,
                                   order = 2, u_form = NULL, printing = NULL) {
-  if (!is.null(printing)) print(printing)
+  if (!is.null(printing)) cat(printing, "\n")
   lower_form <- as.formula(paste(output_name, "1", sep = " ~ "))
   if (is.null(u_form)) {
     if (order == 1)
@@ -171,7 +171,7 @@ get_coefficient_model <- function(data, ranges, output_name, add = FALSE,
 likelihood_estimate <- function(inputs, outputs, h, corr_name = 'exp_sq',
                                 hp_range, beta = NULL, delta = NULL,
                                 nsteps = 30, printing = NULL) {
-  if (!is.null(printing)) print(printing)
+  if (!is.null(printing)) cat(printing, "\n")
   corr <- Correlator$new(corr_name,
                          hp = setNames(
                            purrr::map(names(hp_range),

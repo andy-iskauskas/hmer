@@ -166,7 +166,7 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL,
       ~c(max(ranges[[.]][1], min(data[,.]) - 0.05 * diff(range(data[,.]))),
          min(ranges[[.]][2], max(data[,.]) + 0.05 * diff(range(data[,.]))))),
     names(ranges))
-  preflight(data, targets)
+  preflight(data, targets, verbose = verbose)
   samp <- sample(seq_len(nrow(data)), floor(prop_train*nrow(data)))
   train <- data[samp,]
   valid <- data[-samp,]

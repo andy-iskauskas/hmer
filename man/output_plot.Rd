@@ -45,7 +45,6 @@ Other visualisation tools:
 \code{\link{validation_pairs}()},
 \code{\link{wave_dependencies}()},
 \code{\link{wave_points}()},
-\code{\link{wave_values}()},
-\code{\link{wave_variance}()}
+\code{\link{wave_values}()}
 }
 \concept{visualisation tools}

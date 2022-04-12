@@ -277,7 +277,7 @@ generate_new_runs <- function(ems, n_points, z,
        "line" %in% which_methods ||
        "slice" %in% which_methods) && resample > 0) {
     for (nsamp in 1:resample) {
-      if (verbose) cat(paste("Resample", nsamp))
+      if (verbose) cat(paste("Resample", nsamp, "\n"))
       c_measure <- op <- NULL
       for (i in 1:1000) {
         tp <- points[sample(nrow(points),

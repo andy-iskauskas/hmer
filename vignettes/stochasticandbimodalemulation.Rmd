@@ -1,7 +1,7 @@
 ---
 title: "Stochastic Emulation"
 author: "Andy Iskauskas"
-date: "2022-04-11"
+date: "2022-04-12"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Stochastic Emulation}
@@ -210,6 +210,7 @@ legend('topleft', legend = c('Recovered', "Infected"), lty = 1, col = c(4, 3), i
 ```
 
 ![plot of chunk bimodal-demo](stoch-bimodal-demo-1.png)
+
 We can clearly see in the R compartment that, even at a single point (the midpoint of the ranges previously considered), there are two distinct modes. One corresponds to the disease failing to take off, in which case both the Infected and Recovered compartments remain (close to) empty; the other is where the disease does take off and the Recovered compartment grows until the eventual die-down of the disease. It is clear that if we were to attempt to emulate the number of recovered people at $t=50$, say, even taking into account the stochasticity we would not emulate either mode - the likelihood is that the emulators would suggest a mid-range value with very large uncertainty, providing no predictive power.
 
 We will emulate six outputs - three from the Infected compartment, and three from the Recovered compartment. The times at which we observe these compartments will be $t=10, 25, 50$, which display varying levels of bimodality. The data we will use is pre-generated using the same code as was used to generate the above plot: we have $30$ points on which to train and $20$ to validate with; each point has had $100$ repetitions. We will also define some targets.
@@ -244,7 +245,8 @@ bim_ems <- bimodal_emulator_from_data(training, names(bim_targets), SIR_ranges)
 #> Training emulator to proportion in modes.
 #> Performing clustering to identify modes.
 #> No targets appear to be unimodal.
-#> Training to bimodal targets.Trained emulators. Collating.
+#> Training to bimodal targets.
+#> Trained emulators. Collating.
 names(bim_ems)
 #> [1] "mode1" "mode2" "prop"
 ```

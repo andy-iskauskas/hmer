@@ -573,159 +573,47 @@ diagnostic_wrap <- function(waves, targets, output_names = names(targets),
                             directory = NULL, s.heights = rep(1000, 4),
                             s.widths = s.heights, include.norm = TRUE,
                             include.log = TRUE, ...) {
+  if (!is.null(directory) && !file.exists(sub("(.*)/[^/]*$", "\\1", directory)))
+    stop("Specified directory does not exist. No plots saved.")
   s.widths[1] <- ceiling(length(output_names)/10)*1000
-  if (is.null(directory) || !file.exists(sub("(.*)/[^/]*$", "\\1", directory))) {
-    print(simulator_plot(waves, targets, ...))
-    if (include.norm)
-      print(simulator_plot(waves, targets, normalize = TRUE, ...))
-    if (include.log)
-      print(simulator_plot(waves, targets, logscale = TRUE, ...))
-    print(wave_points(waves, input_names, ...))
-    print(wave_values(waves, targets, output_names, ...))
-    print(wave_dependencies(waves, targets, output_names, input_names, ...))
-    if (include.norm)
-      print(wave_dependencies(waves, targets, output_names,
-                              input_names, normalize = TRUE, ...))
+  get_dims <- function(initial, plots) {
+    if (length(initial) == 1)
+      return(rep(initial, length(plots)))
+    if (length(initial) < 4)
+      return(rep(initial[1], length(plots)))
+    if (length(initial) > 4 && length(initial) != length(plots))
+      initial <- initial[1:4]
+    if (length(initial) == 4 && length(plots) > 4) {
+      replaced <- rep(0, length(plots))
+      replaced[grepl("simulatorplot.*", names(plots))] <- initial[1]
+      replaced[names(plots) == "posteriorplot"] <- initial[2]
+      replaced[names(plots) == "outputsplot"] <- initial[3]
+      replaced[grepl("dependencyplot.*", names(plots))] <- initial[4]
+      return(replaced)
+    }
   }
-  else {
-    while(length(s.widths) < 4) s.widths <- c(s.widths, s.widths)
-    while(length(s.heights) < 4) s.heights <- c(s.heights, s.heights)
-    png(filename = paste0(directory, "simulatorplot.png"),
-        width = s.widths[1], height = s.heights[1])
-    print(simulator_plot(waves, targets, ...))
-    dev.off()
-    if (include.norm) {
-      png(filename = paste0(directory, "simulatorplotnorm.png"),
-          width = s.widths[1], height = s.heights[1])
-      print(simulator_plot(waves, targets, normalize = TRUE, ...))
+  g <- list()
+  g[["simulatorplot"]] <- simulator_plot(waves, targets, ...)
+  if (include.norm)
+    g[["simulatorplotnorm"]] <- simulator_plot(waves, targets, normalize = TRUE, ...)
+  if (include.log)
+    g[["simulatorplotlog"]] <- simulator_plot(waves, targets, logscale = TRUE, ...)
+  g[["posteriorplot"]] <- wave_points(waves, input_names, ...)
+  g[["outputsplot"]] <- wave_values(waves, targets, output_names, ...)
+  g[["dependencyplot"]] <- wave_dependencies(waves, targets, output_names, input_names, ...)
+  if (include.norm)
+    g[["dependencyplotnorm"]] <- wave_dependencies(waves, targets, output_names,
+                            input_names, normalize = TRUE, ...)
+  if (!is.null(directory)) {
+    s.widths <- get_dims(s.widths, g)
+    s.heights <- get_dims(s.heights, g)
+    for (i in seq_along(g)) {
+      png(filename = paste0(directory, names(g)[[i]], ".png"),
+          width = s.widths[i], height = s.heights[i])
+      print(g[[i]])
       dev.off()
     }
-    if (include.log) {
-      png(filename = paste0(directory, "simulatorplotlog.png"),
-          width = s.widths[1], height = s.heights[1])
-      print(simulator_plot(waves, targets, logscale = TRUE, ...))
-      dev.off()
-    }
-    png(filename = paste0(directory, "posteriorplot.png"),
-        width = s.widths[2], height = s.heights[2])
-    print(wave_points(waves, input_names, ...))
-    dev.off()
-    png(filename = paste0(directory, "outputsplot.png"),
-        width = s.widths[3], height = s.heights[3])
-    print(wave_values(waves, targets, output_names, ...))
-    dev.off()
-    png(filename = paste0(directory, "dependencyplot.png"),
-        width = s.widths[4], height = s.heights[4])
-    print(wave_dependencies(waves, targets, output_names, input_names, ...))
-    dev.off()
-    if (include.norm) {
-      png(filename = paste0(directory, "dependencyplotnorm.png"),
-          width = s.widths[4], height = s.heights[4])
-      print(wave_dependencies(waves, targets, output_names,
-                              input_names, normalize = TRUE, ...))
-      dev.off()
-    }
+    return(NULL)
   }
-}
-
-#' Emulator Variance across waves
-#'
-#' Plots the emulator variance for each output across emulator waves.
-#'
-#' It is instructive to look at the change in emulator variance over successive
-#' waves, rather than across successive outputs. This function provides a means
-#' of doing so quickly for each emulator output.
-#'
-#' A 2d slice is taken across the input space, where mid-range values of any
-#' non-plotted parameters are fixed. The emulator variance (or standard
-#' deviation) is then calculated across the two-dimensional subspace for each
-#' wave, and for each output.
-#'
-#' @import ggplot2
-#' @importFrom viridis scale_fill_viridis
-#'
-#' @param waves A list of lists of \code{\link{Emulator}} objects, corresponding to the waves
-#' @param output_names The list of desired outputs to be plotted
-#' @param plot_dirs The (two) input parameters to be plotted.
-#' @param wave_numbers A numeric vector of which waves to plot.
-#' @param ppd The number of grid points per plotting dimension.
-#' @param sd Should the standard deviation be plotted instead of the variance? Default: FALSE
-#'
-#' @return The ggplot object(s).
-#'
-#' @family visualisation tools
-#' @export
-#'
-#' @examples
-#'  outputs <- c('nS', 'nI', 'nR')
-#'  wave_variance(SIRMultiWaveEmulators, outputs, ppd = 5)
-#'  wave_variance(SIRMultiWaveEmulators, c('nI', 'nR'),
-#'   plot_dirs = c('aIR', 'aSR'), ppd = 5, sd = TRUE)
-#'
-wave_variance <- function(waves, output_names,
-                          plot_dirs = names(waves[[1]][[1]]$ranges)[1:2],
-                          wave_numbers = seq_along(waves), ppd = 20,
-                          sd = FALSE) {
-  concurrent_plots <- max(3, length(waves[wave_numbers]))
-  for (i in seq_along(waves)) {
-    if (is.null(names(waves[[i]]))) {
-      if (length(waves[[i]]) == length(output_names))
-        names(waves[[i]]) <- output_names
-      else
-        stop(paste("One or more waves is missing an output emulation.",
-                   "Please specify emulator names explicitly."))
-    }
-  }
-  if (length(plot_dirs) != 2) stop("Two input directions must be specified.")
-  name <- value <- NULL
-  main_ranges <- waves[[1]][[output_names[1]]]$ranges
-  grid_ranges <- setNames(data.frame(purrr::map(names(main_ranges), function(x) {
-    if (x %in% plot_dirs) main_ranges[[x]]
-    else rep((main_ranges[[x]][1]+main_ranges[[x]][2])/2, 2)
-  })), names(main_ranges))
-  on_grid <- setNames(expand.grid(
-    seq(grid_ranges[[plot_dirs[1]]][[1]],
-        grid_ranges[[plot_dirs[1]]][[2]],
-        length.out = ppd),
-    seq(grid_ranges[[plot_dirs[2]]][[1]],
-        grid_ranges[[plot_dirs[2]]][[2]],
-        length.out = ppd)),
-                      plot_dirs)
-  for (i in names(grid_ranges)) {
-    if (!i %in% plot_dirs) on_grid[,i] <- grid_ranges[[i]][1]
-  }
-  on_grid <- on_grid[,names(main_ranges)]
-  output <- purrr::map(
-    output_names,
-    ~setNames(
-      cbind(on_grid, data.frame(purrr::map(waves[wave_numbers], function(x) {
-    if (!sd) x[[.]]$get_cov(on_grid)
-    else sqrt(x[[.]]$get_cov(on_grid))
-  }))), c(names(main_ranges), wave_numbers)))
-  pivot_frames <- setNames(
-    purrr::map(
-      output,
-      ~data.frame(pivot_longer(., cols = !names(main_ranges)))), output_names)
-  for (i in seq_along(pivot_frames))
-    pivot_frames[[i]]$output <- output_names[i]
-  for (i in 1:ceiling(length(pivot_frames)/concurrent_plots)) {
-    current_end <- min(concurrent_plots*i, length(pivot_frames))
-    dat <- pivot_frames[(concurrent_plots*(i-1)+1):current_end]
-    dat <- do.call('rbind', dat)
-    plot_bins <- round(seq(0, max(dat$value), length.out = 25))
-    g <- ggplot(data = dat,
-                aes(x = dat[,plot_dirs[1]],
-                    y = dat[,plot_dirs[2]], group = name)) +
-      geom_contour_filled(aes(z = value),
-                          colour = 'black', breaks = plot_bins) +
-      scale_fill_viridis(discrete = TRUE, option = 'plasma',
-                         labels = plot_bins,
-                         name = ifelse(sd, 'SD[f(x)]', 'Var[f(x)]')) +
-      facet_grid(rows = vars(name), cols = vars(output),
-                 labeller = labeller(name = function(x) paste("Wave", x))) +
-      labs(title = paste(ifelse(sd, "Standard Deviation", "Variance"), 'across waves'),
-           x = plot_dirs[1], y = plot_dirs[2]) +
-      theme_minimal()
-    print(g)
-  }
+  return(g)
 }

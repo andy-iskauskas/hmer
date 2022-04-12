@@ -225,7 +225,7 @@ idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)),
   point_imps <- c(Inf)
   points_list <- list(points[nrow(points),])
   while(imp_cutoff > cutoff) {
-    print(imp_cutoff)
+    if (verbose) cat(imp_cutoff, "\n")
     next_points <- points[imps <= imp_cutoff,]
     next_cluster <- Mclust(next_points, G = 1:4,
                            control = emControl(tol = 1e-3), verbose = FALSE)
@@ -273,7 +273,7 @@ idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)),
     points_list <- purrr::map(all_points, ~.[nrow(.),])
   }
   if (imp_cutoff < cutoff) imp_cutoff <- cutoff
-  print(imp_cutoff)
+  if (verbose) cat(imp_cutoff, "\n")
   next_points <- points[imps <= imp_cutoff,]
   next_cluster <- Mclust(next_points, G = 1:4, verbose = FALSE)
   next_mean <- apply(next_points, 2, mean)

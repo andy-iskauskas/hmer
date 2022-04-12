@@ -137,7 +137,7 @@ summary_diag <- function(emulator, validation, verbose = interactive()) {
   chi_sq_measure <- sum(indiv_errs^2/emulator$get_cov(points))
   if(verbose) cat("Chi-squared:", round(chi_sq_measure,4),
                           "against mean", m,
-                          "with standard deviation", round(sqrt(2*m),4))
+                          "with standard deviation", round(sqrt(2*m),4), "\n")
   cov_mat <- emulator$get_cov(points, full = TRUE)
   cov_inv <- tryCatch(
     chol2inv(chol(cov_mat)),
@@ -146,7 +146,7 @@ summary_diag <- function(emulator, validation, verbose = interactive()) {
   mahal_measure <- t(indiv_errs) %*% cov_inv %*% indiv_errs
   if (verbose) cat("Mahalanobis:", round(mahal_measure,4),
                            "against mean", m, "with standard deviation",
-                           round(sqrt(2*m*(m+n-q-2)/(n-q-4)),4))
+                           round(sqrt(2*m*(m+n-q-2)/(n-q-4)),4), "\n")
   chi_valid <- (abs(chi_sq_measure - m)/sqrt(2*m) <= 3)
   mahal_valid <- (abs(mahal_measure - m)/sqrt(2*m*(m+n-q-2)/(n-q-4)) <= 3)
   return(c(chi_valid, mahal_valid))
