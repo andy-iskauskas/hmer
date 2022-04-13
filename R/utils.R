@@ -227,6 +227,8 @@ collect_emulators <- function(emulators) {
                                      ~prod(purrr::map_dbl(.$ranges, diff)))
     return(setNames(emulators[order(em_range_prods)], em_names))
   }
+  if (!is.null(emulators$expectation) || !is.null(emulators$mode1))
+    return(emulators)
   if (!is.null(emulators[[1]]$expectation)) {
     exp_ems <- purrr::map(emulators, ~.$expectation)
     var_ems <- purrr::map(emulators, ~.$variance)

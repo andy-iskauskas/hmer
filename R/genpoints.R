@@ -115,10 +115,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 generate_new_runs <- function(ems, n_points, z,
                               method = c('lhs', 'line', 'importance'),
                               cutoff = 3,
-                              nth = ifelse(
-                                length(unique(
-                                  purrr::map_chr(ems, ~.$output_name))) > 10,
-                                2, 1),
+                              nth = 1,
                               plausible_set, verbose = interactive(),
                               cluster = FALSE, resample = 1, seek = 0,
                               c_tol = 0.5, i_tol = 0.01, to_file = NULL, ...) {
@@ -133,6 +130,21 @@ generate_new_runs <- function(ems, n_points, z,
   }
   ems <- collect_emulators(ems)
   ranges <- getRanges(ems)
+  if (nth == 1) {
+    if (!is.null(ems$expectation))
+      nems <- length(unique(purrr::map_chr(
+        ems$expectation, ~.$output_name
+      )))
+    else if (!is.null(ems$mode1))
+      nems <- length(unique(purrr::map_chr(
+        ems$mode1$expectation, ~.$output_name
+      )))
+    else
+      nems <- length(unique(purrr::map_chr(
+        ems, ~.$output_name
+      )))
+    nth <- ifelse(nems > 10, 2, 1)
+  }
   possible_methods <- c('lhs', 'line', 'importance', 'slice', 'optical')
   which_methods <- possible_methods[possible_methods %in% method]
   n_current <- 0

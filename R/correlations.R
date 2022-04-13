@@ -16,7 +16,7 @@
 #'
 get_dist <- function(df1, df2) {
   if (ncol(df1) != ncol(df2)) stop("Data frames do not have the same dimension.")
-  d <- length(df1)
+  d <- ncol(df1)
   p <- max(nrow(df1), nrow(df2))
   if (d < (833*p^2-198400*p+144350000)/(55550*p+6910000) || p > 2500) {
     return(apply(df1, 1, function(a) sqrt(colSums((a-t(df2))^2))))
@@ -86,6 +86,8 @@ exp_sq_d <- function(x, xp, hp, xi, xpi = NULL) {
 matern <- function(x, xp, hp) {
   if (floor(hp$nu*2) != hp$nu*2 || floor(hp$nu) == hp$nu)
     stop("Matern hyperparameter nu must be half-integer.")
+  if (is.null(hp$theta))
+    stop("No correlation length theta specified.")
   p <- hp$nu-0.5
   d <- get_dist(x, xp)
   exp(-sqrt(2*p+1)*d/hp$theta) * factorial(p)/factorial(2*p) *
@@ -100,6 +102,8 @@ matern_d <- function(x, xp, hp, xi, xpi = NULL) {
     stop("This correlation function is not differentiable.")
   if (floor(hp$nu) < 2 && !is.null(xpi))
     stop("This correlation function is not twice differentiable.")
+  if (is.null(hp$theta))
+    stop("No correlation length theta specified")
   p <- hp$nu-0.5
   inner_arg <- sqrt(2*p+1) * get_dist(x, xp)/hp$theta
   diff_1 <- outer(xp[,xi, drop = FALSE], x[,xi, drop = FALSE], "-")[,,,1]
@@ -154,6 +158,8 @@ matern_d <- function(x, xp, hp, xi, xpi = NULL) {
 #' orn_uhl(data.frame(a=1,b=1,c=1), data.frame(a=1.2,b=0.9,c=0.6), list(theta = 0.2)) ==
 #'  matern(data.frame(a=1,b=1,c=1), data.frame(a=1.2,b=0.9,c=0.6), list(theta = 0.2, nu = 0.5)) #> TRUE
 orn_uhl <- function(x, xp, hp) {
+  if (is.null(hp$theta))
+    stop("No correlation length theta specified")
   dists <- get_dist(x, xp)
   exp(-dists/hp$theta)
 }
@@ -183,6 +189,8 @@ orn_uhl <- function(x, xp, hp) {
 gamma_exp <- function(x, xp, hp) {
   if (hp$gamma > 2 || hp$gamma <= 0)
     stop("Gamma hyperparameter must be between 0 (exclusive) and 2 (inclusive)")
+  if (is.null(hp$theta))
+    stop("No correlation length theta specified")
   dists <- get_dist(x, xp)
   exp(-(dists/hp$theta)^hp$gamma)
 }
@@ -210,11 +218,19 @@ gamma_exp <- function(x, xp, hp) {
 #' rat_quad(data.frame(a=1,b=2,c=-1),data.frame(a=1.5,b=2.9,c=-0.7), list(alpha = 1.5, theta = 0.2))
 #' #> 0.02904466
 rat_quad <- function(x, xp, hp) {
+  if (is.null(hp$theta))
+    stop("No correlation length theta specified")
+  if (is.null(hp$alpha))
+    stop("No reciprocal power alpha specified")
   dists <- get_dist(x, xp)^2
   (1+dists/(2*hp$alpha*hp$theta^2))^(-hp$alpha)
 }
 
 rat_quad_d <- function(x, xp, hp, xi, xpi = NULL) {
+  if (is.null(hp$theta))
+    stop("No correlation length theta specified")
+  if (is.null(hp$alpha))
+    stop("No reciprocal power alpha specified")
   dists <- get_dist(x, xp)^2
   diff_1 <- outer(xp[,xi, drop = FALSE], x[,xi, drop = FALSE], "-")[,,,1]
   if (is.null(nrow(diff_1))) diff_1 <- t(diff_1)
@@ -257,7 +273,7 @@ Correlator <- R6::R6Class(
       return((1 - self$nugget) * active + self$nugget * extra)
     },
     get_corr_d = function(x, xp = NULL, p1, p2 = NULL,
-                          actives = rep(TRUE, length(x))) {
+                          actives = rep(TRUE, ncol(x))) {
       if (is.null(xp)) return(self$get_corr_d(x, x, p1, p2, actives))
       if (!actives[p1] || (!is.null(p2) && !actives[p2]))
         return(matrix(0, nrow = nrow(xp), ncol = nrow(x)))

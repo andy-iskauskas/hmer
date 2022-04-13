@@ -96,8 +96,9 @@ nth_implausible <- function(ems, x, z, n = 1,
   ems <- collect_emulators(ems)
   ## Preprocessing for variance emulation
   if (!is.null(ems$expectation) && !is.null(ems$variance)) {
-    n <- ifelse(length(unique(purrr::map_chr(
-      ems$expectation, ~.$output_name))) > 10, 2, 1)
+    if (n == 1)
+      n <- ifelse(length(unique(purrr::map_chr(
+        ems$expectation, ~.$output_name))) > 10, 2, 1)
     if (!is.null(z$expectation) && !is.null(z$variance)) {
       imps_list <- list(
         expectation = nth_implausible(ems$expectation, x,
@@ -112,6 +113,11 @@ nth_implausible <- function(ems, x, z, n = 1,
           imp_mat,
           c(paste0(purrr::map_chr(ems$expectation, ~.$output_name), "Exp"),
             paste0(purrr::map_chr(ems$variance, ~.$output_name), "Var"))))
+      }
+      else {
+        if (n == 1) imps <- apply(imp_mat, 1, max)
+        else imps <- apply(imp_mat, 1, function(x) -sort(-x, partial = 1:n)[n])
+        return(purrr::map_dbl(imps, ~min(., max_imp)))
       }
     }
     else {
@@ -144,7 +150,8 @@ nth_implausible <- function(ems, x, z, n = 1,
     if (get_raw) return(imp_mat)
   }
   else {
-    n <- ifelse(length(unique(purrr::map_chr(ems, ~.$output_name))) > 10, 2, 1)
+    if (n == 1)
+      n <- ifelse(length(unique(purrr::map_chr(ems, ~.$output_name))) > 10, 2, 1)
     for (i in seq_along(z)) {
       if (length(z[[i]]) == 1) {
         warning(paste("Target",
