@@ -10,7 +10,7 @@ generate_new_runs(
   z,
   method = c("lhs", "line", "importance"),
   cutoff = 3,
-  nth = ifelse(length(unique(purrr::map_chr(ems, ~.$output_name))) > 10, 2, 1),
+  nth = 1,
   plausible_set,
   verbose = interactive(),
   cluster = FALSE,

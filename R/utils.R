@@ -18,12 +18,27 @@ scale_input <- function(x, r, forward = TRUE) {
     centers <- unlist(centers, use.names = F)
     scales <- unlist(scales, use.names = F)
   }
-  if (forward)
-    output <- (x-centers)/scales
-  else
-    output <- x * scales + centers
-  if (!"data.frame" %in% class(output))
-    return(data.frame(output))
+  if (forward) {
+    if(is.null(names(x)))
+      output <- t(apply(
+        t(apply(x, 1, function(y) y - centers)),
+        1, function(z) z/scales))
+    else
+      output <- (x-centers)/scales
+  }
+  else {
+    if (is.null(names(x)))
+      output <- t(apply(
+        t(apply(x, 1, function(y) y * scales)),
+        1, function(z) z + centers
+      ))
+    else
+      output <- x * scales + centers
+  }
+  if (!"data.frame" %in% class(output)) {
+    output <- data.frame(output)
+    names(output) <- NULL
+  }
   return(output)
 }
 
@@ -67,17 +82,32 @@ eval_funcs <- function(funcs, points, ...) {
 # Inner modification of a function
 multiply_function <- function(f, mult) {
   func_body <- body(f)
-  if (typeof(func_body) != "language" || is.call(func_body))
-    body(f) <- substitute(mult * func_body)
-  else {
-    relevant <- body(f)[[length(body(f))]]
-    if (relevant[[1]] == "return") {
-      innards <- relevant[[2]]
-      body(f)[[length(body(f))]][[2]] <- substitute(mult * innards)
+  if (length(func_body) == 2) {
+    relev <- func_body[[2]]
+    if (is.language(relev) && !(is.symbol(relev) || is.double(relev))) {
+      innards <- relev[[2]]
+      body(f)[[2]][[2]] <- substitute(mult * innards)
     }
-    else
-      body(f)[[length(body(f))]] <- substitute(mult * relevant)
+    if (is.symbol(relev) || is.double(relev)) {
+      body(f)[[2]] <- substitute(mult * relev)
+    }
+    return(f)
   }
+  if (length(func_body) == 1) {
+    body(f) <- substitute(mult * func_body)
+    return(f)
+  }
+  relev <- func_body[[length(func_body)]]
+  if (is.language(relev) && !(is.symbol(relev) || is.double(relev))) {
+    innards <- relev[[2]]
+    body(f)[[length(func_body)]][[2]] <- substitute(mult * innards)
+    return(f)
+  }
+  if (is.symbol(relev) || is.double(relev)) {
+    body(f)[[length(func_body)]] <- substitute(mult * relev)
+    return(f)
+  }
+  warning("Function multiplication not successful. Returning original function.")
   return(f)
 }
 
@@ -277,8 +307,8 @@ getRanges <- function(emulators, minimal = TRUE) {
 }
 
 # Pre-submission questions for CRAN submission
-release_questions <- function() {
+release_questions <- function() { # nocov start
   c(
     "Have you recompiled the vignettes using precompile.R?"
     )
-}
+} # nocov end

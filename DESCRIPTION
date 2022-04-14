@@ -1,7 +1,7 @@
 Package: hmer
 Type: Package
 Title: History Matching and Emulation Package
-Version: 1.0.0
+Version: 1.0.1.9000
 Authors@R: c(person("Andrew", "Iskauskas", email = "andrew.iskauskas@durham.ac.uk", comment = c(ORCID = "0000-0003-2825-3651"), role = c('aut', 'cre')))
 Maintainer: Andrew Iskauskas <andrew.iskauskas@durham.ac.uk>
 BugReports: https://github.com/andy-iskauskas/hmer/issues
