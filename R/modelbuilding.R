@@ -15,7 +15,7 @@ convertRanges <- function(object) {
       return(NULL)
     }
   }
-  if (is.list(object)) {
+  if (is.list(object) && !"data.frame" %in% class(object)) {
     if (length(names(object)) == length(object) &&
         all(purrr::map_dbl(object, length) == 2)) return(object)
     else {
@@ -66,7 +66,7 @@ convertRanges <- function(object) {
 #'
 get_coefficient_model <- function(data, ranges, output_name, add = FALSE,
                                   order = 2, u_form = NULL, printing = NULL) {
-  if (!is.null(printing)) cat(printing, "\n")
+  if (!is.null(printing)) cat(printing, "\n") # nocov
   lower_form <- as.formula(paste(output_name, "1", sep = " ~ "))
   if (is.null(u_form)) {
     if (order == 1)
@@ -423,10 +423,10 @@ emulator_from_data <- function(input_data, output_names, ranges,
     do_preflight <- preflight(input_data, targets[output_names],
                               verbose = verbose)
     if (do_preflight && verbose) {
-      cat("Some outputs may not be adequately emulated,",
+      cat("Some outputs may not be adequately emulated,", #nocov start
                 "due to consistent over/underestimation in training data.\n")
       cat("Consider looking at the outputs (using, eg, behaviour_plot);",
-                "some outputs may require extra runs and/or transformation.\n")
+                "some outputs may require extra runs and/or transformation.\n") #nocov end
     }
   }
   model_beta_mus <- model_u_sigmas <- model_u_corrs <- NULL
@@ -456,12 +456,12 @@ emulator_from_data <- function(input_data, output_names, ranges,
       names(ranges))
   }
   if (nrow(input_data) < 10*length(ranges) && verbose)
-    warning(paste("Fewer than", 10*length(ranges),
+    warning(paste("Fewer than", 10*length(ranges), #nocov start
                            "non-NA points in", length(ranges),
                            "dimensions - treat the emulated",
                            "outputs with caution, or include more",
                            "training points",
-                           "(minimum 10 times the number of input parameters)."))
+                           "(minimum 10 times the number of input parameters).")) #nocov end
   data <- setNames(
     cbind(
       eval_funcs(
@@ -475,7 +475,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
     more_verbose <- if (length(output_names) > 10) TRUE else FALSE
   else more_verbose <- list(...)[['more_verbose']]
   if (missing(funcs)) {
-    if (verbose) cat("Fitting regression surfaces...\n")
+    if (verbose) cat("Fitting regression surfaces...\n") #nocov
     if (quadratic) {
       does_add <- (choose(length(input_names)+2,
                           length(input_names)) > nrow(data))
@@ -542,7 +542,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
     model_u_sigmas <- purrr::map(u, ~.$sigma)
     model_u_corrs <- purrr::map(u, ~.$corr)
   }
-  if (verbose) cat("Building correlation structures...\n")
+  if (verbose) cat("Building correlation structures...\n") #nocov
   if (any(is.null(model_beta_mus) ||
           is.null(model_u_sigmas) ||
           is.null(model_u_corrs))) {
@@ -634,7 +634,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
       discrepancies <- purrr::map(discrepancies,
                                   ~list(internal = ., external = 0))
   }
-  if (verbose) cat("Creating emulators...\n")
+  if (verbose) cat("Creating emulators...\n") #nocov
   if (!has.hierarchy) {
     out_ems <- setNames(
       purrr::map(
@@ -655,13 +655,16 @@ emulator_from_data <- function(input_data, output_names, ranges,
   }
   if (!missing(ev)) {
     ev_deltas <- ev/purrr::map_dbl(
-      out_ems, ~mean(apply(data[,names(ranges)], 1, .$u_sigma)))
+      out_ems, function(x) {
+        if (is.numeric(x$u_sigma)) return(x$u_sigma)
+        mean(apply(data[,names(ranges)], 1, x$u_sigma))
+      })
     ev_deltas <- purrr::map_dbl(ev_deltas, ~min(1/3, .))
     return(emulator_from_data(input_data, output_names, ranges,
                               input_names, beta, u,
                               purrr::map_dbl(out_ems, ~.$corr$hyper_p$theta),
                               funcs, ev_deltas, quadratic = quadratic,
-                              beta.var = beta.var,
+                              beta.var = beta.var, verbose = verbose,
                               discrepancies = discrepancies,
                               has.hierarchy = has.hierarchy))
   }
@@ -672,7 +675,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
   for (i in seq_along(out_ems))
     out_ems[[i]]$output_name <- output_names[[i]]
   if (adjusted) {
-    if (verbose) cat("Performing Bayes linear adjustment...\n")
+    if (verbose) cat("Performing Bayes linear adjustment...\n") #nocov
     out_ems <- purrr::map(out_ems, ~.$adjust(input_data, .$output_name))
   }
   return(out_ems)
@@ -721,7 +724,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges,
     input_data[apply(input_data[,names(ranges)], 1, hash) == x,]
   })
   data_by_point <- data_by_point[purrr::map_lgl(data_by_point, ~nrow(.)>1)]
-  if (verbose) cat("Separated dataset by unique points...\n")
+  if (verbose) cat("Separated dataset by unique points...\n") #nocov
   collected_stats <- do.call('rbind', lapply(data_by_point, function(x) {
     n_points <- nrow(x)
     if (length(output_names) == 1) {
@@ -753,7 +756,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges,
     collected_df_var <- collected_df[
       apply(collected_df[,paste0(output_names, "var")], 1,
             function(a) !any(is.na(a))),]
-  if (verbose) cat("Computed summary statistics...\n")
+  if (verbose) cat("Computed summary statistics...\n") #nocov
   variance_emulators <- list()
   for (i in output_names) {
     is_high_rep <- !is.na(collected_df_var[,paste0(i,"kurt")])
@@ -816,7 +819,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges,
     variance_emulators <- c(variance_emulators, v_em)
   }
   variance_emulators <- setNames(variance_emulators, output_names)
-  if (verbose) cat("Completed variance emulators. Training mean emulators...\n")
+  if (verbose) cat("Completed variance emulators. Training mean emulators...\n") #nocov
   exp_mods <- purrr::map(variance_emulators, ~function(x, n) .$get_exp(x)/n)
   exp_data <- setNames(
     collected_df[,c(input_names, paste0(output_names, 'mean'))],
@@ -892,7 +895,7 @@ bimodal_emulator_from_data <- function(data, output_names, ranges,
   param_sets <- purrr::map(uids, function(x) {
     data[apply(data[,input_names], 1, hash) == x,]
   })
-  if(verbose) cat("Separated dataset by unique points.\n")
+  if(verbose) cat("Separated dataset by unique points.\n") #nocov
   modNames <- mclust.options("emModelNames")[
     !mclust.options("emModelNames") == "EEE"]
   proportion <- purrr::map_dbl(param_sets, function(x) {
@@ -904,10 +907,10 @@ bimodal_emulator_from_data <- function(data, output_names, ranges,
   prop_df <- setNames(
     data.frame(cbind(unique_points, proportion)),
     c(names(unique_points), 'prop'))
-  if (verbose) cat("Training emulator to proportion in modes.\n")
+  if (verbose) cat("Training emulator to proportion in modes.\n") #nocov
   prop_em <- emulator_from_data(prop_df,
                                 c('prop'), ranges, verbose = FALSE, ...)
-  if (verbose) cat("Performing clustering to identify modes.\n")
+  if (verbose) cat("Performing clustering to identify modes.\n") #nocov
   has_bimodality <- setNames(
     do.call('rbind.data.frame', purrr::map(param_sets, function(x) {
     purrr::map_lgl(output_names, function(y) {
@@ -922,15 +925,15 @@ bimodal_emulator_from_data <- function(data, output_names, ranges,
     return(variance_emulator_from_data(
       data, output_names, ranges, verbose = FALSE, ...))
   if (!all(is_bimodal_target)) {
-    if (verbose) cat("Training to unimodal targets.\n")
+    if (verbose) cat("Training to unimodal targets.\n") #nocov
     non_bimodal <- variance_emulator_from_data(
       data, output_names[!is_bimodal_target], ranges, verbose = FALSE, ...)
   }
   else {
-    if (verbose) cat("No targets appear to be unimodal.\n")
+    if (verbose) cat("No targets appear to be unimodal.\n") #nocov
     non_bimodal <- NULL
   }
-  if (verbose) cat("Training to bimodal targets.\n")
+  if (verbose) cat("Training to bimodal targets.\n") #nocov
   bimodal <- purrr::map(output_names[is_bimodal_target], function(x) {
     c1_data <- list()
     c2_data <- list()
@@ -966,7 +969,7 @@ bimodal_emulator_from_data <- function(data, output_names, ranges,
     return(list(m1 = m1em, m2 = m2em))
   })
   bimodals <- setNames(bimodal, output_names[is_bimodal_target])
-  if (verbose) cat("Trained emulators. Collating.\n")
+  if (verbose) cat("Trained emulators. Collating.\n") #nocov
   m1exps <- m2exps <- m1vars <- m2vars <- list()
   for (i in output_names) {
     if (i %in% names(non_bimodal$expectation)) {

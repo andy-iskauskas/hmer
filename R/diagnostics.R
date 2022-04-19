@@ -135,18 +135,18 @@ summary_diag <- function(emulator, validation, verbose = interactive()) {
   q <- length(emulator$basis_f)
   indiv_errs <- outputs - emulator$get_exp(points)
   chi_sq_measure <- sum(indiv_errs^2/emulator$get_cov(points))
-  if(verbose) cat("Chi-squared:", round(chi_sq_measure,4),
+  if(verbose) cat("Chi-squared:", round(chi_sq_measure,4), #nocov start
                           "against mean", m,
-                          "with standard deviation", round(sqrt(2*m),4), "\n")
+                          "with standard deviation", round(sqrt(2*m),4), "\n") #nocov end
   cov_mat <- emulator$get_cov(points, full = TRUE)
   cov_inv <- tryCatch(
     chol2inv(chol(cov_mat)),
     error = function(e) {MASS::ginv(cov_mat)}
   )
   mahal_measure <- t(indiv_errs) %*% cov_inv %*% indiv_errs
-  if (verbose) cat("Mahalanobis:", round(mahal_measure,4),
+  if (verbose) cat("Mahalanobis:", round(mahal_measure,4), #nocov start
                            "against mean", m, "with standard deviation",
-                           round(sqrt(2*m*(m+n-q-2)/(n-q-4)),4), "\n")
+                           round(sqrt(2*m*(m+n-q-2)/(n-q-4)),4), "\n") #nocov end
   chi_valid <- (abs(chi_sq_measure - m)/sqrt(2*m) <= 3)
   mahal_valid <- (abs(mahal_measure - m)/sqrt(2*m*(m+n-q-2)/(n-q-4)) <= 3)
   return(c(chi_valid, mahal_valid))
@@ -182,9 +182,9 @@ residual_diag <- function(emulator, histogram = FALSE, ...) {
   else
     standardised_residuals <- emulator$model$residuals/
       apply(in_points, 1, emulator$u_sigma)
-  if (histogram) hist(standardised_residuals, xlab = "Standadized Residual",
+  if (histogram) hist(standardised_residuals, xlab = "Standadized Residual", #nocov start
                       ylab = "Frequency",
-                      main = paste(emulator$output_name, "Residual Histogram"))
+                      main = paste(emulator$output_name, "Residual Histogram")) #nocov end
   else plot(standardised_residuals, xlab = "Point",
             ylab = "Standardized Residual", pch = 16,
             main = emulator$output_name,
