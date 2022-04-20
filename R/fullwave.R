@@ -41,11 +41,11 @@ preflight <- function(data, targets, coff = 0.95, verbose = interactive()) {
     if (all(hom[,i] == 0)) {
       if (all(data[,i] < targets[[i]][1])) {
         potential_problem <- TRUE
-        if (verbose) cat("Target", i, "consistently underestimated.\n")
+        if (verbose) cat("Target", i, "consistently underestimated.\n") #nocov
       }
       else {
         potential_problem <- TRUE
-        if (verbose) cat("Target", i, "consistently overestimated.\n")
+        if (verbose) cat("Target", i, "consistently overestimated.\n") #nocov
       }
       hom[,i] <- NULL
     }
@@ -57,12 +57,12 @@ preflight <- function(data, targets, coff = 0.95, verbose = interactive()) {
       for (j in (i+1):length(df)) {
         cval <- cor(df[,c(i,j)])[1,2]
         if (cval < -coff) {
-          if (verbose) cat("Strong negative correlation between points satisfying",
-                            names(df)[i], "and", names(df)[j], "\n")
+          if (verbose) cat("Strong negative correlation between points satisfying", #nocov
+                            names(df)[i], "and", names(df)[j], "\n") #nocov
         }
         if (cval > coff) {
-          if (verbose) cat("Strong positive correlation between points satisfying",
-                            names(df)[i], "and", names(df)[j], "\n")
+          if (verbose) cat("Strong positive correlation between points satisfying", #nocov
+                            names(df)[i], "and", names(df)[j], "\n") #nocov
         }
       }
     }
@@ -77,15 +77,15 @@ preflight <- function(data, targets, coff = 0.95, verbose = interactive()) {
           cval <- cor(log_and, df[,k])
           if (cval < -coff) {
             if (verbose)
-              cat("Strong negative correlation between points satisfying (",
+              cat("Strong negative correlation between points satisfying (", #nocov start
                     names(df)[i],", ",names(df)[j],
                     ") and ",
-                    names(df)[k], "\n", sep = "")
+                    names(df)[k], "\n", sep = "") #nocov end
           }
           if (cval > coff) {
             if (verbose)
-              cat("Strong positive correlation between points satisfying",
-                    names(df)[i], "and", names(df)[j], "\n")
+              cat("Strong positive correlation between points satisfying", #nocov
+                    names(df)[i], "and", names(df)[j], "\n") #nocov
           }
         }
       }
@@ -170,9 +170,9 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL,
   samp <- sample(seq_len(nrow(data)), floor(prop_train*nrow(data)))
   train <- data[samp,]
   valid <- data[-samp,]
-  if (verbose) cat("Training emulators...\n")
+  if (verbose) cat("Training emulators...\n") #nocov
   tryCatch(
-    ems <- emulator_from_data(train, names(targets), new_ranges, ...),
+    ems <- emulator_from_data(train, names(targets), new_ranges, verbose = verbose, ...),
     error = function(e) {
       stop(paste("Problem with emulator training:", e))
     }
@@ -181,16 +181,16 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL,
     if (ems[[i]]$u_sigma^2 < 1e-8)
       ems[[i]]$set_sigma(targets[[ems[[i]]$output_name]]$sigma * 0.1)
   }
-  if (verbose) cat("Performing diagnostics...\n")
+  if (verbose) cat("Performing diagnostics...\n") #nocov
   invalid_ems <- c()
   for (i in seq_along(ems)) {
     comp_fail <- nrow(comparison_diag(ems[[i]], targets, valid, plt = FALSE))
     if (comp_fail > nrow(valid)/4) {
       invalid_ems <- c(invalid_ems, i)
-      if (verbose) cat("Emulator for output",
+      if (verbose) cat("Emulator for output", #nocov start
                           ems[[i]]$output_name,
                           "fails comparison diagnostics.",
-                          "It will not be matched to at this wave.\n")
+                          "It will not be matched to at this wave.\n") #nocov end
     }
   }
   if (length(invalid_ems) > 0)
@@ -221,7 +221,7 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL,
   else
     working_ems <- ems
   targets <- targets[purrr::map_chr(working_ems, ~.$output_name)]
-  if (verbose) cat("Generating new points...\n")
+  if (verbose) cat("Generating new points...\n") #nocov
   new_points <- generate_new_runs(working_ems, nrow(data), targets,
                                   cutoff = cutoff, verbose = FALSE, nth = nth)
   if (nrow(new_points) == 0)
@@ -230,7 +230,7 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL,
     if (!is.null(emulator_uncerts) &&
         all(emulator_uncerts < 1.02) &&
         length(emulator_uncerts) == length(targets))
-      if (verbose) cat("All emulator uncertainties are comparable to target",
-                  "uncertainties. More waves may be unnecessary.\n")
+      if (verbose) cat("All emulator uncertainties are comparable to target", #nocov
+                  "uncertainties. More waves may be unnecessary.\n") #nocov
   return(list(points = new_points, emulators = ems))
 }

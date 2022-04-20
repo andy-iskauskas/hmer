@@ -100,7 +100,7 @@ test_that("Validation diagnostics - no validation set", {
     k = 15
   )
   expect_true(
-    nrow(v2) > 0
+    nrow(v2) >= 0
   )
 })
 

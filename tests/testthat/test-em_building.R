@@ -131,6 +131,37 @@ test_that("Emulator training: provided hyperparams", {
   )
 })
 
+test_that("Emulator training: uncertain beta", {
+  discreps <- c(2, 4, 3.5)
+  ems <- emulator_from_data(
+    SIRSample$training,
+    c('nS', 'nI', 'nR'),
+    list(aSI = c(0.1, 0.8),
+         aIR = c(0, 0.5),
+         aSR = c(0, 0.05)),
+    beta.var = TRUE,
+    discrepancies = discreps,
+    verbose = FALSE)
+  expect_equal(
+    c(
+      ems$nS$get_exp(SIRSample$training[1:5,]),
+      use.names = FALSE),
+    SIRSample$training[1:5, 'nS'],
+    tolerance = 1e-6
+  )
+  expect_equal(
+    c(
+      ems$nI$get_cov(SIRSample$training[1:5,]),
+      use.names = FALSE),
+    rep(0, 5),
+    tolerance = 1e-6
+  )
+  expect_equal(
+    ems$nR$disc,
+    list(internal = 3.5, external = 0)
+  )
+})
+
 test_that("Range handling", {
   standard_ranges <- list(
     aSI = c(0.1, 0.8),
@@ -168,6 +199,29 @@ test_that("Full wave behaves", {
                        aSR = c(0, 0.05)),
                   targets = SIREmulators$targets,
     verbose = FALSE)
+  expect_equal(
+    length(fw$emulators),
+    3
+  )
+  expect_equal(
+    nrow(fw$points),
+    90
+  )
+})
+
+test_that("Full wave with all atomic targets", {
+  all_atomic <- SIREmulators$targets
+  all_atomic$nI <- c(169-3*8.45, 169+3*8.45)
+  fw <- full_wave(rbind(
+    SIRSample$training,
+    SIRSample$validation),
+    list(aSI = c(0.1, 0.8),
+         aIR = c(0, 0.5),
+         aSR = c(0, 0.05)),
+    targets = all_atomic,
+    verbose = FALSE,
+    old_emulators <- SIREmulators$ems
+  )
   expect_equal(
     length(fw$emulators),
     3

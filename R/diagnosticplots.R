@@ -32,8 +32,6 @@
 #'  #> Throws a warning
 #'  behaviour_plot(SIRMultiWaveEmulators, model = TRUE, targets = SIREmulators$targets)
 behaviour_plot <- function(ems, points, model = missing(ems), out_names = unique(names(collect_emulators(ems))), targets = NULL) {
-  oldpar <- par(no.readonly = TRUE)
-  on.exit(par(oldpar))
   if (missing(ems) && missing(points))
     stop("One of 'ems' or 'points' must be supplied.")
   if (missing(points) && model) {
@@ -83,6 +81,8 @@ behaviour_plot <- function(ems, points, model = missing(ems), out_names = unique
     }), out_names)
   else
     ylims <- setNames(purrr::map(out_names, ~c(min(data[,.]), max(data[,.]))), out_names)
+  oldpar <- par(no.readonly = TRUE)
+  on.exit(par(oldpar))
   for (i in seq_along(out_names)) {
     op <- par(mfrow = c(min(4, ceiling(sqrt(length(in_names)))), min(4, ceiling(sqrt(length(in_names))))))
     for (j in seq_along(in_names)) {
@@ -370,7 +370,7 @@ effect_strength <- function(ems, plt = interactive(), line.plot = FALSE,
                          levels = purrr::map_chr(ems, ~.$output_name))
   lin.mat$Var2 <- factor(lin.mat$Var2, levels = names(ranges))
   Var1 <- Var2 <- value <- NULL
-  if (plt) {
+  if (plt) { #nocov start
     if (grid.plot) {
       g <- ggplot(data = lin.mat, aes(x = Var2, y = Var1, fill = value)) +
         geom_tile(colour = 'black') +
@@ -472,7 +472,7 @@ effect_strength <- function(ems, plt = interactive(), line.plot = FALSE,
         if (!labels) g <- g + theme(legend.position = 'none')
         print(g)
         if (quadratic) {
-          g <-ggplot(data = quad.mat,
+          g <- ggplot(data = quad.mat,
                      aes(x = Var1, y = value, group = Var2, fill = Var2)) +
             geom_col(position = 'dodge', colour = 'black') +
             viridis::scale_fill_viridis(discrete = TRUE, name = "Parameter") +
@@ -485,6 +485,6 @@ effect_strength <- function(ems, plt = interactive(), line.plot = FALSE,
         }
       }
     }
-  }
+  } #nocov end
   return(complete_set)
 }

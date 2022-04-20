@@ -514,13 +514,13 @@ Emulator <- R6Class(
                     self$u_sigma), "*"), 1,
             apply(x, 1, self$u_sigma), "*")
         if (!is.null(self$in_data)) {
-          c_x <- t(self$corr$get_corr_d(x, self_in_data,
+          c_x <- t(self$corr$get_corr_d(x, self$in_data,
                                         p1_ind, p2 = NULL, self$active_vars))/
             range_scale1
           c_xp <- if(null_flag)
             -1*c_x
           else
-            -1*t(self$corr$get_corr_d(x, self$in_data,
+            -1*t(self$corr$get_corr_d(xp, self$in_data,
                                       p2_ind, p2 = NULL, self$active_vars))/
             range_scale2
           if (is.numeric(self$u_sigma)) {

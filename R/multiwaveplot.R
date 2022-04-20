@@ -244,7 +244,7 @@ wave_values <- function(waves, targets, output_names = names(targets),
   }
   pal <- viridis::viridis(max(length(waves), max(wave_numbers)),
                           option = "D", direction = -1)[wave_numbers+1]
-  lfun <- function(data, mapping, targets, zoom = F) {
+  lfun <- function(data, mapping, targets, zoom = F) { #nocov start
     xname <- rlang::quo_get_expr(mapping$x)
     yname <- rlang::quo_get_expr(mapping$y)
     g <- ggplot(data = data, mapping = mapping) +
@@ -310,7 +310,7 @@ wave_values <- function(waves, targets, output_names = names(targets),
       scale_fill_manual(values = pal) +
       theme_bw()
     return(g)
-  }
+  } #nocov end
   if (length(var_list) != 0) {
     g <- ggpairs(total_data, columns = seq_along(output_names),
                  mapping = aes(colour = wave, group = wave),
@@ -573,10 +573,10 @@ diagnostic_wrap <- function(waves, targets, output_names = names(targets),
                             directory = NULL, s.heights = rep(1000, 4),
                             s.widths = s.heights, include.norm = TRUE,
                             include.log = TRUE, ...) {
-  if (!is.null(directory) && !file.exists(sub("(.*)/[^/]*$", "\\1", directory)))
-    stop("Specified directory does not exist. No plots saved.")
+  if (!is.null(directory) && !file.exists(sub("(.*)/[^/]*$", "\\1", directory))) #nocov
+    stop("Specified directory does not exist. No plots saved.") #nocov
   s.widths[1] <- ceiling(length(output_names)/10)*1000
-  get_dims <- function(initial, plots) {
+  get_dims <- function(initial, plots) { #nocov start
     if (length(initial) == 1)
       return(rep(initial, length(plots)))
     if (length(initial) < 4)
@@ -591,7 +591,7 @@ diagnostic_wrap <- function(waves, targets, output_names = names(targets),
       replaced[grepl("dependencyplot.*", names(plots))] <- initial[4]
       return(replaced)
     }
-  }
+  } #nocov end
   g <- list()
   g[["simulatorplot"]] <- simulator_plot(waves, targets, ...)
   if (include.norm)
@@ -604,7 +604,7 @@ diagnostic_wrap <- function(waves, targets, output_names = names(targets),
   if (include.norm)
     g[["dependencyplotnorm"]] <- wave_dependencies(waves, targets, output_names,
                             input_names, normalize = TRUE, ...)
-  if (!is.null(directory)) {
+  if (!is.null(directory)) { #nocov start
     s.widths <- get_dims(s.widths, g)
     s.heights <- get_dims(s.heights, g)
     for (i in seq_along(g)) {
@@ -614,6 +614,6 @@ diagnostic_wrap <- function(waves, targets, output_names = names(targets),
       dev.off()
     }
     return(NULL)
-  }
+  } #nocov end
   return(g)
 }

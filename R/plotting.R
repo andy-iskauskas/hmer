@@ -49,7 +49,7 @@ exp_plot <- function(em, plotgrid = NULL, ppd = 30) {
                                     name = "exp",
                                     guide = guide_legend(ncol = 1))
     },
-    warning = function(w) {
+    warning = function(w) { #nocov start
       exp_breaks <- seq(min(em_exp) - diff(range(em_exp))/(2 * 23),
                         max(em_exp) + diff(range(em_exp))/(2*23),
                         length.out = 25)
@@ -70,7 +70,7 @@ exp_plot <- function(em, plotgrid = NULL, ppd = 30) {
                                         exp_breaks[as.numeric(
                                           stringr::str_extract(b, "\\d+"))],
                                         6)})
-    }
+    } #nocov end
   )
   if (is.null(em$em_type)) extra_ident <- NULL
   else if (em$em_type == "mean") extra_ident <- "Mean"
@@ -668,20 +668,20 @@ plot_actives <- function(ems, output_names = NULL, input_names = NULL) {
   active_list <- setNames(
     data.frame(
       do.call('rbind', purrr::map(ems, ~.$active_vars))), in_names)
-  if (!is.null(input_names)) active_list <- active_list[, input_names]
+  if (!is.null(input_names)) active_list <- active_list[, input_names, drop = FALSE]
   if (!is.null(output_names))
-    active_list <- active_list[row.names(active_list) %in% output_names, ]
+    active_list <- active_list[row.names(active_list) %in% output_names, , drop = FALSE]
   if (nrow(active_list) == 0 || length(active_list) == 0)
     stop("No inputs/outputs to plot.")
   pivoted <- pivot_longer(active_list, cols = everything(), names_to = "Var2")
   pivoted$Var1 <- rep(row.names(active_list), each = length(active_list))
-  pivoted$value <- as.factor(pivoted$value)
+  pivoted$value <- factor(pivoted$value, levels = c("FALSE", "TRUE"))
   pivoted$Var1 <- factor(pivoted$Var1, levels = purrr::map(ems, ~.$output_name))
   pivoted$Var2 <- factor(pivoted$Var2, levels = names(ems[[1]]$ranges))
   Var1 <- Var2 <- value <- NULL
   g <- ggplot(data = pivoted, aes(x = Var2, y = Var1, fill = value)) +
     geom_tile(colour = 'black') +
-    scale_fill_manual(values = c('black', 'green'),
+    scale_fill_manual(values = c('black', 'green'), drop = FALSE,
                       labels = c("FALSE", "TRUE"), name = "Active?") +
     labs(title = "Active variables", x = "Parameter", y = "Output") +
     theme_minimal() +
@@ -709,7 +709,7 @@ plot_actives <- function(ems, output_names = NULL, input_names = NULL) {
 #' @examples
 #'  plot_wrap(SIRSample$training[,1:3], SIREmulators$ems[[1]]$ranges)
 #'
-plot_wrap <- function(points, ranges = NULL, p_size = 0.5) {
+plot_wrap <- function(points, ranges = NULL, p_size = 0.5) { #nocov start
   if (is.null(ranges))
     boundary_points <- setNames(
       do.call(
@@ -726,4 +726,4 @@ plot_wrap <- function(points, ranges = NULL, p_size = 0.5) {
   plot(rbind(points, boundary_points),
        pch = 16, cex = p_size,
        col = c(rep('black', nrow(points)), 'white', 'white'))
-}
+} #nocov end

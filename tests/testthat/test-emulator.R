@@ -170,6 +170,76 @@ test_that("Modifying priors and functional sigma - untrained", {
   )
 })
 
+test_that("Derivative functions", {
+  expect_equal(
+    nrow(
+      em$get_exp_d(SIRSample$training[1:5,], 'aSI')
+    ),
+    5
+  )
+  expect_equal(
+    c(em$get_exp_d(SIRSample$training[1:5,], 'aSR'), use.names = FALSE),
+    rep(0, 5)
+  )
+  expect_equal(
+    length(em$get_cov_d(SIRSample$training[1:5,], 'aSI')),
+    5
+  )
+  expect_equal(
+    dim(
+      em$get_cov_d(SIRSample$training[1:5,], 'aSI',
+                   SIRSample$training[2:7,], 'aIR',
+                   full = TRUE)
+    ),
+    c(5, 6)
+  )
+  oem <- em$o_em
+  expect_equal(
+    nrow(
+      oem$get_exp_d(SIRSample$training[1:5,], 'aSI')
+    ),
+    5
+  )
+  expect_equal(
+    c(oem$get_exp_d(SIRSample$training[1:5,], 'aSR'), use.names = FALSE),
+    rep(0, 5)
+  )
+  expect_equal(
+    length(unique(oem$get_cov_d(SIRSample$training[1:5,], 'aSI'))),
+    1
+  )
+  expect_equal(
+    dim(
+      oem$get_cov_d(SIRSample$training[1:5,], 'aSI',
+                   SIRSample$training[2:7,], 'aIR',
+                   full = TRUE)
+    ),
+    c(5, 6)
+  )
+})
+
+test_that("Batch processing is called for >1000 points", {
+  many_points <- data.frame(
+    aSI = runif(1400, 0.1, 0.8),
+    aIR = runif(1400, 0, 0.5),
+    aSR = runif(1400, 0, 0.05)
+  )
+  expect_equal(
+    length(c(
+      em$get_exp(many_points))),
+    1400
+  )
+  expect_equal(
+    length(c(
+      em$get_cov(many_points))),
+    1400
+  )
+  expect_equal(
+    length(em$implausibility(many_points, SIREmulators$targets$nS)),
+    1400
+  )
+})
+
 test_that("Printing works", {
   expect_output(
     print(em),

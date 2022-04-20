@@ -17,7 +17,8 @@ Suggests:
     knitr,
     rmarkdown,
     deSolve,
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    covr
 VignetteBuilder: knitr
 Depends: R (>= 4.0.0)
 Imports:

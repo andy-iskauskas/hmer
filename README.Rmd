@@ -18,6 +18,7 @@ knitr::opts_chunk$set(
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/andy-iskauskas/hmer/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/andy-iskauskas/hmer/actions/workflows/R-CMD-check.yaml)
 [![CRAN status](https://www.r-pkg.org/badges/version/hmer)](https://CRAN.R-project.org/package=hmer)
+[![Codecov test coverage](https://codecov.io/gh/andy-iskauskas/hmer/branch/master/graph/badge.svg)](https://app.codecov.io/gh/andy-iskauskas/hmer?branch=master)
 <!-- badges: end -->
 
 ## Overview

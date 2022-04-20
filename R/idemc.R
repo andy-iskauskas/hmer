@@ -1,4 +1,4 @@
-idemc_step <- function(ems, targets, points, point_imps, ladder, clusters,
+idemc_step <- function(ems, targets, points, point_imps, ladder, clusters, #nocov start
                        order_active, ranges, M = 10, pm = 0.9, w = 0.8) {
   input_names <- names(ems[[1]]$ranges)
   in_range <- function(x, ranges) {
@@ -349,4 +349,4 @@ idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)),
   }
   if (detailed) return(all_points)
   return(all_points[[length(all_points)]])
-}
+} #nocov end

@@ -197,3 +197,17 @@ test_that("Separated modes: same result", {
     nth_implausible(bim_em, bim_points, bim_targets)
   )
 })
+
+### Point proposal - makes more sense here since emulatos are trained
+test_that("Bimodal point proposal", {
+  bim_points <- generate_new_runs(
+    bim_em,
+    100,
+    bim_targets,
+    resample = 0, verbose = FALSE
+  )
+  expect_equal(
+    nrow(bim_points),
+    100
+  )
+})

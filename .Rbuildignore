@@ -1,6 +1,5 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
-changelog.txt
 ^doc$
 ^Meta$
 ^LICENSE\.md$
@@ -9,3 +8,5 @@ changelog.txt
 ^\.github$
 ^README\.Rmd$
 ^CRAN-SUBMISSION$
+^\.covrignore$
+^codecov\.yml$
