@@ -431,7 +431,7 @@ Emulator <- R6Class(
       if (is.null(p2)) p2 <- p1
       range_scale2 <- diff(self$ranges[[p2]])/2
       if (!p1 %in% names(self$ranges) || !p2 %in% names(self$ranges)) {
-        if (!full || is.null(xp)) return(0)
+        if (!full || is.null(xp)) return(rep(0, nrow(x)))
         return(matrix(0, nrow = nrow(x), ncol = nrow(xp)))
       }
       p1_ind <- which(names(self$ranges) == p1)
@@ -517,10 +517,7 @@ Emulator <- R6Class(
           c_x <- t(self$corr$get_corr_d(x, self$in_data,
                                         p1_ind, p2 = NULL, self$active_vars))/
             range_scale1
-          c_xp <- if(null_flag)
-            -1*c_x
-          else
-            -1*t(self$corr$get_corr_d(xp, self$in_data,
+          c_xp <- -1*t(self$corr$get_corr_d(xp, self$in_data,
                                       p2_ind, p2 = NULL, self$active_vars))/
             range_scale2
           if (is.numeric(self$u_sigma)) {
@@ -579,10 +576,7 @@ Emulator <- R6Class(
           c_x <- t(self$corr$get_corr_d(x, self$in_data,
                                         p1_ind, p2 = NULL, self$active_vars))/
             range_scale1
-          c_xp <- if(null_flag)
-            -1*c_x
-          else
-            -1*t(self$corr$get_corr_d(xp, self$in_data, p2_ind,
+          c_xp <- -1*t(self$corr$get_corr_d(xp, self$in_data, p2_ind,
                                       p2 = NULL, self$active_vars))/
             range_scale2
           if (is.numeric(self$u_sigma)) {

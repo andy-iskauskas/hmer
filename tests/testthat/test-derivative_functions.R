@@ -39,6 +39,10 @@ test_that("Obtaining derivative information", {
     dim(exp_and_var$var),
     rep(length(SIREmulators$ems[[1]]$ranges), 2)
   )
+  expect_equal(
+    exp_and_var$var,
+    t(exp_and_var$var)
+  )
 })
 
 test_that("Directional derivative function works", {

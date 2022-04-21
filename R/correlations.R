@@ -263,6 +263,8 @@ Correlator <- R6::R6Class(
     get_corr = function(x, xp = NULL, actives = TRUE, use.nugget = TRUE) {
       if (is.null(xp) && nrow(x) == 1) return(1)
       if (is.null(xp)) return(self$get_corr(x, x, actives, use.nugget))
+      x <- data.matrix(x)
+      xp <- data.matrix(xp)
       active <- self$corr_type(x[,actives, drop = FALSE],
                                xp[,actives, drop = FALSE], self$hyper_p)
       if (!use.nugget) return(active)
@@ -275,6 +277,8 @@ Correlator <- R6::R6Class(
     get_corr_d = function(x, xp = NULL, p1, p2 = NULL,
                           actives = rep(TRUE, ncol(x))) {
       if (is.null(xp)) return(self$get_corr_d(x, x, p1, p2, actives))
+      x <- data.matrix(x)
+      xp <- data.matrix(xp)
       if (!actives[p1] || (!is.null(p2) && !actives[p2]))
         return(matrix(0, nrow = nrow(xp), ncol = nrow(x)))
       active_p1 <- sum(actives[1:p1])
