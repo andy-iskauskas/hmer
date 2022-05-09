@@ -9,6 +9,13 @@ test_that("Point generation methods", {
     nrow(points),
     100
   )
+  expect_warning(
+    points_no_clust <- generate_new_runs(
+      ems, 100, targs, verbose = FALSE,
+      resample = 0, cluster = TRUE
+    ),
+    "Cannot distinguish"
+  )
   points_line <- generate_new_runs(
     ems, 100, targs, method = c('line'),
     plausible_set = points, cutoff = 2.5,
@@ -43,6 +50,15 @@ test_that("Point generation methods", {
   )
   expect_equal(
     nrow(points_importance),
+    100
+  )
+  points_importance_sphere <- generate_new_runs(
+    ems, 100, targs, method = c("importance"),
+    plausible_set = points_line[1:50,], cutoff = 4,
+    resample = 0, verbose = FALSE, distro = "normal"
+  )
+  expect_equal(
+    nrow(points_importance_sphere),
     100
   )
   points_seek_good <- generate_new_runs(

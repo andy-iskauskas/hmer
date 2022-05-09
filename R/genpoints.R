@@ -171,9 +171,12 @@ generate_new_runs <- function(ems, n_points, z,
           cluster_gen$points, z, n = nth)
         this_cutoff <- max(cluster_gen$cutoff,
                            sort(leftover_imps)[5*length(ranges)])
+        points <- cluster_gen$points[leftover_imps <= this_cutoff,]
       }
-      else this_cutoff <- cluster_gen$cutoff
-      points <- cluster_gen$points[leftover_imps <= this_cutoff,]
+      else {
+        points <- cluster_gen$points
+        this_cutoff <- cluster_gen$cutoff
+      }
     }
   }
   else {
@@ -398,7 +401,16 @@ lhs_gen_cluster <- function(ems, ranges, n_points, z, cutoff = 3, nth = 1,
       do.call(
         'rbind',
         purrr::map(ems, ~.$active_vars))), names(ranges))
-  cluster_id <- Mclust(which_active, G = 1:2, verbose = FALSE)$classification
+  cluster_id <- tryCatch(
+    Mclust(which_active, G = 1:2, verbose = FALSE)$classification,
+    error = function(e) {
+      warning("Cannot distinguish two clusters in emulator active variables.")
+      return(NULL)
+    }
+  )
+  if (is.null(cluster_id) || length(unique(cluster_id)) == 1)
+    return(lhs_gen(ems, ranges, n_points, z,
+                   cutoff, nth, points.factor, ...))
   c1 <- ems[cluster_id == 1]
   c2 <- ems[cluster_id == 2]
   p1 <- unique(do.call(c, purrr::map(c1, ~names(ranges)[.$active_vars])))
