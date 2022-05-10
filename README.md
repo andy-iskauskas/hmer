@@ -1,7 +1,7 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# hmer
+# hmer <img src="man/figures/logo.png" align="right" height="139" />
 
 <!-- badges: start -->
 
@@ -10,6 +10,8 @@
 status](https://www.r-pkg.org/badges/version/hmer)](https://CRAN.R-project.org/package=hmer)
 [![Codecov test
 coverage](https://codecov.io/gh/andy-iskauskas/hmer/branch/master/graph/badge.svg)](https://app.codecov.io/gh/andy-iskauskas/hmer?branch=master)
+[![](http://cranlogs.r-pkg.org/badges/grand-total/hmer?color=blue)](https://cran.r-project.org/package=hmer)
+[![](http://cranlogs.r-pkg.org/badges/last-week/hmer?color=yellow)](https://cran.r-project.org/package=hmer)
 <!-- badges: end -->
 
 ## Overview
