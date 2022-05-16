@@ -201,4 +201,18 @@ test_that("bimodal ems", {
     names(bbim_collect$mode1$expectation),
     rep(names(emulators), 2)
   )
+  bbbim_ems <- c(bim_ems, bim_ems)
+  bbbim_collect <- collect_emulators(bbbim_ems)
+  expect_equal(
+    names(bbbim_collect),
+    c("mode1", "mode2", "prop")
+  )
+  expect_equal(
+    names(bbbim_collect$mode1),
+    c("expectation", "variance")
+  )
+  expect_equal(
+    names(bbbim_collect$mode1$expectation),
+    rep(names(emulators), 2)
+  )
 })

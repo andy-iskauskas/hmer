@@ -72,7 +72,8 @@ eval_funcs <- function(funcs, points, ...) {
                     error = function(cond1) {
                       tryCatch(purrr::exec(funcs, points, ...),
                                error = function(cond2) {
-                                 cat(cond1, "\n", cond2, "\n")
+                                 cat(cond1$message, "\n", cond2$message, "\n")
+                                 stop()
                                })
                     }))
   }
@@ -253,17 +254,26 @@ collect_emulators <- function(emulators) {
     return(setNames(list(emulators), emulators$output_name))
   if (all(purrr::map_lgl(emulators, ~"Emulator" %in% class(.)))) {
     em_names <- purrr::map_chr(emulators, ~.$output_name)
+    em_range_lengths <- purrr::map_dbl(emulators, ~length(.$ranges))
     em_range_prods <- purrr::map_dbl(emulators,
                                      ~prod(purrr::map_dbl(.$ranges, diff)))
-    return(setNames(emulators[order(em_range_prods)], em_names))
+    return(setNames(emulators[order(em_range_lengths, em_range_prods, decreasing = c(TRUE, FALSE))], em_names))
   }
-  if (!is.null(emulators$expectation) || !is.null(emulators$mode1))
+  if ((!is.null(emulators$expectation) && sum(names(emulators) == "expectation") == 1) || (!is.null(emulators$mode1) && sum(names(emulators) == "mode1") == 1))
     return(emulators)
-  if (!is.null(emulators[[1]]$expectation)) {
-    exp_ems <- purrr::map(emulators, ~.$expectation)
-    var_ems <- purrr::map(emulators, ~.$variance)
+  if ("expectation" %in% names(emulators)) {
+    exp_ems <- c(emulators[names(emulators) == "expectation"], use.names = FALSE)
+    var_ems <- c(emulators[names(emulators) == "variance"], use.names = FALSE)
     return(list(expectation = collect_emulators(exp_ems),
                 variance = collect_emulators(var_ems)))
+  }
+  if ("mode1" %in% names(emulators)) {
+    m1ems <- c(emulators[names(emulators) == "mode1"], use.names = FALSE)
+    m2ems <- c(emulators[names(emulators) == "mode2"], use.names = FALSE)
+    prop_ems <- c(emulators[names(emulators) == "prop"], use.names = FALSE)
+    return(list(mode1 = collect_emulators(m1ems),
+                mode2 = collect_emulators(m2ems),
+                prop = collect_emulators(prop_ems)))
   }
   if (!is.null(emulators[[1]]$mode1)) {
     m1ems <- purrr::map(emulators, ~.$mode1)
@@ -272,6 +282,12 @@ collect_emulators <- function(emulators) {
     return(list(mode1 = collect_emulators(m1ems),
                 mode2 = collect_emulators(m2ems),
                 prop = collect_emulators(prop_ems)))
+  }
+  if (!is.null(emulators[[1]]$expectation)) {
+    exp_ems <- purrr::map(emulators, ~.$expectation)
+    var_ems <- purrr::map(emulators, ~.$variance)
+    return(list(expectation = collect_emulators(exp_ems),
+                variance = collect_emulators(var_ems)))
   }
   return(collect_emulators(unlist(emulators)))
 }
@@ -295,6 +311,10 @@ getRanges <- function(emulators, minimal = TRUE) {
   if (!is.null(emulators$expectation)) emulators <- emulators$expectation
   if (!is.null(emulators$mode1))
     emulators <- c(emulators$mode1$expectation, emulators$mode2$expectation)
+  range_lengths <- purrr::map_dbl(emulators, ~length(.$ranges))
+  if (length(unique(range_lengths)) != 1) {
+    emulators <- emulators[range_lengths == max(range_lengths)]
+  }
   range_widths <- data.frame(
     do.call(
       'rbind', purrr::map(emulators, ~purrr::map(.$ranges, diff))))

@@ -4,7 +4,7 @@
 
 * Implemented more error catching/handling for correlation functions, including explicit stop calls if hyperparameters are not provided/ill-specified and automatic coercion to data.matrix to ensure compatibility with derivative functions
 
-* Internal functions `collect_emulators`, `scale_input`, `convertRanges` and `multiply_function` modified to handle various edge case usages
+* Internal functions `collect_emulators`, `scale_input`, `convertRanges` and `multiply_function` modified to handle various edge case usages and issues with multiple waves of stochastic or bimodal emulators
 
 * Modified `lhs_gen_cluster` so that if emulators cannot/need not be clustered, default `lhs_gen` behaviour is used
 

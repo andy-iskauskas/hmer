@@ -47,11 +47,13 @@ get_dist <- function(df1, df2) {
 #' exp_sq(data.frame(a=1,b=2,c=-1),data.frame(a=1.5,b=2.9,c=-0.7), list(theta = 0.2))
 #' #> 3.266131e-13
 exp_sq <- function(x, xp, hp) {
+  if (is.null(hp$theta)) stop("Correlation length theta must be specified.")
   dists <- get_dist(x/hp$theta, xp/hp$theta)^2
   return(exp(-dists))
 }
 
 exp_sq_d <- function(x, xp, hp, xi, xpi = NULL) {
+  if (is.null(hp$theta)) stop("Correlation length theta must be specified.")
   diff_1 <- outer(x[,xi, drop = FALSE], xp[,xi, drop = FALSE], "-")[,,,1]
   if (is.null(nrow(diff_1))) diff_1 <- t(diff_1)
   if (is.null(xpi)) return(-2 * t(diff_1) * exp_sq(x, xp, hp)/hp$theta^2)
