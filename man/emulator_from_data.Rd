@@ -101,9 +101,13 @@ be modified by the maximum likelihood estimate performed below).
 
 The correlation function c(x, x') is assumed to be \code{\link{exp_sq}} and a corresponding
 \code{\link{Correlator}} object is created. The hyperparameters of the correlation structure
-is determined using a combination of the Durham heuristic and maximum likelihood estimation.
-This determines the variance \code{sigma^2}, correlation length \code{theta}, and nugget
-term \code{delta}.
+are determined using a combination of maximum likelihood estimation and restriction to a
+'sensible' range of values, to avoid the correlation length tending to 0 or very large values.
+This determines the variance \code{sigma^2}, correlation length \code{theta}, any other
+hyperparameters (eg \code{nu} for the matern correlation function), and nugget
+term \code{delta}. The hyperparameter priors can be overridden either by directly specifying
+them using the \code{c_lengths} argument, or by supplying ranges to the \code{theta_ranges}
+argument. Examples of this customisation can be found in the examples to this function.
 
 If \code{ev} is provided, then the ensemble variability is taken into account in the
 determination of the nugget term via a two-stage training process.
