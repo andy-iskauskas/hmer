@@ -145,6 +145,7 @@ bim_targets <- list(
 )
 
 test_that("Bimodal emulation validation", {
+  skip_on_cran()
   vb1 <- validation_diagnostics(
     bim_em,
     bim_targets,

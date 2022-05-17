@@ -2,6 +2,7 @@ ems <- SIREmulators$ems
 targs <- SIREmulators$targets
 
 test_that("Point generation methods", {
+  skip_on_cran()
   points <- generate_new_runs(
     ems, 100, targs, verbose = FALSE
   )
@@ -72,6 +73,7 @@ test_that("Point generation methods", {
 })
 
 test_that("Forced laddering of implausibility", {
+  skip_on_cran()
   bad_targets <- list(
     nS = c(680, 751),
     nI = list(val = 229, sigma = 8.45),

@@ -191,6 +191,7 @@ test_that("Range handling", {
 })
 
 test_that("Full wave behaves", {
+  skip_on_cran()
   fw <- full_wave(rbind(
     SIRSample$training,
     SIRSample$validation),
@@ -210,6 +211,7 @@ test_that("Full wave behaves", {
 })
 
 test_that("Full wave with all atomic targets", {
+  skip_on_cran()
   all_atomic <- SIREmulators$targets
   all_atomic$nI <- c(169-3*8.45, 169+3*8.45)
   fw <- full_wave(rbind(

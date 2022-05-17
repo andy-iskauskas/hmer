@@ -1,6 +1,7 @@
 ## From plotting.R
 
 test_that("Expectation plot", {
+  skip_on_cran()
   g <- emulator_plot(SIREmulators$ems,
                      ppd = 10)
   g_other_pars <- emulator_plot(SIREmulators$ems,
@@ -13,6 +14,7 @@ test_that("Expectation plot", {
 })
 
 test_that("Variance plot", {
+  skip_on_cran()
   g <- emulator_plot(SIREmulators$ems,
                      ppd = 10, plot_type = 'var')
   g_other_fixed <- emulator_plot(SIREmulators$ems,
@@ -29,6 +31,7 @@ test_that("Variance plot", {
 })
 
 test_that("Implausibility plot", {
+  skip_on_cran()
   g <- emulator_plot(SIREmulators$ems,
                      ppd = 10, plot_type = "imp",
                      targets = SIREmulators$targets)
@@ -49,6 +52,7 @@ test_that("Implausibility plot", {
 })
 
 test_that("Plots from direct call", {
+  skip_on_cran()
   em <- SIREmulators$ems$nS
   g_exp <- exp_plot(em, ppd = 10)
   g_var <- var_plot(em, ppd = 10)
@@ -59,6 +63,7 @@ test_that("Plots from direct call", {
 })
 
 test_that("Call from Emulator object", {
+  skip_on_cran()
   g_orig <- emulator_plot(SIREmulators$ems$nS, ppd = 10)
   g <- plot(SIREmulators$ems$nS, ppd = 10)
   g2 <- SIREmulators$ems$nS$plot(ppd = 10)
@@ -73,6 +78,7 @@ test_that("Call from Emulator object", {
 })
 
 test_that("Variance and Expectation plotting", {
+  skip_on_cran()
   v_ems <- variance_emulator_from_data(BirthDeath$training, c('Y'),
                                        list(
                                          lambda = c(0, 0.08),
@@ -96,6 +102,7 @@ test_that("Variance and Expectation plotting", {
 })
 
 test_that("Output plotting", {
+  skip_on_cran()
   g <- output_plot(
     SIREmulators$ems,
     SIREmulators$targets,
@@ -117,6 +124,7 @@ test_that("Output plotting", {
 })
 
 test_that("Plot lattice", {
+  skip_on_cran()
   pl <- plot_lattice(
     SIREmulators$ems,
     SIREmulators$targets,
@@ -139,6 +147,7 @@ test_that("Plot lattice", {
 })
 
 test_that("Active Variable plots", {
+  skip_on_cran()
   p1 <- plot_actives(
     SIREmulators$ems
   )
@@ -170,6 +179,7 @@ test_that("Active Variable plots", {
 
 ## Diagnostic plots
 test_that("Behaviour plot error and warning", {
+  skip_on_cran()
   expect_error(
     behaviour_plot(out_names = c('nS', 'nI', 'nR'),
                    targets = SIREmulators$targets),
@@ -194,6 +204,7 @@ test_that("Behaviour plot error and warning", {
 })
 
 test_that("Behaviour plot behaviour", {
+  skip_on_cran()
   p1 <- behaviour_plot(SIREmulators$ems, targets = SIREmulators$targets)
   p2 <- behaviour_plot(points = SIRSample$validation,
                        targets = SIREmulators$targets,
@@ -204,6 +215,7 @@ test_that("Behaviour plot behaviour", {
 })
 
 test_that("Space removed plot", {
+  skip_on_cran()
   g1 <- space_removed(
     SIREmulators$ems, SIREmulators$targets, ppd = 5
   )
@@ -243,6 +255,7 @@ test_that("Space removed plot", {
 })
 
 test_that("Validation pairs plot",  {
+  skip_on_cran()
   v1 <- validation_pairs(SIREmulators$ems, SIRSample$validation,
                          SIREmulators$targets, nth = 2)
   v2 <- validation_pairs(SIRMultiWaveEmulators[[3]],
@@ -261,6 +274,7 @@ test_that("Validation pairs plot",  {
 })
 
 test_that("Emulator effect strength", {
+  skip_on_cran()
   e1 <- effect_strength(SIREmulators$ems, plt = FALSE, quadratic = FALSE)
   e2 <- effect_strength(SIREmulators$ems, plt = FALSE)
   e_plot <- effect_strength(SIREmulators$ems,
@@ -282,6 +296,7 @@ test_that("Emulator effect strength", {
 })
 
 test_that("Multi-wave: diagnostic_wrap", {
+  skip_on_cran()
   mw <- diagnostic_wrap(
     SIRMultiWaveData,
     SIREmulators$targets,

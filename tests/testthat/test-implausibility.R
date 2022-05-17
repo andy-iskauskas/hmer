@@ -200,6 +200,7 @@ test_that("Separated modes: same result", {
 
 ### Point proposal - makes more sense here since emulatos are trained
 test_that("Bimodal point proposal", {
+  skip_on_cran()
   bim_points <- generate_new_runs(
     bim_em,
     100,
