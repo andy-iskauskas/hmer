@@ -19,19 +19,22 @@ scale_input <- function(x, r, forward = TRUE) {
     scales <- unlist(scales, use.names = F)
   }
   if (forward) {
-    if(is.null(names(x)))
+    if(is.null(names(x)) && !is.null(dim(x))) {
       output <- t(apply(
         t(apply(x, 1, function(y) y - centers)),
         1, function(z) z/scales))
+    }
     else
       output <- (x-centers)/scales
   }
   else {
-    if (is.null(names(x)))
+    if (is.null(names(x)) && !is.null(dim(x))) {
+      if (is.null(dim(x))) x <- matrix(x, ncol = 1)
       output <- t(apply(
         t(apply(x, 1, function(y) y * scales)),
         1, function(z) z + centers
       ))
+    }
     else
       output <- x * scales + centers
   }

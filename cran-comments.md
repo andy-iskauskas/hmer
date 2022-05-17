@@ -5,8 +5,8 @@ There were no ERRORs, WARNINGs, or NOTEs.
 There are no downstream dependencies.
 
 ## Test Environments
-* Local MacOS install 
-* Local Windows 10 install R 4.1.3
+* Local MacOS install R 4.2.0
+* Local Windows 10 install R 4.2.0
 * `devtools::check_win_release()`
 * `devtools::check_win_devel()`
 * `rhub::check_for_cran()`
