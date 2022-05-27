@@ -8,7 +8,7 @@ nth_implausible(
   ems,
   x,
   z,
-  n = 1,
+  n = NULL,
   max_imp = Inf,
   cutoff = NULL,
   sequential = FALSE,

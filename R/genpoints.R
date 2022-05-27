@@ -115,7 +115,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 generate_new_runs <- function(ems, n_points, z,
                               method = c('lhs', 'line', 'importance'),
                               cutoff = 3,
-                              nth = 1,
+                              nth = NULL,
                               plausible_set, verbose = interactive(),
                               cluster = FALSE, resample = 1, seek = 0,
                               c_tol = 0.5, i_tol = 0.01, to_file = NULL, ...) {
@@ -130,7 +130,7 @@ generate_new_runs <- function(ems, n_points, z,
   } #nocov end
   ems <- collect_emulators(ems)
   ranges <- getRanges(ems)
-  if (nth == 1) {
+  if (is.null(nth)) {
     if (!is.null(ems$expectation))
       nems <- length(unique(purrr::map_chr(
         ems$expectation, ~.$output_name

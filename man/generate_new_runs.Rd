@@ -10,7 +10,7 @@ generate_new_runs(
   z,
   method = c("lhs", "line", "importance"),
   cutoff = 3,
-  nth = 1,
+  nth = NULL,
   plausible_set,
   verbose = interactive(),
   cluster = FALSE,

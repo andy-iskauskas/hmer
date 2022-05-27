@@ -90,13 +90,13 @@ sequential_imp <- function(ems, x, z, n = 1, cutoff = 3) {
 #' nth_implausible(v_ems$expectation, unique(BirthDeath$validation[,1:2]), v_targs)
 #' nth_implausible(v_ems, unique(BirthDeath$validation[,1:2]), v_targs$expectation)
 #'
-nth_implausible <- function(ems, x, z, n = 1,
+nth_implausible <- function(ems, x, z, n = NULL,
                             max_imp = Inf, cutoff = NULL,
                             sequential = FALSE, get_raw = FALSE) {
   ems <- collect_emulators(ems)
   ## Preprocessing for variance emulation
   if (!is.null(ems$expectation) && !is.null(ems$variance)) {
-    if (n == 1)
+    if (is.null(n))
       n <- ifelse(length(unique(purrr::map_chr(
         ems$expectation, ~.$output_name))) > 10, 2, 1)
     if (!is.null(z$expectation) && !is.null(z$variance)) {
@@ -130,6 +130,9 @@ nth_implausible <- function(ems, x, z, n = 1,
                            max_imp, cutoff, sequential, get_raw))
   }
   else if (!is.null(ems$mode1) && !is.null(ems$mode2)) {
+    if (is.null(n))
+      n <- ifelse(length(unique(purrr::map_chr(
+        ems$mode1$expectation, ~.$output_name))) > 10, 2, 1)
     imps1 <- nth_implausible(ems$mode1, x, z, n, max_imp, cutoff, FALSE, TRUE)
     imps2 <- nth_implausible(ems$mode2, x, z, n, max_imp, cutoff, FALSE, TRUE)
     get_min_concrete <- function(v1, v2) {
@@ -150,7 +153,7 @@ nth_implausible <- function(ems, x, z, n = 1,
     if (get_raw) return(imp_mat)
   }
   else {
-    if (n == 1)
+    if (is.null(n))
       n <- ifelse(length(unique(purrr::map_chr(ems, ~.$output_name))) > 10, 2, 1)
     for (i in seq_along(z)) {
       if (length(z[[i]]) == 1) {
