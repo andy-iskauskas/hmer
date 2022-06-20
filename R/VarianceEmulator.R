@@ -360,7 +360,7 @@ HierarchicalEmulator <- R6Class(
       }
       disc_quad <- sum(purrr::map_dbl(self$disc, ~.^2))
       if (!is.numeric(z) && !is.null(z$val)) {
-        imp_var <- self$get_cov(x) + z$sigma^2 + disc_quad + self$s_diag(x, 1)
+        imp_var <- self$get_cov(x) + z$sigma^2 + disc_quad + self$s_diag(x, mean(self$samples))
         #imp_var[imp_var < 0] <- 1e6
         imp <- sqrt((z$val - self$get_exp(x))^2/imp_var)
       }
@@ -375,7 +375,7 @@ HierarchicalEmulator <- R6Class(
           if (y < 1) return(z[1])
           return(z[2])
         })
-        uncerts <- self$get_cov(x) + disc_quad + self$s_diag(x, 1)
+        uncerts <- self$get_cov(x) + disc_quad + self$s_diag(x, mean(self$samples))
         uncerts[uncerts <= 0] <- 0.0001
         imp <- bound_check * (pred - which_compare)/sqrt(uncerts)
       }
