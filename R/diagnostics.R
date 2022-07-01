@@ -453,6 +453,11 @@ get_diagnostic <- function(emulator, targets = NULL, validation = NULL,
 #' @seealso \code{\link{get_diagnostic}}
 analyze_diagnostic <- function(in_data, output_name, targets = NULL,
                                plt = interactive(), cutoff = 3, ...) {
+  if (!is.null(list(...)[['target_viz']])) {
+    t_viz <- list(...)[['target_viz']]
+    if (!t_viz %in% c("interval", "solid", "hatched")) t_viz <- NULL
+  }
+  else t_viz <- NULL
   output_points <- in_data[,output_name]
   input_points <- in_data[, !names(in_data) %in% c(output_name,
                                                    'error', 'em',
@@ -506,14 +511,22 @@ analyze_diagnostic <- function(in_data, output_name, targets = NULL,
            xlim = range(output_points), ylim = range(em_ranges),
            xlab = 'f(x)', ylab = 'E[f(x)]',
            panel.first = c(
-             if (!is.null(panlims)) rect(xleft = panlims[1], xright = panlims[2],
-                                         ybottom = panlims[1], ytop = panlims[2],
-                                         col = rgb(40, 40, 40, 102, maxColorValue = 255),
-                                         density = 15, angle = 135)
-             # if (!is.null(panlims)) arrows(x0 = panlims[1], x1 = panlims[2],
-             #                               y0 = min(in_data$exp)+0.05*diff(range(in_data$exp)),
-             #                               y1 = min(in_data$exp)+0.05*diff(range(in_data$exp)),
-             #                               length = 0.05, code = 3, angle = 90)
+             if (!is.null(t_viz)) {
+               if (t_viz == "interval")
+                 arrows(x0 = panlims[1], x1 = panlims[2],
+                        y0 = min(in_data$exp)+0.05*diff(range(in_data$exp)),
+                        y1 = min(in_data$exp)+0.05*diff(range(in_data$exp)),
+                        length = 0.05, code = 3, angle = 90)
+               else if (t_viz == "solid")
+                 rect(xleft = panlims[1], xright = panlims[2],
+                      ybottom = panlims[1], ytop = panlims[2],
+                      col = rgb(40, 40, 40, 102, maxColorValue = 255))
+               else
+                 rect(xleft = panlims[1], xright = panlims[2],
+                      ybottom = panlims[1], ytop = panlims[2],
+                      col = rgb(40, 40, 40, 102, maxColorValue = 255),
+                      density = 15, angle = 135)
+             }
              else NULL,
                abline(a = 0, b = 1, col = 'green')),
            main = output_name)
