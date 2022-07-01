@@ -458,8 +458,10 @@ analyze_diagnostic <- function(in_data, output_name, targets = NULL,
                                                    'error', 'em',
                                                    'sim', 'exp', 'unc')]
   if (!is.null(in_data$error)) {
-    if (plt) hist(in_data$error, xlab = "Standardised Error",
-                  main = output_name)
+    if (plt) {
+      h1 <- hist(in_data$error, plot = FALSE)
+      plot(h1, xlab = "Standardised Error", main = output_name)
+    }
     emulator_invalid <- abs(in_data$error) > 3
     if (!is.null(targets)) {
       this_target <- targets[[output_name]]
@@ -469,6 +471,11 @@ analyze_diagnostic <- function(in_data, output_name, targets = NULL,
       else
         point_invalid <- ((output_points < this_target$val - 6*this_target$sigma) |
                             (output_points > this_target$val + 6*this_target$sigma))
+      if (plt) {
+        errors_restricted <- in_data[!point_invalid, 'error']
+        h2 <- hist(errors_restricted, breaks = h1$breaks, plot = FALSE)
+        plot(h2, add = TRUE, col = 'blue')
+      }
       emulator_invalid <- (!point_invalid & emulator_invalid)
     }
   }
@@ -478,20 +485,37 @@ analyze_diagnostic <- function(in_data, output_name, targets = NULL,
       (output_points < in_data$exp - in_data$unc)
     if (!is.null(targets)) {
       this_target <- targets[[output_name]]
-      if (is.atomic(this_target))
+      if (is.atomic(this_target)) {
         point_invalid <- ((output_points < this_target[1]-diff(this_target)/2) |
                             (output_points > this_target[2]+diff(this_target)/2))
-      else
+        panlims <- c(this_target[1]-diff(this_target)/4,
+                   this_target[2]+diff(this_target)/4)
+      }
+      else {
         point_invalid <- ((output_points < this_target$val - 6*this_target$sigma) |
                             (output_points > this_target$val + 6*this_target$sigma))
+        panlims <- c(this_target$val - 4.5*this_target$sigma,
+                     this_target$val + 4.5*this_target$sigma)
+      }
       emulator_invalid <- (!point_invalid & emulator_invalid)
     }
+    else panlims <- NULL
     if (plt) {
       plot(output_points, in_data$exp, pch = 16,
            col = ifelse(emulator_invalid, 'red', 'black'),
            xlim = range(output_points), ylim = range(em_ranges),
            xlab = 'f(x)', ylab = 'E[f(x)]',
-           panel.first = c(abline(a = 0, b = 1, col = 'green')),
+           panel.first = c(
+             if (!is.null(panlims)) rect(xleft = panlims[1], xright = panlims[2],
+                                         ybottom = panlims[1], ytop = panlims[2],
+                                         col = rgb(40, 40, 40, 102, maxColorValue = 255),
+                                         density = 15, angle = 135)
+             # if (!is.null(panlims)) arrows(x0 = panlims[1], x1 = panlims[2],
+             #                               y0 = min(in_data$exp)+0.05*diff(range(in_data$exp)),
+             #                               y1 = min(in_data$exp)+0.05*diff(range(in_data$exp)),
+             #                               length = 0.05, code = 3, angle = 90)
+             else NULL,
+               abline(a = 0, b = 1, col = 'green')),
            main = output_name)
       for (i in seq_along(input_points[,1])) {
         if (in_data$unc[[i]] < 1e-8) next
