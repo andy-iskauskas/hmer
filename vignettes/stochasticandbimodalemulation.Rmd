@@ -1,7 +1,7 @@
 ---
 title: "Stochastic Emulation"
 author: "Andy Iskauskas"
-date: "2022-05-17"
+date: "2022-07-06"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Stochastic Emulation}
@@ -187,7 +187,7 @@ Finally, we briefly mention that point generation operates in the same manner as
 ```r
 new_points <- generate_new_runs(stochastic_em, 30, targets, resample = 0)
 #> Proposing from LHS...
-#> 122 initial valid points generated for I=3
+#> 72 initial valid points generated for I=3
 #> Selecting final points using maximin criterion...
 plot_wrap(new_points, ranges)
 ```
@@ -324,7 +324,7 @@ Finally, generating new points from bimodal emulators has an identical form to i
 ```r
 new_points <- generate_new_runs(bim_ems, 100, bim_targets, resample = 0)
 #> Proposing from LHS...
-#> 379 initial valid points generated for I=3
+#> 144 initial valid points generated for I=3
 #> Selecting final points using maximin criterion...
 plot_wrap(new_points, SIR_ranges)
 ```

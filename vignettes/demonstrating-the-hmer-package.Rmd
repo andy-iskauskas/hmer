@@ -1,7 +1,7 @@
 ---
 title: "Demonstrating the hmer Package"
 author: "Andrew Iskauskas"
-date: "2022-05-17"
+date: "2022-07-06"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Demonstrating the hmer Package}
@@ -203,14 +203,14 @@ new_points <- generate_new_runs(wave1_emulators, 90, targets)
 #> Performing line sampling...
 #> Line sampling generated 38 more points.
 #> Performing importance sampling...
-#> Importance sampling generated 50 more points.
-#> 75 initial valid points generated for I=3
+#> Importance sampling generated 42 more points.
+#> 70 initial valid points generated for I=3
 #> Performing line sampling...
 #> Line sampling generated 40 more points.
 #> Selecting final points using maximin criterion...
 #> Resample 1 
 #> Performing line sampling...
-#> Line sampling generated 40 more points.
+#> Line sampling generated 39 more points.
 #> Performing importance sampling...
 #> Importance sampling generated 8 more points.
 #> Selecting final points using maximin criterion...

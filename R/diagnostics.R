@@ -520,7 +520,7 @@ analyze_diagnostic <- function(in_data, output_name, targets = NULL,
                else if (t_viz == "solid")
                  rect(xleft = panlims[1], xright = panlims[2],
                       ybottom = panlims[1], ytop = panlims[2],
-                      col = rgb(40, 40, 40, 102, maxColorValue = 255))
+                      col = rgb(40, 40, 40, 51, maxColorValue = 255))
                else
                  rect(xleft = panlims[1], xright = panlims[2],
                       ybottom = panlims[1], ytop = panlims[2],
@@ -531,13 +531,13 @@ analyze_diagnostic <- function(in_data, output_name, targets = NULL,
                abline(a = 0, b = 1, col = 'green')),
            main = output_name)
       for (i in seq_along(input_points[,1])) {
-        if (in_data$unc[[i]] < 1e-8) next
-        arrows(x0 = output_points[[i]],
+        if (in_data$unc[[i]] < 1e-6) next
+        suppressWarnings(arrows(x0 = output_points[[i]],
                y0 = in_data$exp[[i]] - in_data$unc[[i]],
                x1 = output_points[[i]],
                y1 = in_data$exp[[i]] + in_data$unc[[i]],
                col = ifelse(emulator_invalid[[i]], 'red', 'blue'),
-               code = 3, angle = 90, length = 0.05)
+               code = 3, angle = 90, length = 0.05))
       }
     }
   }

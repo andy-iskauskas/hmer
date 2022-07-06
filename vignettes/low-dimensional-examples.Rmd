@@ -1,7 +1,7 @@
 ---
 title: "Low Dimensional Examples"
 author: "Andy Iskauskas"
-date: "2022-05-17"
+date: "2022-07-06"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Low Dimensional Examples}
@@ -119,8 +119,8 @@ The trained emulator, by virtue of having been provided the training points, 'kn
 
 ```r
 em1d$f$get_exp(data1d) - data1d$f
-#>  [1] -5.911938e-15 -7.882583e-15 -2.187139e-14 -4.374279e-14 -5.573320e-14 -3.552714e-14 -1.160183e-14  9.992007e-16
-#>  [9]  9.325873e-15 -2.220446e-16
+#>  [1]  2.969847e-15  7.549517e-15  1.221245e-14  1.110223e-14 -3.386180e-15 -2.398082e-14
+#>  [7] -3.580469e-14 -3.541611e-14 -2.708944e-14 -1.454392e-14
 em1d$f$get_cov(data1d)
 #> 11 12 13 14 15 16 17 18 19 20 
 #>  0  0  0  0  0  0  0  0  0  0

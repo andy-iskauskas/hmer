@@ -1,7 +1,7 @@
 ---
 title: "Emulation and History Matching Handbook"
 author: "Andy Iskauskas"
-date: "2022-05-17"
+date: "2022-07-06"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Emulation and History Matching Handbook}
@@ -85,8 +85,8 @@ try_generate <- generate_new_runs(bad_emulators, 100, SIREmulators$targets, verb
 #> Performing line sampling...
 #> Line sampling generated 40 more points.
 #> Performing importance sampling...
-#> Importance sampling generated 85 more points.
-#> Point proposal seems to be asymptoting around implausibility 3.643 - terminating.
+#> Importance sampling generated 105 more points.
+#> Point proposal seems to be asymptoting around implausibility 3.649 - terminating.
 #> Target nS consistently underestimated.
 #> Target nI consistently underestimated.
 ```
@@ -99,7 +99,7 @@ try_generate <- generate_new_runs(bad_emulators, 100, SIREmulators$targets, verb
 #> Performing line sampling...
 #> Line sampling generated 40 more points.
 #> Performing importance sampling...
-#> Importance sampling generated 81 more points.
+#> Importance sampling generated 84 more points.
 #> Selecting final points using maximin criterion...
 ```
 
@@ -152,8 +152,9 @@ problem_ems <- emulator_from_data(problem_data$data, names(problem_data$targets)
 #> Target output18 consistently overestimated.
 #> Some outputs may not be adequately emulated, due to consistent over/underestimation in training data.
 #> Consider looking at the outputs (using, eg, behaviour_plot); some outputs may require extra runs and/or transformation.
-#> Warning in emulator_from_data(problem_data$data, names(problem_data$targets), : Fewer than 210 non-NA points in 21 dimensions
-#> - treat the emulated outputs with caution, or include more training points (minimum 10 times the number of input parameters).
+#> Warning in emulator_from_data(problem_data$data, names(problem_data$targets), : Fewer than 210 non-
+#> NA points in 21 dimensions - treat the emulated outputs with caution, or include more training
+#> points (minimum 10 times the number of input parameters).
 #> Fitting regression surfaces...
 #> Building correlation structures...
 #> Creating emulators...
@@ -234,9 +235,9 @@ plot(problem_ems[[7]], plot_type = 'imp', params = c('input9', 'input15'), fixed
 
 ```r
 new_emulator <- emulator_from_data(logit_data_first, c('output7'), problem_data$ranges)
-#> Warning in emulator_from_data(logit_data_first, c("output7"), problem_data$ranges): Fewer than 210 non-NA points in 21
-#> dimensions - treat the emulated outputs with caution, or include more training points (minimum 10 times the number of input
-#> parameters).
+#> Warning in emulator_from_data(logit_data_first, c("output7"), problem_data$ranges): Fewer than 210
+#> non-NA points in 21 dimensions - treat the emulated outputs with caution, or include more training
+#> points (minimum 10 times the number of input parameters).
 #> Fitting regression surfaces...
 #> Building correlation structures...
 #> Creating emulators...
