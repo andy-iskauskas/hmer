@@ -13,6 +13,7 @@ full_wave(
   cutoff = 3,
   nth = 1,
   verbose = interactive(),
+  n_points = nrow(data),
   ...
 )
 }
@@ -32,6 +33,8 @@ full_wave(
 \item{nth}{The level of maximum implausibility to consider.}
 
 \item{verbose}{Should progress be printed to console?}
+
+\item{n_points}{The number of points to generate from \code{\link{generate_new_runs}}.}
 
 \item{...}{Any arguments to be passed to \code{\link{emulator_from_data}}.}
 }
@@ -61,7 +64,8 @@ provided at this wave. Some point generation mechanisms terminate early if a poi
 out by a single emulator, so the ordering ensures this happens earlier rather than later.
 
 5) Generate the new points using the default method of \code{\link{generate_new_runs}}, using
-the normal procedure (for details, see the description for generate_new_runs).
+the normal procedure (for details, see the description for generate_new_runs). By default, it
+generates the same number of points as it was provided to train and validate on.
 
 If the parameter \code{old_emulators} is provided, this should be a list of emulators used
 at all previous waves - for example if \code{full_wave} is used to do a second wave of

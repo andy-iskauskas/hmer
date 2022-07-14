@@ -425,7 +425,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
   if(!is.null(targets) &&
      length(intersect(names(targets), output_names) == length(output_names))) {
     do_preflight <- preflight(input_data, targets[output_names],
-                              verbose = verbose)
+                              verbose = verbose, na.rm = na.rm)
     if (do_preflight && verbose) {
       cat("Some outputs may not be adequately emulated,", #nocov start
                 "due to consistent over/underestimation in training data.\n")

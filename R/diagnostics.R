@@ -434,13 +434,23 @@ get_diagnostic <- function(emulator, targets = NULL, validation = NULL,
 #' on the diagnostic, a set of summary measures. It returns a data.frame of any points that failed
 #' the diagnostic.
 #'
-#' @importFrom graphics abline arrows hist
+#' We may also superimpose the target bounds on the comparison diagnostics, to get a sense of
+#' where it is most important that the emulator and simulator agree. The \code{target_viz}
+#' argument controls this, and has three options: 'interval' (a horizontal interval); 'solid'
+#' (a solid grey box whose dimensions match the target region in both vertical and horizontal
+#' extent); and 'hatched' (similar to solid, but a semi-transparent box with hatching inside).
+#' Any such vizualisation has extent equal to the target plus/mius 4.5 times the target
+#' uncertainty. By default, \code{target_viz = NULL}, indicating that no superposition is shown.
+#'
+#' @importFrom graphics abline arrows hist rect
+#' @importFrom grDevices rgb
 #'
 #' @param in_data The data to perform the analysis on
 #' @param output_name The name of the output emulated
 #' @param targets If required or desired, the targets for the system outputs
 #' @param plt Whether or not to plot the analysis
 #' @param cutoff The implausibility cutoff for diagnostic `ce'
+#' @param target_viz How to show the targets on the diagnostic plots
 #' @param ... Any other parameters to pass to subfunctions
 #'
 #' @return A data.frame of failed points
@@ -452,12 +462,9 @@ get_diagnostic <- function(emulator, targets = NULL, validation = NULL,
 #'
 #' @seealso \code{\link{get_diagnostic}}
 analyze_diagnostic <- function(in_data, output_name, targets = NULL,
-                               plt = interactive(), cutoff = 3, ...) {
-  if (!is.null(list(...)[['target_viz']])) {
-    t_viz <- list(...)[['target_viz']]
-    if (!t_viz %in% c("interval", "solid", "hatched")) t_viz <- NULL
-  }
-  else t_viz <- NULL
+                               plt = interactive(), cutoff = 3, target_viz = NULL, ...) {
+  if (!is.null(target_viz))
+    if (!target_viz %in% c("interval", "solid", "hatched")) target_viz <- NULL
   output_points <- in_data[,output_name]
   input_points <- in_data[, !names(in_data) %in% c(output_name,
                                                    'error', 'em',
@@ -511,13 +518,13 @@ analyze_diagnostic <- function(in_data, output_name, targets = NULL,
            xlim = range(output_points), ylim = range(em_ranges),
            xlab = 'f(x)', ylab = 'E[f(x)]',
            panel.first = c(
-             if (!is.null(t_viz)) {
-               if (t_viz == "interval")
+             if (!is.null(target_viz)) {
+               if (target_viz == "interval")
                  arrows(x0 = panlims[1], x1 = panlims[2],
                         y0 = min(in_data$exp)+0.05*diff(range(in_data$exp)),
                         y1 = min(in_data$exp)+0.05*diff(range(in_data$exp)),
                         length = 0.05, code = 3, angle = 90)
-               else if (t_viz == "solid")
+               else if (target_viz == "solid")
                  rect(xleft = panlims[1], xright = panlims[2],
                       ybottom = panlims[1], ytop = panlims[2],
                       col = rgb(40, 40, 40, 51, maxColorValue = 255))
@@ -611,7 +618,7 @@ validation_diagnostics <- function(emulators, targets = NULL,
                                    analyze = TRUE,
                                    diagnose = "expectation", ...) {
   oldpar <- par(no.readonly = TRUE)
-  on.exit(par(oldpar))
+  on.exit(par(oldpar), add = TRUE)
   if ("Emulator" %in% class(emulators))
     emulators <- setNames(list(emulators), emulators$output_name)
   if (length(which_diag) == 1 && which_diag == 'all') actual_diag <- c('cd', 'ce', 'se')

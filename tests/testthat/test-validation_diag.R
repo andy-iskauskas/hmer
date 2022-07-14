@@ -75,7 +75,7 @@ test_that("Validation diagnostics - validation set", {
       SIREmulators$targets,
       SIRSample$validation,
       which_diag = c('cd', 'ce', 'se', 'ft'),
-      plt = FALSE
+      target_viz = "hatched"
     )
   )
   expect_equal(
@@ -88,7 +88,8 @@ test_that("Validation diagnostics - no validation set", {
   v1 <- validation_diagnostics(
     SIREmulators$ems,
     SIREmulators$targets,
-    k = 4
+    k = 4,
+    target_viz = "interval"
   )
   expect_equal(
     nrow(v1),
@@ -97,7 +98,8 @@ test_that("Validation diagnostics - no validation set", {
   v2 <- validation_diagnostics(
     SIREmulators$ems,
     which_diag = c('cd', 'se'),
-    k = 15
+    k = 15,
+    target_viz = "solid"
   )
   expect_true(
     nrow(v2) >= 0

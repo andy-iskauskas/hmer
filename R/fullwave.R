@@ -23,7 +23,9 @@
 #'
 #' @keywords internal
 #' @noRd
-preflight <- function(data, targets, coff = 0.95, verbose = interactive()) {
+preflight <- function(data, targets, coff = 0.95, verbose = interactive(), na.rm = FALSE, ...) {
+  if (na.rm) data <- data[apply(
+    data, 1, function(x) !any(is.na(x))),]
   potential_problem <- FALSE
   applicable_targets <- intersect(names(data), names(targets))
   d_abridge <- data[,applicable_targets]
@@ -123,7 +125,8 @@ preflight <- function(data, targets, coff = 0.95, verbose = interactive()) {
 #' out by a single emulator, so the ordering ensures this happens earlier rather than later.
 #'
 #' 5) Generate the new points using the default method of \code{\link{generate_new_runs}}, using
-#' the normal procedure (for details, see the description for generate_new_runs).
+#' the normal procedure (for details, see the description for generate_new_runs). By default, it
+#' generates the same number of points as it was provided to train and validate on.
 #'
 #' If the parameter \code{old_emulators} is provided, this should be a list of emulators used
 #' at all previous waves - for example if \code{full_wave} is used to do a second wave of
@@ -141,6 +144,7 @@ preflight <- function(data, targets, coff = 0.95, verbose = interactive()) {
 #' @param cutoff The implausibility cutoff for point generation and diagnostics.
 #' @param nth The level of maximum implausibility to consider.
 #' @param verbose Should progress be printed to console?
+#' @param n_points The number of points to generate from \code{\link{generate_new_runs}}.
 #' @param ... Any arguments to be passed to \code{\link{emulator_from_data}}.
 #'
 #' @return A list of two objects: \code{points} and \code{emulators}
@@ -159,14 +163,14 @@ preflight <- function(data, targets, coff = 0.95, verbose = interactive()) {
 #'  }
 full_wave <- function(data, ranges, targets, old_emulators = NULL,
                       prop_train = 0.7, cutoff = 3, nth = 1,
-                      verbose = interactive(), ...) {
+                      verbose = interactive(), n_points = nrow(data), ...) {
   new_ranges <- setNames(
     purrr::map(
       names(ranges),
       ~c(max(ranges[[.]][1], min(data[,.]) - 0.05 * diff(range(data[,.]))),
          min(ranges[[.]][2], max(data[,.]) + 0.05 * diff(range(data[,.]))))),
     names(ranges))
-  preflight(data, targets, verbose = verbose)
+  preflight(data, targets, verbose = verbose, ...)
   samp <- sample(seq_len(nrow(data)), floor(prop_train*nrow(data)))
   train <- data[samp,]
   valid <- data[-samp,]
@@ -222,7 +226,7 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL,
     working_ems <- ems
   targets <- targets[purrr::map_chr(working_ems, ~.$output_name)]
   if (verbose) cat("Generating new points...\n") #nocov
-  new_points <- generate_new_runs(working_ems, nrow(data), targets,
+  new_points <- generate_new_runs(working_ems, n_points, targets,
                                   cutoff = cutoff, verbose = FALSE, nth = nth)
   if (nrow(new_points) == 0)
     stop("Could not generate points in non-implausible space.")
