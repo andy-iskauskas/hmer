@@ -53,7 +53,10 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #' probability of matching targets, as opposed to not missing targets. Due to the danger of
 #' such an approach in terms of obtaining a representative space-filling design over the
 #' space, this value should not be too high: a rough guide is that it should be no larger
-#' than 10\% of the desired number of points. The default is \code{seek = 0}.
+#' than 10\% of the desired number of points. The default is \code{seek = 0}. If \code{seek}
+#' is in the range [0, 1], it is assumed to represent a proportion of the total number of
+#' points that should be sought using this method; otherwise, it is assumed to be the number
+#' of points that are desired.
 #'
 #' The default behaviour is as follows. A set of initial points are generated from an LHD;
 #' line sampling is performed to find the boundaries; and finally this collection of points
@@ -340,6 +343,7 @@ generate_new_runs <- function(ems, n_points, z,
   }
   if (seek > 0) {
     if (verbose) cat("Searching for high-probability match points...\n") #nocov
+    if (seek <= 1) seek <- floor(n_points*seek)
     extra_points <- seek_good(ems, seek, z, points, cutoff = cutoff, ...)
   }
   else extra_points <- NULL
