@@ -11,6 +11,25 @@ runifs <- function(n, d, c = rep(0, d), r = 1) {
 punifs <- function(x, c = rep(0, length(x)), r = 1) {
   return(ifelse(sum((x-c)^2 / r^2) <= 1, 1, 0))
 }
+pca_transform <- function(x, s_points, forward = TRUE) {
+  if ("data.frame" %in% class(s_points)) s_points <- data.matrix(s_points)
+  if ("data.frame" %in% class(x)) x <- data.matrix(x)
+  s_trafo <- sweep(
+    sweep(
+      s_points, 2,
+      apply(s_points, 2, mean), "-"), 2, apply(s_points, 2, sd), "/")
+
+  s_estruct <- eigen(cov(s_trafo))
+  s_estruct$values <- purrr::map_dbl(
+    s_estruct$values, function(x) {if(x < 1e-10) 1e-10 else x})
+  if (forward) x <- sweep(
+    sweep(
+      x, 2,
+      apply(s_points, 2, mean), "-"), 2, apply(s_points, 2, sd), "/")
+  if (forward) return (x %*% s_estruct$vectors %*% diag(1/sqrt(s_estruct$values)))
+  pre_traf <- x %*% diag(sqrt(s_estruct$values)) %*% t(s_estruct$vectors)
+  return(sweep(sweep(pre_traf, 2, apply(s_points, 2, sd), "*"), 2, apply(s_points, 2, mean), "+"))
+}
 
 #' Generate Proposal Points
 #'
@@ -97,6 +116,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 #' @param c_tol The tolerance with which to determine that best implausibility has been reached.
 #' @param i_tol The tolerance on final desired implausibility
 #' @param to_file The filename to write to sequentially during proposal. Default is NULL (no writing)
+#' @param pca If TRUE, transforms the space before proposing a LHD (based on the training points)
 #' @param ... Any parameters to pass to individual sampling functions, eg \code{distro} for importance sampling.
 #'
 #' @return A data.frame containing the set of new points to run the model at.
@@ -121,7 +141,8 @@ generate_new_runs <- function(ems, n_points, z,
                               nth = NULL,
                               plausible_set, verbose = interactive(),
                               cluster = FALSE, resample = 1, seek = 0,
-                              c_tol = 0.5, i_tol = 0.01, to_file = NULL, ...) {
+                              c_tol = 0.5, i_tol = 0.01, to_file = NULL,
+                              pca = FALSE, ...) {
   if (!is.null(to_file)) { #nocov start
     tryCatch(
       write.csv(data.frame(), file = to_file, row.names = FALSE),
@@ -158,7 +179,7 @@ generate_new_runs <- function(ems, n_points, z,
     if (verbose) cat("Proposing from LHS...\n") #nocov
     if (!cluster) {
       lh_gen <- lhs_gen(ems, ranges, max(n_points, 10*length(ranges)),
-                        z, cutoff, nth, ...)
+                        z, cutoff, nth, pca = pca, ...)
       points <- lh_gen$points
       this_cutoff <- lh_gen$cutoff
     }
@@ -188,7 +209,11 @@ generate_new_runs <- function(ems, n_points, z,
     if (optimal_cut > cutoff && (optimal_cut - sort(point_imps)[1] < c_tol)) {
       if (verbose) cat("Point proposal seems to be asymptoting around implausibility", #nocov
                           round(optimal_cut, 3), "- terminating.\n") #nocov
-      recent_ems <- ems[!duplicated(purrr::map_chr(ems, ~.$output_name))]
+      if (!is.null(ems$expectation)) {
+        recent_ems <- ems$expectation[!duplicated(purrr::map_chr(ems$expectation, ~.$output_name))]
+      }
+      else
+        recent_ems <- ems[!duplicated(purrr::map_chr(ems, ~.$output_name))]
       recent_imps <- do.call(
         'cbind.data.frame',
         purrr::map(
@@ -372,13 +397,39 @@ generate_new_runs <- function(ems, n_points, z,
 
 ## LHS Generation
 lhs_gen <- function(ems, ranges, n_points, z, cutoff = 3,
-                    nth = 1, points.factor = 10, ...) {
-  points <- eval_funcs(
-    scale_input,
-    setNames(
-      data.frame(
-        2 * (lhs::randomLHS(n_points * points.factor, length(ranges)) - 0.5)),
-      names(ranges)), ranges, FALSE)
+                    nth = 1, points.factor = 10, pca = FALSE, ...) {
+  if (pca) {
+    if (!is.null(ems$expectation)) {
+      train_pts <- ems$expectation[[1]]$in_data
+      init_ranges <- ems$expectation[[1]]$ranges
+    }
+    else if (!is.null(ems$mode1)) {
+      train_pts <- ems$mode1$expectation[[1]]$in_data
+      init_ranges <- ems$mode1$expectation[[1]]$ranges
+    }
+    else {
+      train_pts <- ems[[1]]$in_data
+      init_ranges <- ems[[1]]$ranges
+    }
+    actual_points <- eval_funcs(scale_input, train_pts, init_ranges, FALSE)
+    pca_points <- pca_transform(actual_points, actual_points)
+    pca_ranges <- purrr::map(seq_len(ncol(pca_points)), ~range(pca_points[,.])) |> setNames(paste0("X", seq_len(ncol(pca_points))))
+    pca_ranges <- purrr::map(pca_ranges, ~.*c(0.9, 1.1))
+    temp_pts <- eval_funcs(scale_input,
+                         setNames(
+                           data.frame(2 * lhs::randomLHS(n_points * points.factor, length(pca_ranges)) - 0.5),
+                         paste0("X", seq_along(pca_ranges))),
+                         pca_ranges, FALSE)
+    points <- data.frame(pca_transform(temp_pts, actual_points, FALSE)) |> setNames(names(ranges))
+  }
+  else {
+    points <- eval_funcs(
+      scale_input,
+      setNames(
+        data.frame(
+          2 * (lhs::randomLHS(n_points * points.factor, length(ranges)) - 0.5)),
+        names(ranges)), ranges, FALSE)
+  }
   point_imps <- nth_implausible(ems, points, z, n = nth, max_imp = Inf)
   required_points <- 5 * length(ranges)
   if (sum(point_imps <= cutoff) < required_points) {
