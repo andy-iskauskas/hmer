@@ -342,7 +342,7 @@ get_diagnostic <- function(emulator, targets = NULL, validation = NULL,
       else {
         em_exps <- emulator$get_exp(input_points)
         em_vars <- emulator$get_cov(input_points)
-        point_vars <- cleaned_data$var
+        point_vars <- cleaned_data$var/(cleaned_data$n-1)
       }
     }
     else {
