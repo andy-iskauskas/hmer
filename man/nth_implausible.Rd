@@ -12,7 +12,8 @@ nth_implausible(
   max_imp = Inf,
   cutoff = NULL,
   sequential = FALSE,
-  get_raw = FALSE
+  get_raw = FALSE,
+  ordered = FALSE
 )
 }
 \arguments{
@@ -31,6 +32,8 @@ nth_implausible(
 \item{sequential}{Should the emulators be evaluated sequentially?}
 
 \item{get_raw}{Boolean - determines whether nth-implausibility should be applied.}
+
+\item{ordered}{If FALSE, emulators are ordered according to restrictiveness.}
 }
 \value{
 Either the nth maximum implausibilities, or booleans (if cutoff is given).

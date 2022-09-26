@@ -71,7 +71,7 @@ k_fold_measure <- function(em, target = NULL, k = 1, ...) {
           outp <- cbind(
             outp, adj_em$implausibility(train_data[relev_pts, names(em$ranges)],
                                         target))
-        return(outp)
+        return(c(outp, use.names = FALSE))
       })
     }
   }
@@ -87,7 +87,7 @@ k_fold_measure <- function(em, target = NULL, k = 1, ...) {
       if (!is.null(target))
         outp <- c(outp, adj_em$implausibility(train_data[x, names(em$ranges)],
                                               target))
-      return(outp)
+      return(c(outp, use.names = FALSE))
     })
   }
   res_names <- c(names(em$ranges), em$output_name, "E", "V")

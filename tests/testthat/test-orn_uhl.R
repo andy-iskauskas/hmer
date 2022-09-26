@@ -2,30 +2,30 @@
 
 test_that("correlation with self is 1", {
   expect_equal(
-    orn_uhl(
+    c(orn_uhl(
       data.frame(a = 1),
       data.frame(a = 1),
       list(theta = 0.1)
-    ),
+    ), use.names = FALSE),
     1
   )
   expect_equal(
-    diag(orn_uhl(
+    unname(diag(orn_uhl(
       data.frame(a = c(1, 2, 3), b = c(0.1, 0.4, 0.3)),
       data.frame(a = c(1, 2, 3), b = c(0.1, 0.4, 0.3)),
       list(theta = 0.2)
-    )),
+    ))),
     rep(1, 3)
   )
 })
 
 test_that("one-dimensional ornstein-uhlenbeck; single point", {
   expect_equal(
-    orn_uhl(
+    c(orn_uhl(
       data.frame(a = 1),
       data.frame(a = 2),
       list(theta = 0.1)
-    ),
+    ), use.names = FALSE),
     4.539993e-05,
     tolerance = 1e-7)
 })
@@ -45,13 +45,13 @@ test_that("one-dimensional ornstein-uhlenbeck; multi point", {
 
 test_that("multi-dimensional ornstein-uhlenbeck; single point", {
   expect_equal(
-    orn_uhl(
+    c(orn_uhl(
       data.frame(a = 1, b = 2, c = -1),
       data.frame(a = 1.5, b = 2.9, c = -0.7),
       list(theta = 0.2)
-    ),
+    ), use.names = FALSE),
     0.00469197,
-    tolerance = 1e-7
+    tolerance = 1e-6
   )
 })
 
@@ -68,7 +68,7 @@ test_that("multi-dimensional ornstein-uhlenbeck; multi point", {
         0.2388828, 0.3102211, 0.3977409),
       nrow = 3, byrow = TRUE
     ),
-    tolerance = 1e-7
+    tolerance = 1e-6
   )
 })
 
@@ -95,7 +95,7 @@ test_that("dimensionality checks", {
       data.frame(a = c(1.8), b = c(0.5)),
       list(theta = 1)
     )),
-    NULL
+    c(1,3)
   )
 })
 

@@ -183,8 +183,8 @@ bim_em <- bimodal_emulator_from_data(SIR_stochastic$training, names(bim_targets)
 test_that("Bimodal emulation basics", {
   bim_points <- unique(SIR_stochastic$validation[,names(SIREmulators$ems[[1]]$ranges)])
   expect_equal(
-    names(nth_implausible(bim_em, bim_points, bim_targets, get_raw = TRUE)),
-    names(bim_targets)
+    sort(names(nth_implausible(bim_em, bim_points, bim_targets, get_raw = TRUE))),
+    sort(names(bim_targets))
   )
 })
 
@@ -193,12 +193,12 @@ test_that("Separated modes: same result", {
   first_imps <- nth_implausible(bim_em$mode1, bim_points, bim_targets, get_raw = TRUE)
   second_imps <- nth_implausible(bim_em$mode2, bim_points, bim_targets, get_raw = TRUE)
   expect_equal(
-    apply(as.data.frame(Map(pmin, first_imps, second_imps)), 1, max),
+    apply(as.data.frame(Map(pmin, first_imps, second_imps[,names(first_imps)])), 1, max),
     nth_implausible(bim_em, bim_points, bim_targets)
   )
 })
 
-### Point proposal - makes more sense here since emulatos are trained
+### Point proposal - makes more sense here since emulators are trained
 test_that("Bimodal point proposal", {
   skip_on_cran()
   bim_points <- generate_new_runs(

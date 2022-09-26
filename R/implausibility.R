@@ -57,6 +57,7 @@ sequential_imp <- function(ems, x, z, n = 1, cutoff = 3) {
 #' @param cutoff A numeric value, or vector of such, representing allowed implausibility
 #' @param sequential Should the emulators be evaluated sequentially?
 #' @param get_raw Boolean - determines whether nth-implausibility should be applied.
+#' @param ordered If FALSE, emulators are ordered according to restrictiveness.
 #'
 #' @return Either the nth maximum implausibilities, or booleans (if cutoff is given).
 #' @export
@@ -92,8 +93,9 @@ sequential_imp <- function(ems, x, z, n = 1, cutoff = 3) {
 #'
 nth_implausible <- function(ems, x, z, n = NULL,
                             max_imp = Inf, cutoff = NULL,
-                            sequential = FALSE, get_raw = FALSE) {
-  ems <- collect_emulators(ems)
+                            sequential = FALSE, get_raw = FALSE,
+                            ordered = FALSE) {
+  if (!ordered) ems <- collect_emulators(ems, z)
   ## Preprocessing for variance emulation
   if (!is.null(ems$expectation) && !is.null(ems$variance)) {
     if (is.null(n))
@@ -135,6 +137,7 @@ nth_implausible <- function(ems, x, z, n = NULL,
         ems$mode1$expectation, ~.$output_name))) > 10, 2, 1)
     imps1 <- nth_implausible(ems$mode1, x, z, n, max_imp, cutoff, FALSE, TRUE)
     imps2 <- nth_implausible(ems$mode2, x, z, n, max_imp, cutoff, FALSE, TRUE)
+    imps2 <- imps2[,names(imps1)]
     get_min_concrete <- function(v1, v2) {
       if (all(is.numeric(v1))) {
         output <- purrr::map_dbl(seq_along(v1), function(i) {

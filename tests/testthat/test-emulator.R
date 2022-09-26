@@ -60,12 +60,13 @@ test_that("Emulator with data", {
   data_em_adj <- data_em$adjust(data, 'f')
   expect_equal(
     data_em_adj$get_exp(test_data),
-    data$f[5:7]
+    data$f[5:7],
+    tolerance = 1e-5
   )
   expect_equal(
     c(data_em_adj$get_cov(test_data), use.names = FALSE),
     c(0, 0, 0),
-    tolerance = 1e-6
+    tolerance = 1e-5
   )
 })
 
@@ -150,7 +151,7 @@ test_that("Modifying priors and functional sigma - untrained", {
   em_o3 <- em_o2$mult_sigma(2)
   expect_equal(
     em_o3$get_cov(SIRSample$validation[1,,drop=FALSE]),
-    matrix(4, nrow = 1)
+    4
   )
   expect_equal(
     em_o3$u_sigma,

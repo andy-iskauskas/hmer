@@ -2,30 +2,30 @@
 
 test_that("correlation with self is 1", {
   expect_equal(
-    rat_quad(
+    c(rat_quad(
       data.frame(a = 1),
       data.frame(a = 1),
       list(theta = 0.1, alpha = 1.5)
-    ),
+    ), use.names = FALSE),
     1
   )
   expect_equal(
-    diag(rat_quad(
+    unname(diag(rat_quad(
       data.frame(a = c(1, 2, 3), b = c(0.1, 0.4, 0.3)),
       data.frame(a = c(1, 2, 3), b = c(0.1, 0.4, 0.3)),
       list(theta = 0.2, alpha = 1.5)
-    )),
+    ))),
     rep(1, 3)
   )
 })
 
 test_that("one-dimensional rational quadratic; single point", {
   expect_equal(
-    rat_quad(
+    c(rat_quad(
       data.frame(a = 1),
       data.frame(a = 2),
       list(theta = 0.1, alpha = 2.5)
-    ),
+    ), use.names = FALSE),
     0.00049482515)
 })
 
@@ -44,12 +44,13 @@ test_that("one-dimensional rational quadratic; multi point", {
 
 test_that("multi-dimensional rational quadratic; single point", {
   expect_equal(
-    rat_quad(
+    c(rat_quad(
       data.frame(a = 1, b = 2, c = -1),
       data.frame(a = 1.5, b = 2.9, c = -0.7),
       list(theta = 0.2, alpha = 0.5)
-    ),
-    0.1833397
+    ), use.names = FALSE),
+    0.1833397,
+    tolerance = 1e-6
   )
 })
 
@@ -93,7 +94,7 @@ test_that("dimensionality checks", {
       data.frame(a = c(1.8), b = c(0.5)),
       list(theta = 1, alpha = 2.5)
     )),
-    NULL
+    c(1,3)
   )
 })
 
@@ -151,21 +152,21 @@ test_that("works with data.matrix or data.frame", {
 
 test_that("correlation with self is 0", {
   expect_equal(
-    rat_quad_d(
+    unname(rat_quad_d(
       data.matrix(data.frame(a = 1)),
       data.matrix(data.frame(a = 1)),
       list(theta = 0.1, alpha = 1.5),
       1
-    ),
+    )),
     matrix(0, nrow = 1)
   )
   expect_equal(
-    diag(rat_quad_d(
+    unname(diag(rat_quad_d(
       data.matrix(data.frame(a = c(1, 2, 3), b = c(0.1, 0.4, 0.3))),
       data.matrix(data.frame(a = c(1, 2, 3), b = c(0.1, 0.4, 0.3))),
       list(theta = 0.2, alpha = 1.5),
       2
-    )),
+    ))),
     rep(0, 3)
   )
 })
@@ -203,7 +204,8 @@ test_that("multi-dimensional rational quadratic derivative; single point", {
       list(theta = 0.2, alpha = 1.5),
       3
     ),
-    matrix(-0.0205828295, nrow = 1)
+    matrix(-0.0205828295, nrow = 1),
+    tolerance = 1e-6
   )
 })
 

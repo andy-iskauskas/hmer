@@ -247,12 +247,13 @@ subset_emulators <- function(emulators, output_names) {
 #' the most recent, and therefore most restrictive, emulators).
 #'
 #' @param emulators The recursive list of emulators
+#' @param targets If not NULL, uses implausibility to order the emulators.
 #'
 #' @return A list of emulators with the ordered property described above.
 #'
 #' @noRd
 #' @keywords internal
-collect_emulators <- function(emulators) {
+collect_emulators <- function(emulators, targets = NULL) {
   if ("Emulator" %in% class(emulators))
     return(setNames(list(emulators), emulators$output_name))
   if (all(purrr::map_lgl(emulators, ~"Emulator" %in% class(.)))) {
@@ -260,39 +261,71 @@ collect_emulators <- function(emulators) {
     em_range_lengths <- purrr::map_dbl(emulators, ~length(.$ranges))
     em_range_prods <- purrr::map_dbl(emulators,
                                      ~prod(purrr::map_dbl(.$ranges, diff)))
-    return(setNames(emulators[order(em_range_lengths, em_range_prods, decreasing = c(TRUE, FALSE))], em_names))
+    em_ordering <- order(em_range_lengths, em_range_prods, decreasing = c(TRUE, FALSE))
+    ## Add in support to order emulators by acceptance rate
+    if (!is.null(targets)) {
+      if (!is.null(targets$expectation)) targets <- targets$expectation
+      for (i in seq_along(targets)) {
+        if (length(targets[[i]]) == 1) {
+          targets[[i]] <- list(val = targets[[i]], sigma = 0.05*targets[[i]])
+        }
+      }
+      maximal_ranges <- emulators[[em_ordering[1]]]$ranges
+      sample_points <- do.call('cbind.data.frame', purrr::map(maximal_ranges, ~runif(200, min = .[[1]], max = .[[2]]))) |> setNames(names(maximal_ranges))
+      em_imps <- do.call('cbind', purrr::map(emulators, ~.$implausibility(sample_points, targets[[.$output_name]], cutoff = 3)))
+      imp_restriction <- apply(em_imps, 2, sum)
+      em_ordering <- order(em_range_lengths, imp_restriction, em_range_prods, decreasing = c(TRUE, FALSE, FALSE))
+    }
+    return(setNames(emulators[em_ordering], em_names[em_ordering]))
   }
-  if ((!is.null(emulators$expectation) && sum(names(emulators) == "expectation") == 1) || (!is.null(emulators$mode1) && sum(names(emulators) == "mode1") == 1))
+  if ((!is.null(emulators$expectation) && sum(names(emulators) == "expectation") == 1) || (!is.null(emulators$mode1) && sum(names(emulators) == "mode1") == 1)) {
     return(emulators)
+  }
   if ("expectation" %in% names(emulators)) {
     exp_ems <- c(emulators[names(emulators) == "expectation"], use.names = FALSE)
     var_ems <- c(emulators[names(emulators) == "variance"], use.names = FALSE)
-    return(list(expectation = collect_emulators(exp_ems),
-                variance = collect_emulators(var_ems)))
+    if (!is.null(targets$expectation)) {
+      targs_exp <- targets$expectation
+      targs_var <- targets$variance
+    }
+    else {
+      targs_exp <- targets
+      targs_var <- NULL
+    }
+    return(list(expectation = collect_emulators(exp_ems, targets = targs_exp),
+                variance = collect_emulators(var_ems, targets = targs_var)))
   }
   if ("mode1" %in% names(emulators)) {
     m1ems <- c(emulators[names(emulators) == "mode1"], use.names = FALSE)
     m2ems <- c(emulators[names(emulators) == "mode2"], use.names = FALSE)
     prop_ems <- c(emulators[names(emulators) == "prop"], use.names = FALSE)
-    return(list(mode1 = collect_emulators(m1ems),
-                mode2 = collect_emulators(m2ems),
+    return(list(mode1 = collect_emulators(m1ems, targets = NULL),
+                mode2 = collect_emulators(m2ems, targets = NULL),
                 prop = collect_emulators(prop_ems)))
   }
   if (!is.null(emulators[[1]]$mode1)) {
     m1ems <- purrr::map(emulators, ~.$mode1)
     m2ems <- purrr::map(emulators, ~.$mode2)
     prop_ems <- purrr::map(emulators, ~.$prop)
-    return(list(mode1 = collect_emulators(m1ems),
-                mode2 = collect_emulators(m2ems),
+    return(list(mode1 = collect_emulators(m1ems, targets = NULL),
+                mode2 = collect_emulators(m2ems, targets = NULL),
                 prop = collect_emulators(prop_ems)))
   }
   if (!is.null(emulators[[1]]$expectation)) {
     exp_ems <- purrr::map(emulators, ~.$expectation)
     var_ems <- purrr::map(emulators, ~.$variance)
-    return(list(expectation = collect_emulators(exp_ems),
-                variance = collect_emulators(var_ems)))
+    if (!is.null(targets$expectation)) {
+      targs_exp <- targets$expectation
+      targs_var <- targets$variance
+    }
+    else {
+      targs_exp <- targets
+      targs_var <- NULL
+    }
+    return(list(expectation = collect_emulators(exp_ems, targets = targs_exp),
+                variance = collect_emulators(var_ems, targets = targs_var)))
   }
-  return(collect_emulators(unlist(emulators)))
+  return(collect_emulators(unlist(emulators), targets = targets))
 }
 
 #' Obtain the parameter ranges from a collection of emulators
@@ -327,6 +360,26 @@ getRanges <- function(emulators, minimal = TRUE) {
   return(setNames(purrr::map(names(range_widths),
                              ~emulators[[which_choose[[.]]]]$ranges[[.]]),
                   names(range_widths)))
+}
+
+### In progress: need to consider active variables in this function
+exp_sq_helper <- function(points, data, first_points, theta) {
+  orig_corr <- exp_sq(first_points, data, list(theta = theta))
+  grid_indices <- which(purrr::map_dbl(seq_along(first_points),
+                                       ~length(unique(first_points[,.]))) == 1)
+  unique_grid_points <- unique(points[,grid_indices])
+  starting_point <- unique_grid_points[1,]
+  unique_grid_points <- unique_grid_points[-1,]
+  diffs_list <- purrr::map(grid_indices, ~t(outer(first_points[,.], data[,.], "-")))
+  all_corrs <- purrr::map(seq_len(nrow(unique_grid_points)), function(i) {
+    trans_vector <- unlist(unique_grid_points[i,] - starting_point)
+    modifier <- prod(purrr::map_dbl(trans_vector, ~exp(-.^2/theta^2)))
+    cross_term <- Reduce("*", purrr::map(seq_along(diffs_list),
+                                         ~exp(-2 * diff_list[[.]] * trans_vector[.]/theta^2)))
+    return(modifier * orig_corr * cross_term)
+  })
+  calced_corrs <- do.call('cbind', all_corrs)
+  return(cbind(orig_corr, calced_corrs))
 }
 
 # Pre-submission questions for CRAN submission

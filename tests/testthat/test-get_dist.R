@@ -4,7 +4,8 @@ test_that("simple distances work", {
       data.frame(a = c(1, 2)),
       data.frame(a = c(0.9, 2.1))
     ),
-    matrix(c(0.1, 1.1, 1.1, 0.1), nrow = 2, byrow = TRUE)
+    matrix(c(0.1, 1.1, 1.1, 0.1), nrow = 2, byrow = TRUE),
+    tolerance = 1e-6
   )
 })
 

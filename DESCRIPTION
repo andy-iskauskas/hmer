@@ -34,7 +34,8 @@ Imports:
   GGally,
   rlang,
   isoband,
-  mclust
+  mclust,
+  pdist
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true

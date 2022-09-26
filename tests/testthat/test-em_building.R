@@ -14,12 +14,14 @@ test_that("Emulator training: default", {
   expect_equal(
     c(ems[[2]]$get_exp(SIRSample$training[1:5,]),
       use.names = FALSE),
-    SIRSample$training[1:5, 'nI']
+    SIRSample$training[1:5, 'nI'],
+    tolerance = 1e-5
   )
   expect_equal(
     c(ems[[3]]$get_cov(SIRSample$training[1:5,]),
       use.names = FALSE),
-    rep(0, 5)
+    rep(0, 5),
+    tolerance = 1e-5
   )
   expect_equal(
     matrix(ems[[2]]$get_cov(SIRSample$validation[1:3,], full = TRUE),
@@ -154,7 +156,7 @@ test_that("Emulator training: uncertain beta", {
       ems$nI$get_cov(SIRSample$training[1:5,]),
       use.names = FALSE),
     rep(0, 5),
-    tolerance = 1e-6
+    tolerance = 1e-5
   )
   expect_equal(
     ems$nR$disc,

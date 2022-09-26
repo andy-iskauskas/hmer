@@ -2,30 +2,30 @@
 
 test_that("correlation with self is 1", {
   expect_equal(
-    matern(
+    c(matern(
       data.frame(a = 1),
       data.frame(a = 1),
       list(theta = 0.1, nu = 1.5)
-    ),
+    ), use.names = FALSE),
     1
   )
   expect_equal(
-    diag(matern(
+    c(diag(matern(
       data.frame(a = c(1, 2, 3), b = c(0.1, 0.4, 0.3)),
       data.frame(a = c(1, 2, 3), b = c(0.1, 0.4, 0.3)),
       list(theta = 0.2, nu = 1.5)
-    )),
+    )), use.names = FALSE),
     rep(1, 3)
   )
 })
 
 test_that("one-dimensional matern; single point", {
   expect_equal(
-    matern(
+    c(matern(
       data.frame(a = 1),
       data.frame(a = 2),
       list(theta = 0.1, nu = 2.5)
-    ),
+    ), use.names = FALSE),
     3.6956962e-08)
 })
 
@@ -44,12 +44,13 @@ test_that("one-dimensional matern; multi point", {
 
 test_that("multi-dimensional matern; single point", {
   expect_equal(
-    matern(
+    c(matern(
       data.frame(a = 1, b = 2, c = -1),
       data.frame(a = 1.5, b = 2.9, c = -0.7),
       list(theta = 0.2, nu = 0.5)
-    ),
-    0.0046919704
+    ), use.names = FALSE),
+    0.0046919704,
+    tolerance = 1e-6
   )
 })
 
@@ -93,7 +94,7 @@ test_that("dimensionality checks", {
       data.frame(a = c(1.8), b = c(0.5)),
       list(theta = 1, nu = 2.5)
     )),
-    NULL
+    c(1,3)
   )
 })
 
@@ -161,21 +162,21 @@ test_that("works with data.matrix or data.frame", {
 
 test_that("correlation with self is 0", {
   expect_equal(
-    matern_d(
+    unname(matern_d(
       data.matrix(data.frame(a = 1)),
       data.matrix(data.frame(a = 1)),
       list(theta = 0.1, nu = 1.5),
       1
-    ),
+    )),
     matrix(0, nrow = 1)
   )
   expect_equal(
-    diag(matern_d(
+    c(diag(matern_d(
       data.matrix(data.frame(a = c(1, 2, 3), b = c(0.1, 0.4, 0.3))),
       data.matrix(data.frame(a = c(1, 2, 3), b = c(0.1, 0.4, 0.3))),
       list(theta = 0.2, nu = 1.5),
       2
-    )),
+    )), use.names = FALSE),
     rep(0, 3)
   )
 })
@@ -213,7 +214,8 @@ test_that("multi-dimensional matern derivative; single point", {
       list(theta = 0.2, nu = 1.5),
       3
     ),
-    matrix(-0.0020837784, nrow = 1)
+    matrix(-0.0020837784, nrow = 1),
+    tolerance = 1e-5
   )
 })
 
@@ -232,7 +234,7 @@ test_that("multi-dimensional matern derivative; multi point and multi deriv", {
         0.264540759,  0.267678812, -0.190884317),
       nrow = 3, byrow = TRUE
     ),
-    tolerance = 1e-7
+    tolerance = 1e-6
   )
 })
 

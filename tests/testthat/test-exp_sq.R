@@ -2,30 +2,30 @@
 
 test_that("correlation with self is 1", {
   expect_equal(
-    exp_sq(
+    c(exp_sq(
       data.frame(a = 1),
       data.frame(a = 1),
       list(theta = 0.1)
-    ),
+    ), use.names = FALSE),
     1
   )
   expect_equal(
-    diag(exp_sq(
+    c(diag(exp_sq(
       data.frame(a = c(1, 2, 3), b = c(0.1, 0.4, 0.3)),
       data.frame(a = c(1, 2, 3), b = c(0.1, 0.4, 0.3)),
       list(theta = 0.2)
-    )),
+    )), use.names = FALSE),
     rep(1, 3)
   )
 })
 
 test_that("one-dimensional exp-squared; single point", {
   expect_equal(
-    exp_sq(
+    c(exp_sq(
       data.frame(a = 1),
       data.frame(a = 2),
       list(theta = 0.1)
-    ),
+    )),
     3.720076e-44)
 })
 
@@ -44,11 +44,11 @@ test_that("one-dimensional exp-squared; multi point", {
 
 test_that("multi-dimensional exp-squared; single point", {
   expect_equal(
-    exp_sq(
+    c(exp_sq(
       data.frame(a = 1, b = 2, c = -1),
       data.frame(a = 1.5, b = 2.9, c = -0.7),
       list(theta = 0.2)
-    ),
+    )),
     3.266131e-13
   )
 })
@@ -93,7 +93,7 @@ test_that("dimensionality checks", {
       data.frame(a = c(1.8), b = c(0.5)),
       list(theta = 1)
     )),
-    NULL
+    c(1,3)
   )
 })
 
@@ -110,7 +110,7 @@ test_that("different theta per dimension", {
         0.0437177973, 0.1636541368, 0.03762826),
       nrow = 3, byrow = TRUE
     ),
-    tolerance = 1e-7
+    tolerance = 1e-6
   )
 })
 
@@ -157,21 +157,21 @@ test_that("works with data.matrix or data.frame", {
 
 test_that("correlation with self is 0", {
   expect_equal(
-    exp_sq_d(
+    unname(exp_sq_d(
       data.matrix(data.frame(a = 1)),
       data.matrix(data.frame(a = 1)),
       list(theta = 0.1),
       1
-    ),
+    )),
     matrix(0, nrow = 1)
   )
   expect_equal(
-    diag(exp_sq_d(
+    c(diag(exp_sq_d(
       data.matrix(data.frame(a = c(1, 2, 3), b = c(0.1, 0.4, 0.3))),
       data.matrix(data.frame(a = c(1, 2, 3), b = c(0.1, 0.4, 0.3))),
       list(theta = 0.2),
       2
-    )),
+    )), use.names = FALSE),
     rep(0, 3)
   )
 })

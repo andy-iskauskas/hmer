@@ -6,6 +6,8 @@
 #' when the number of points is large this can try to allocate a large object so we instead use
 #' direct calculation using \code{colSums}.
 #'
+#' @importFrom pdist pdist
+#'
 #' @param df1 The first data.frame
 #' @param df2 The second data.frame
 #'
@@ -16,6 +18,9 @@
 #'
 get_dist <- function(df1, df2) {
   if (ncol(df1) != ncol(df2)) stop("Data frames do not have the same dimension.")
+  if (identical(df1, df2))
+    return(as.matrix(dist(df1)))
+  return(t(as.matrix(pdist::pdist(as.matrix(df1), as.matrix(df2)))))
   d <- ncol(df1)
   p <- max(nrow(df1), nrow(df2))
   if (d < (833*p^2-198400*p+144350000)/(55550*p+6910000) || p > 2500) {
@@ -270,8 +275,10 @@ Correlator <- R6::R6Class(
       active <- self$corr_type(x[,actives, drop = FALSE],
                                xp[,actives, drop = FALSE], self$hyper_p)
       if (!use.nugget) return(active)
-      extra <- as.matrix(dist(rbind(x, xp)))[(nrow(x)+1):(nrow(x)+nrow(xp)),
-                                             seq_len(nrow(x))]
+      if (identical(x, xp)) extra <- as.matrix(dist(x))
+      else extra <- t(as.matrix(pdist::pdist(x, xp)))
+      #extra <- as.matrix(dist(rbind(x, xp)))[(nrow(x)+1):(nrow(x)+nrow(xp)),
+                                             #seq_len(nrow(x))]
       extra[extra < 1e-10] <- 1
       extra[extra != 1] <- 0
       return((1 - self$nugget) * active + self$nugget * extra)

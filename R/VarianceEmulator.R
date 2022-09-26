@@ -196,10 +196,10 @@ HierarchicalEmulator <- R6Class(
             c_x
           else
             self$corr$get_corr(self$in_data, xp, self$active_vars)
-          if(nrow(x) == 1) {
-            c_x <- t(c_x)
-            c_xp <- t(c_xp)
-          }
+          # if(nrow(x) == 1) {
+          #   c_x <- t(c_x)
+          #   c_xp <- t(c_xp)
+          # }
           if (is.numeric(self$u_sigma)) {
             u_part <- u_part - self$u_sigma^4 * c_x %*%
               (private$data_corrs - private$u_var_modifier) %*% t(c_xp)
@@ -268,10 +268,10 @@ HierarchicalEmulator <- R6Class(
             c_x
           else
             self$corr$get_corr(self$in_data, xp, self$active_vars)
-          if (nrow(x) == 1) {
-            c_x <- t(c_x)
-            c_xp <- t(c_xp)
-          }
+          # if (nrow(x) == 1) {
+          #   c_x <- t(c_x)
+          #   c_xp <- t(c_xp)
+          # }
           if (is.numeric(self$u_sigma)) {
             c_x <- self$u_sigma^2 * c_x
             c_xp <- self$u_sigma^2 * c_xp
