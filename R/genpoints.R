@@ -30,6 +30,26 @@ pca_transform <- function(x, s_points, forward = TRUE) {
   pre_traf <- x %*% diag(sqrt(s_estruct$values)) %*% t(s_estruct$vectors)
   return(sweep(sweep(pre_traf, 2, apply(s_points, 2, sd), "*"), 2, apply(s_points, 2, mean), "+"))
 }
+maximin_sample <- function(points, n, reps = 1000, nms) {
+  c_measure <- op <- NULL
+  options <- purrr::map(1:reps, function(rep) {
+    tp <- points[sample(nrow(points), n),]
+    if (!"data.frame" %in% class(tp)) tp <- setNames(tp, nms)
+    measure <- min(dist(tp))
+    return(list(points = tp, value = measure))
+  })
+  return(options[[which.max(purrr::map_dbl(options, "value"))]]$points)
+  for (i in 1:reps) {
+    tp <- points[sample(nrow(points), n),]
+    if (!"data.frame" %in% class(tp)) tp <- setNames(tp, nms)
+    measure <- min(dist(tp))
+    if (is.null(c_measure) || measure > c_measure) {
+      op <- tp
+      c_measure <- measure
+    }
+  }
+  return(op)
+}
 
 #' Generate Proposal Points
 #'
@@ -248,18 +268,7 @@ generate_new_runs <- function(ems, n_points, z,
       else extra_points <- NULL
       if (nrow(points) > n_points - seek) {
         if (verbose) cat("Selecting final points using maximin criterion...\n") #nocov
-        c_measure <- op <- NULL
-        for (i in 1:1000) {
-          tp <- points[sample(nrow(points), n_points-seek),]
-          if (!"data.frame" %in% class(tp))
-            tp <- setNames(data.frame(tp), names(ranges))
-          measure <- min(dist(tp))
-          if (is.null(c_measure) || measure > c_measure) {
-            op <- tp
-            c_measure <- measure
-          }
-        }
-        points <- op
+        points <- maximin_sample(points, n_points-seek, nms = names)
       }
       return(rbind(extra_points, points))
     }
@@ -382,19 +391,7 @@ generate_new_runs <- function(ems, n_points, z,
        "slice" %in% which_methods) && resample > 0) {
     for (nsamp in 1:resample) {
       if (verbose) cat(paste("Resample", nsamp, "\n")) #nocov
-      c_measure <- op <- NULL
-      for (i in 1:1000) {
-        tp <- points[sample(nrow(points),
-                            min(nrow(points), ceiling(n_points/2))),]
-        if (!"data.frame" %in% class(tp))
-          tp <- setNames(data.frame(tp), names(ranges))
-        measure <- min(dist(tp))
-        if (is.null(c_measure) || measure > c_measure) {
-          op <- tp
-          c_measure <- measure
-        }
-      }
-      points <- op
+      points <- maximin_sample(points, min(nrow(points), ceiling(n_points/2)), nms = names(ranges))
       n_current <- nrow(points)
       if ("line" %in% which_methods) {
         if (verbose) cat("Performing line sampling...\n") #nocov
@@ -435,18 +432,7 @@ generate_new_runs <- function(ems, n_points, z,
   else extra_points <- NULL
   if (nrow(points) > n_points - seek) {
     if (verbose) cat("Selecting final points using maximin criterion...\n") #nocov
-    c_measure <- op <- NULL
-    for (i in 1:1000) {
-      tp <- points[sample(nrow(points), n_points-seek),]
-      if (!"data.frame" %in% class(tp))
-        tp <- setNames(data.frame(tp), names(ranges))
-      measure <- min(dist(tp))
-      if (is.null(c_measure) || measure > c_measure) {
-        op <- tp
-        c_measure <- measure
-      }
-    }
-    points <- op
+    points <- maximin_sample(points, n_points-seek, nms = names(ranges))
   }
   chained <- list(...)[['chain.call']]
   if (!is.null(chained)) return(list(points = rbind(points, extra_points),
@@ -774,7 +760,7 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3,
       sd <- rep(2, length(ranges))
   }
   accept_rate <- NULL
-  upper_accept <- 0.125
+  upper_accept <- 0.225
   lower_accept <- 0.075
   while ((is.null(accept_rate) ||
           accept_rate > upper_accept ||
@@ -784,7 +770,7 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3,
       if (accept_rate > upper_accept) sd <- sd * 1.1
       else sd <- sd * 0.9
     }
-    how_many <- max(floor(n_points/4), 1000)
+    how_many <- max(floor(n_points/4), 500)
     prop_points <- propose_points(s_points, sd, how_many)
     new_points <- rbind(new_points, prop_points)
     uniqueness <- row.names(unique(signif(new_points, 7)))

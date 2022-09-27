@@ -104,18 +104,19 @@ Emulator <- R6Class(
         k <- ceiling(nrow(x)/2000)
         m <- ceiling(nrow(x)/k)
         s_df <- split(x, rep(1:k, each = m, length.out = nrow(x)))
-        return(unlist(purrr::map(s_df, ~self$get_exp(., include_c)),
+        return(unlist(purrr::map(s_df, ~self$get_exp(., include_c, c_data)),
                       use.names = FALSE))
       }
       x <- x[, names(self$ranges)[names(self$ranges) %in% names(x)]]
       x <- eval_funcs(scale_input, x, self$ranges)
-      g <- t(
-        apply(
-          x, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y)))
+      # g <- t(
+      #   apply(
+      #     x, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y)))
+      beta_part <- predict(self$model, x)
       x <- data.matrix(x)
       bu <- t(apply(x, 1, self$beta_u_cov))
-      if (length(self$beta_mu) == 1) beta_part <- g * self$beta_mu
-      else beta_part <- g %*% self$beta_mu
+      # if (length(self$beta_mu) == 1) beta_part <- g * self$beta_mu
+      # else beta_part <- g %*% self$beta_mu
       u_part <- apply(x, 1, self$u_mu)
       if (!is.null(self$in_data)) {
         if (is.null(c_data))
@@ -217,10 +218,10 @@ Emulator <- R6Class(
             c_xp <- if(null_flag) c_x else self$corr$get_corr(self$in_data,
                                                             xp,
                                                             self$active_vars)
-          if(nrow(x) == 1) {
-            c_x <- t(c_x)
-            c_xp <- t(c_xp)
-          }
+          # if(nrow(x) == 1) {
+          #   c_x <- t(c_x)
+          #   c_xp <- t(c_xp)
+          # }
           if (is.numeric(self$u_sigma)) {
             u_part <- u_part - self$u_sigma^4 * c_x %*%
               (private$data_corrs - private$u_var_modifier) %*% t(c_xp)
@@ -677,7 +678,7 @@ Emulator <- R6Class(
         imp <- sqrt((z$val - self$get_exp(x, c_data = corr_x))^2/imp_var)
       }
       else {
-        pred <- self$get_exp(x)
+        pred <- self$get_exp(x, c_data = corr_x)
         bound_check <- tryCatch(
             {purrr::map_dbl(pred, function(y) {
             if (y <= z[2] && y >= z[1]) return(0)
@@ -694,7 +695,7 @@ Emulator <- R6Class(
           if (y < 1) return(z[1])
           return(z[2])
         })
-        uncerts <- self$get_cov(x) + disc_quad
+        uncerts <- self$get_cov(x, c_x = corr_x, c_xp = corr_x) + disc_quad
         uncerts[uncerts <= 0] <- 0.0001
         imp <- bound_check * (pred - which_compare)/sqrt(uncerts)
       }
