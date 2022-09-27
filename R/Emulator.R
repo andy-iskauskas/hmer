@@ -109,14 +109,18 @@ Emulator <- R6Class(
       }
       x <- x[, names(self$ranges)[names(self$ranges) %in% names(x)]]
       x <- eval_funcs(scale_input, x, self$ranges)
-      # g <- t(
-      #   apply(
-      #     x, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y)))
-      beta_part <- predict(self$model, x)
+      if (!all(self$beta_sigma == 0) || is.null(self$model)) {
+        g <- t(
+          apply(
+            x, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y)))
+        if (length(self$beta_mu) == 1) beta_part <- g * self$beta_mu
+        else beta_part <- g %*% self$beta_mu
+      }
+      else {
+        beta_part <- predict(self$model, x)
+      }
       x <- data.matrix(x)
       bu <- t(apply(x, 1, self$beta_u_cov))
-      # if (length(self$beta_mu) == 1) beta_part <- g * self$beta_mu
-      # else beta_part <- g %*% self$beta_mu
       u_part <- apply(x, 1, self$u_mu)
       if (!is.null(self$in_data)) {
         if (is.null(c_data))

@@ -444,7 +444,7 @@ generate_new_runs <- function(ems, n_points, z,
 
 ## LHS Generation
 lhs_gen <- function(ems, ranges, n_points, z, cutoff = 3,
-                    nth = 1, points.factor = 10, pca = FALSE, ...) {
+                    nth = 1, points.factor = 40, pca = FALSE, ...) {
   if (pca) {
     in_range <- function(data, ranges) {
       apply(data, 1,
