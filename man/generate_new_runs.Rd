@@ -8,7 +8,7 @@ generate_new_runs(
   ems,
   n_points,
   z,
-  method = c("lhs", "line", "importance"),
+  method = "default",
   cutoff = 3,
   nth = NULL,
   plausible_set,

@@ -156,7 +156,7 @@ maximin_sample <- function(points, n, reps = 1000, nms) {
 #'   method = c('line'))
 #' }
 generate_new_runs <- function(ems, n_points, z,
-                              method = c('lhs', 'line', 'importance'),
+                              method = 'default',
                               cutoff = 3,
                               nth = NULL,
                               plausible_set, verbose = interactive(),
@@ -189,6 +189,11 @@ generate_new_runs <- function(ems, n_points, z,
       )))
     nth <- ifelse(nems > 10, 2, 1)
   }
+  if (length(method) == 1 && method == "default") {
+    method <- c('lhs', 'line', 'importance')
+    user_select <- FALSE
+  }
+  else user_select <- TRUE
   possible_methods <- c('lhs', 'line', 'importance', 'slice', 'optical')
   which_methods <- possible_methods[possible_methods %in% method]
   n_current <- 0
@@ -223,7 +228,7 @@ generate_new_runs <- function(ems, n_points, z,
       }
     }
     maybe_verbose <- TRUE
-    if (nrow(points) >= 0.25 * n_points) {
+    if (nrow(points) >= 0.25 * n_points && !user_select) {
       if (verbose) cat("LHS has high yield - no other methods required.\n") #nocov
       maybe_verbose <- FALSE
       all_points <- points
