@@ -19,7 +19,6 @@ generate_new_runs(
   c_tol = 0.5,
   i_tol = 0.01,
   to_file = NULL,
-  pca = FALSE,
   ...
 )
 }
@@ -51,8 +50,6 @@ generate_new_runs(
 \item{i_tol}{The tolerance on final desired implausibility}
 
 \item{to_file}{The filename to write to sequentially during proposal. Default is NULL (no writing)}
-
-\item{pca}{If TRUE, transforms the space before proposing a LHD (based on the training points)}
 
 \item{...}{Any parameters to pass to individual sampling functions, eg \code{distro} for importance sampling.}
 }

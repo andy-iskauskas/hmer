@@ -136,7 +136,6 @@ maximin_sample <- function(points, n, reps = 1000, nms) {
 #' @param c_tol The tolerance with which to determine that best implausibility has been reached.
 #' @param i_tol The tolerance on final desired implausibility
 #' @param to_file The filename to write to sequentially during proposal. Default is NULL (no writing)
-#' @param pca If TRUE, transforms the space before proposing a LHD (based on the training points)
 #' @param ... Any parameters to pass to individual sampling functions, eg \code{distro} for importance sampling.
 #'
 #' @return A data.frame containing the set of new points to run the model at.
@@ -162,7 +161,8 @@ generate_new_runs <- function(ems, n_points, z,
                               plausible_set, verbose = interactive(),
                               cluster = FALSE, resample = 1, seek = 0,
                               c_tol = 0.5, i_tol = 0.01, to_file = NULL,
-                              pca = FALSE, ...) {
+                              ...) {
+  lhd_pca <- FALSE
   if (!is.null(to_file)) { #nocov start
     tryCatch(
       write.csv(data.frame(), file = to_file, row.names = FALSE),
@@ -204,7 +204,7 @@ generate_new_runs <- function(ems, n_points, z,
     if (verbose) cat("Proposing from LHS...\n") #nocov
     if (!cluster) {
       lh_gen <- lhs_gen(ems, ranges, max(n_points, 10*length(ranges)),
-                        z, cutoff, nth, pca = pca, ...)
+                        z, cutoff, nth, use_pca = lhd_pca, ...)
       points <- lh_gen$points
       this_cutoff <- lh_gen$cutoff
     }
@@ -236,7 +236,7 @@ generate_new_runs <- function(ems, n_points, z,
         if (verbose) cat("Proposing from LHS...\n") #nocov
         if (!cluster) {
           lh_gen <- lhs_gen(ems, ranges, max(n_points, 10*length(ranges)),
-                            z, cutoff, nth, pca = pca, ...)
+                            z, cutoff, nth, use_pca = lhd_pca, ...)
           points <- lh_gen$points
           this_cutoff <- lh_gen$cutoff
         }
@@ -449,8 +449,8 @@ generate_new_runs <- function(ems, n_points, z,
 
 ## LHS Generation
 lhs_gen <- function(ems, ranges, n_points, z, cutoff = 3,
-                    nth = 1, points.factor = 40, pca = FALSE, ...) {
-  if (pca) {
+                    nth = 1, points.factor = 40, use_pca = FALSE, ...) {
+  if (use_pca) {
     in_range <- function(data, ranges) {
       apply(data, 1,
             function(x) all(
