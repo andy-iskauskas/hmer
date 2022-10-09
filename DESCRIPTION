@@ -20,7 +20,7 @@ Suggests:
     testthat (>= 3.0.0),
     covr
 VignetteBuilder: knitr
-Depends: R (>= 4.0.0)
+Depends: R (>= 4.1.0)
 Imports:
   purrr,
   stringr,
