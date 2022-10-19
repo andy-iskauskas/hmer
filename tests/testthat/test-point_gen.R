@@ -13,7 +13,7 @@ test_that("Point generation methods", {
   expect_warning(
     points_no_clust <- generate_new_runs(
       ems, 100, targs, verbose = FALSE,
-      resample = 0, cluster = TRUE
+      resample = 0, cluster = TRUE, method = 'lhs'
     ),
     "Cannot distinguish"
   )
