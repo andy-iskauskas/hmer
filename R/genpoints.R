@@ -288,7 +288,7 @@ generate_new_runs <- function(ems, n_points, z,
   }
   else {
     point_imps <- imp_func(ems, plausible_set, z, n = nth, max_imp = Inf, ordered = TRUE)
-    optimal_cut <- sort(point_imps)[min(length(point_imps)-1, 5*length(ranges))]
+    optimal_cut <- sort(point_imps)[min(length(point_imps)-1, floor(0.8*length(point_imps)), 5*length(ranges))]
     if (optimal_cut > cutoff && (optimal_cut - sort(point_imps)[1] < c_tol)) {
       if (verbose) cat("Point proposal seems to be asymptoting around implausibility", #nocov
                           round(optimal_cut, 3), "- terminating.\n") #nocov
@@ -499,7 +499,7 @@ lhs_gen <- function(ems, ranges, n_points, z, cutoff = 3,
         names(ranges)), ranges, FALSE)
   }
   point_imps <- imp_func(ems, points, z, n = nth, max_imp = Inf, ordered = TRUE)
-  required_points <- 5 * length(ranges)
+  required_points <- min(length(point_imps)-1, floor(0.8*length(point_imps)), 5*length(ranges))
   if (sum(point_imps <= cutoff) < required_points) {
     cutoff_current <- sort(point_imps)[required_points]
     if (sort(point_imps)[1] >= 20) {
