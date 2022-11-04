@@ -12,7 +12,8 @@ emulator_plot(
   cb = FALSE,
   params = NULL,
   fixed_vals = NULL,
-  nth = 1
+  nth = 1,
+  imp_breaks = NULL
 )
 }
 \arguments{
@@ -31,6 +32,10 @@ emulator_plot(
 \item{fixed_vals}{For fixed input parameters, the values they are held at.}
 
 \item{nth}{If plotting nth maximum implausibility, which level maximum to plot.}
+
+\item{imp_breaks}{An increasing numeric vector of break points for implausibility
+colour scales. Useful if custom implausibility functions are
+being used.}
 }
 \value{
 A ggplot object, or collection thereof.
