@@ -707,6 +707,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
 #' @param ranges A named list of parameter ranges
 #' @param input_names The names of the parameters (if \code{ranges} is not provided).
 #' @param verbose Should status updates be printed to console?
+#' @param na.rm Should NA values be removed before training?
 #' @param ... Optional parameters that can be passed to \code{link{emulator_from_data}}.
 #'
 #' @return A list of lists: one for the variance emulators and one for the function emulators.
@@ -880,6 +881,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges,
 #' @param ranges The parameter ranges
 #' @param input_names The names of the parameters (by default inferred from \code{ranges})
 #' @param verbose Should status updates be provided?
+#' @param na.rm Should NA values be removed before training?
 #' @param ... Any other parameters to pass to emulator training
 #'
 #' @return A list \code{(mode1, mode2, prop)} of emulator lists and objects.

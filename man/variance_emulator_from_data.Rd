@@ -10,6 +10,7 @@ variance_emulator_from_data(
   ranges,
   input_names = names(ranges),
   verbose = interactive(),
+  na.rm = FALSE,
   ...
 )
 }
@@ -23,6 +24,8 @@ variance_emulator_from_data(
 \item{input_names}{The names of the parameters (if \code{ranges} is not provided).}
 
 \item{verbose}{Should status updates be printed to console?}
+
+\item{na.rm}{Should NA values be removed before training?}
 
 \item{...}{Optional parameters that can be passed to \code{link{emulator_from_data}}.}
 }

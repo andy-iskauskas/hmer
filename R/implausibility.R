@@ -96,7 +96,7 @@ nth_implausible <- function(ems, x, z, n = NULL,
                             sequential = FALSE, get_raw = FALSE,
                             ordered = FALSE) {
   if (!"data.frame" %in% class(x))  {
-    if (!is.null(dim(x)) && !is.null(colnames(test_pt_mat)))
+    if (!is.null(dim(x)) && !is.null(colnames(x)))
       x <- data.frame(x)
     else stop("Named array or data.frame of points required.")
   }

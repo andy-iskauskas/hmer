@@ -10,6 +10,7 @@ bimodal_emulator_from_data(
   ranges,
   input_names = names(ranges),
   verbose = interactive(),
+  na.rm = FALSE,
   ...
 )
 }
@@ -23,6 +24,8 @@ bimodal_emulator_from_data(
 \item{input_names}{The names of the parameters (by default inferred from \code{ranges})}
 
 \item{verbose}{Should status updates be provided?}
+
+\item{na.rm}{Should NA values be removed before training?}
 
 \item{...}{Any other parameters to pass to emulator training}
 }
