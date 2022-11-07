@@ -721,7 +721,9 @@ emulator_from_data <- function(input_data, output_names, ranges,
 #' @export
 variance_emulator_from_data <- function(input_data, output_names, ranges,
                                         input_names = names(ranges),
-                                        verbose = interactive(), ...) {
+                                        verbose = interactive(), na.rm = FALSE, ...) {
+  if (na.rm) input_data <- input_data[apply(
+    input_data, 1, function(x) !any(is.na(x))),]
   unique_points <- unique(input_data[, input_names])
   uids <- apply(unique_points, 1, hash)
   data_by_point <- purrr::map(uids, function(x) {
@@ -893,7 +895,9 @@ variance_emulator_from_data <- function(input_data, output_names, ranges,
 #'
 bimodal_emulator_from_data <- function(data, output_names, ranges,
                                        input_names = names(ranges),
-                                       verbose = interactive(), ...) {
+                                       verbose = interactive(), na.rm = FALSE, ...) {
+  if (na.rm) input_data <- input_data[apply(
+    input_data, 1, function(x) !any(is.na(x))),]
   unique_points <- unique(data[,input_names])
   uids <- apply(unique_points, 1, hash)
   param_sets <- purrr::map(uids, function(x) {

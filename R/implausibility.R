@@ -95,6 +95,11 @@ nth_implausible <- function(ems, x, z, n = NULL,
                             max_imp = Inf, cutoff = NULL,
                             sequential = FALSE, get_raw = FALSE,
                             ordered = FALSE) {
+  if (!"data.frame" %in% class(x))  {
+    if (!is.null(dim(x)) && !is.null(colnames(test_pt_mat)))
+      x <- data.frame(x)
+    else stop("Named array or data.frame of points required.")
+  }
   if (!ordered) ems <- collect_emulators(ems, z)
   ## Preprocessing for variance emulation
   if (!is.null(ems$expectation) && !is.null(ems$variance)) {
