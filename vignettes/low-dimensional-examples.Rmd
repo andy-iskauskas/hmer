@@ -1,7 +1,7 @@
 ---
 title: "Low Dimensional Examples"
 author: "Andy Iskauskas"
-date: "2022-07-06"
+date: "2022-11-08"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Low Dimensional Examples}
@@ -119,10 +119,10 @@ The trained emulator, by virtue of having been provided the training points, 'kn
 
 ```r
 em1d$f$get_exp(data1d) - data1d$f
-#>  [1]  2.969847e-15  7.549517e-15  1.221245e-14  1.110223e-14 -3.386180e-15 -2.398082e-14
-#>  [7] -3.580469e-14 -3.541611e-14 -2.708944e-14 -1.454392e-14
+#>  [1] -5.911938e-15 -7.882583e-15 -2.187139e-14 -4.374279e-14 -5.573320e-14 -3.552714e-14 -1.160183e-14
+#>  [8]  9.992007e-16  9.325873e-15 -2.220446e-16
 em1d$f$get_cov(data1d)
-#> 11 12 13 14 15 16 17 18 19 20 
+#>  1  2  3  4  5  6  7  8  9 10 
 #>  0  0  0  0  0  0  0  0  0  0
 ```
 We can now use this trained emulator to evaluate the function at any point in the parameter range. While it will not exactly match the function value, each evaluation comes with its associated uncertainty. We define a 'large' set of additional points to evaluate the emulator on, and find their expectation and variance.
@@ -196,8 +196,7 @@ The `generate_new_runs` function is used to propose new points. There are a mult
 ```r
 new_points1d <- generate_new_runs(em1d, 10, target1d, method = 'lhs')
 #> Proposing from LHS...
-#> 40 initial valid points generated for I=3
-#> Selecting final points using maximin criterion...
+#> Error in if (nrow(points) >= n_points && this_cutoff == cutoff) {: missing value where TRUE/FALSE needed
 ```
 
 The necessary parameters here are the (list of) emulators, the number of points (here, 10), and the target(s).
@@ -223,6 +222,7 @@ abline(h = target1d$f$val, lty = 2)
 abline(h = target1d$f$val + 3*target1d$f$sigma, lty = 2)
 abline(h = target1d$f$val - 3*target1d$f$sigma, lty = 2)
 points(unlist(new_points1d, use.names = F), y = func(unlist(new_points1d, use.names = F)), pch = 16, col = 'blue')
+#> Error in unlist(new_points1d, use.names = F): object 'new_points1d' not found
 points(plot1d$x, rep(min(plot1d[,-1])-0.5, length(plot1d$x)), col = col.pal, pch = 16)
 legend('bottomleft', inset = c(0.05, 0.1), legend = c("Function value", "Emulated value", "Uncertainty Bounds"),
        col = c('black', 'blue', 'red'), lty = c(1,1,2))
@@ -239,12 +239,10 @@ The second wave is very similar to the first, so little needs to be explained.
 
 ```r
 new_data1d <- data.frame(x = unlist(new_points1d, use.names = F), f = func(unlist(new_points1d, use.names = F)))
+#> Error in unlist(new_points1d, use.names = F): object 'new_points1d' not found
 
 em1d_2 <- emulator_from_data(new_data1d, c('f'), ranges1d)
-#> Fitting regression surfaces...
-#> Building correlation structures...
-#> Creating emulators...
-#> Performing Bayes linear adjustment...
+#> Error in nrow(input_data): object 'new_data1d' not found
 
 plot1d_2 <- data.frame(
   x = plot1d$x, f = plot1d$f,
@@ -252,40 +250,51 @@ plot1d_2 <- data.frame(
   min = em1d_2$f$get_exp(test1d) - 3*sqrt(abs(em1d_2$f$get_cov(test1d))),
   max = em1d_2$f$get_exp(test1d) + 3*sqrt(abs(em1d_2$f$get_cov(test1d)))
 )
+#> Error in data.frame(x = plot1d$x, f = plot1d$f, E = em1d_2$f$get_exp(test1d), : object 'em1d_2' not found
 plot(data = plot1d_2, f ~ x, ylim = c(min(plot1d_2[,-1]), max(plot1d_2[,-1])),
      type = 'l', main = "Emulator of a Simple 1-dimensional Function: Wave 2", xlab = "Parameter value", ylab = "Function value")
+#> Error in eval(m$data, eframe): object 'plot1d_2' not found
 lines(data = plot1d_2, E ~ x, col = 'blue')
+#> Error in eval(m$data, eframe): object 'plot1d_2' not found
 lines(data = plot1d_2, max ~ x, col = 'red', lty = 2)
+#> Error in eval(m$data, eframe): object 'plot1d_2' not found
 lines(data = plot1d_2, min ~ x, col = 'red', lty = 2)
+#> Error in eval(m$data, eframe): object 'plot1d_2' not found
 points(data = new_data1d, f ~ x, pch = 16, cex = 1)
+#> Error in eval(m$data, eframe): object 'new_data1d' not found
 legend('topleft', inset = c(0.05, 0.05), legend = c("Function value", "Emulated value", "Uncertainty Bounds"), col = c('black', 'blue', 'red'), lty = c(1,1,2))
+#> Error in (function (s, units = "user", cex = NULL, font = NULL, vfont = NULL, : plot.new has not been called yet
 ```
-
-![plot of chunk wave-2-1d](lowdim-wave-2-1d-1.png)
 
 This plot underlines the importance of using all waves of emulation. The first wave was trained over most of the space, and so gives a moderately confident estimate of the function on the interval $[0, 0.5]$. The second wave emulator is trained only on regions that are of interest at this point, and so is less confident than the first wave emulator in parts of parameter space. However, we still have the emulator from the first wave, which contains all the information of the previous training runs by design. In this wave of history matching, therefore, we use both the first- and second-wave emulator to propose points.
 
 
 ```r
 new_new_points1d <- generate_new_runs(c(em1d_2, em1d), 10, z = target1d, method = 'lhs')
-#> Proposing from LHS...
-#> 29 initial valid points generated for I=3
-#> Selecting final points using maximin criterion...
+#> Error in "Emulator" %in% class(emulators): object 'em1d_2' not found
 
 plot(data = plot1d_2, f ~ x, ylim = c(min(plot1d_2[,-1]), max(plot1d_2[,-1])),
      type = 'l', main = "Emulator of a Simple 1-dimensional Function: Wave 2", xlab = "Parameter value", ylab = "Function value")
+#> Error in eval(m$data, eframe): object 'plot1d_2' not found
 lines(data = plot1d_2, E ~ x, col = 'blue')
+#> Error in eval(m$data, eframe): object 'plot1d_2' not found
 lines(data = plot1d_2, max ~ x, col = 'red', lty = 2)
+#> Error in eval(m$data, eframe): object 'plot1d_2' not found
 lines(data = plot1d_2, min ~ x, col = 'red', lty = 2)
+#> Error in eval(m$data, eframe): object 'plot1d_2' not found
 points(data = new_data1d, f ~ x, pch = 16, cex = 1)
+#> Error in eval(m$data, eframe): object 'new_data1d' not found
 legend('topleft', inset = c(0.05, 0.05), legend = c("Function value", "Emulated value (wave 2)", "Uncertainty Bounds"), col = c('black', 'blue', 'red'), lty = c(1,1,2))
+#> Error in (function (s, units = "user", cex = NULL, font = NULL, vfont = NULL, : plot.new has not been called yet
 abline(h = target1d$f$val, lty = 2)
+#> Error in int_abline(a = a, b = b, h = h, v = v, untf = untf, ...): plot.new has not been called yet
 abline(h = target1d$f$val + 3*target1d$f$sigma, lty = 2)
+#> Error in int_abline(a = a, b = b, h = h, v = v, untf = untf, ...): plot.new has not been called yet
 abline(h = target1d$f$val - 3*target1d$f$sigma, lty = 2)
+#> Error in int_abline(a = a, b = b, h = h, v = v, untf = untf, ...): plot.new has not been called yet
 points(x = unlist(new_new_points1d, use.names = F), y = func(unlist(new_new_points1d, use.names = F)), pch = 16, col = 'blue')
+#> Error in unlist(new_new_points1d, use.names = F): object 'new_new_points1d' not found
 ```
-
-![plot of chunk gen-1d-points-2](lowdim-gen-1d-points-2-1.png)
 
 We can see that the proposed points are much better overall than the first wave points. Because the second-wave emulator has much greater certainty in the region $[0.5, 0.6]$, it is far better at determining suitability of points in that region. From the plot, it looks like there should be points proposed from the central regions where the wave-two emulator is uncertain, but the fact that we are also using the first-wave emulator as a metric for point proposal means that these points are ruled out anyway.
 
@@ -342,14 +351,14 @@ ems2d
 #> Specifications: 
 #> 	 Basis functions:  (Intercept); x; y; I(x^2); I(y^2) 
 #> 	 Active variables x; y 
-#> 	 Regression Surface Expectation:  1.6691; 2.3664; -1.0949; 1.0637; -0.5503 
+#> 	 Regression Surface Expectation:  1.6662; 2.2919; -1.2793; 1.0627; -0.5933 
 #> 	 Regression surface Variance (eigenvalues):  0; 0; 0; 0; 0 
 #> Correlation Structure: 
 #> Bayes-adjusted emulator - prior specifications listed. 
-#> 	 Variance (Representative):  0.09576228 
+#> 	 Variance (Representative):  0.1180152 
 #> 	 Expectation:  0 
 #> 	 Correlation type: exp_sq 
-#> 	 Hyperparameters:  theta: 0.5402 
+#> 	 Hyperparameters:  theta: 0.6092 
 #> 	 Nugget term: 0 
 #> Mixed covariance:  0 0 0 0 0 
 #> 
@@ -358,14 +367,14 @@ ems2d
 #> Specifications: 
 #> 	 Basis functions:  (Intercept); x; y; I(x^2); I(y^2); x:y 
 #> 	 Active variables x; y 
-#> 	 Regression Surface Expectation:  -3.3511; -0.1242; 0.0779; 1.0988; 1.0975; 0.8124 
+#> 	 Regression Surface Expectation:  -3.3327; -0.0339; -0.0168; 0.7681; 1.4086; 1.3461 
 #> 	 Regression surface Variance (eigenvalues):  0; 0; 0; 0; 0; 0 
 #> Correlation Structure: 
 #> Bayes-adjusted emulator - prior specifications listed. 
-#> 	 Variance (Representative):  0.1383129 
+#> 	 Variance (Representative):  0.09065997 
 #> 	 Expectation:  0 
 #> 	 Correlation type: exp_sq 
-#> 	 Hyperparameters:  theta: 0.5172 
+#> 	 Hyperparameters:  theta: 0.532 
 #> 	 Nugget term: 0 
 #> Mixed covariance:  0 0 0 0 0 0
 ```
@@ -467,7 +476,7 @@ We can now generate new points for a second wave of emulation. We again make a s
 ```r
 new_points2d <- generate_new_runs(ems2d, 40, targets2d, resample = 0)
 #> Proposing from LHS...
-#> 111 initial valid points generated for I=3
+#> LHS has high yield - no other methods required.
 #> Selecting final points using maximin criterion...
 new_data2d <- data.frame(x = new_points2d$x, y = new_points2d$y,
                          f1 = apply(new_points2d, 1, func1), f2 = apply(new_points2d, 1, func2))
@@ -501,14 +510,14 @@ ems2d_2
 #> Specifications: 
 #> 	 Basis functions:  (Intercept); x; y; I(x^2); I(y^2) 
 #> 	 Active variables x; y 
-#> 	 Regression Surface Expectation:  0.8263; 1.2372; -1.2427; 1.4067; -0.7827 
+#> 	 Regression Surface Expectation:  0.845; 1.2474; -1.2732; 1.3337; -0.8123 
 #> 	 Regression surface Variance (eigenvalues):  0; 0; 0; 0; 0 
 #> Correlation Structure: 
 #> Bayes-adjusted emulator - prior specifications listed. 
-#> 	 Variance (Representative):  0.003089494 
+#> 	 Variance (Representative):  0.05717792 
 #> 	 Expectation:  0 
 #> 	 Correlation type: exp_sq 
-#> 	 Hyperparameters:  theta: 0.6322 
+#> 	 Hyperparameters:  theta: 1 
 #> 	 Nugget term: 0 
 #> Mixed covariance:  0 0 0 0 0 
 #> 
@@ -517,11 +526,11 @@ ems2d_2
 #> Specifications: 
 #> 	 Basis functions:  (Intercept) 
 #> 	 Active variables x; y 
-#> 	 Regression Surface Expectation:  -2.8959 
+#> 	 Regression Surface Expectation:  -2.9536 
 #> 	 Regression surface Variance (eigenvalues):  0 
 #> Correlation Structure: 
 #> Bayes-adjusted emulator - prior specifications listed. 
-#> 	 Variance (Representative):  0.04032869 
+#> 	 Variance (Representative):  0.03691688 
 #> 	 Expectation:  0 
 #> 	 Correlation type: exp_sq 
 #> 	 Hyperparameters:  theta: 1 
@@ -560,7 +569,7 @@ Finally, we propose points from a combination of this wave and the previous wave
 ```r
 new_new_points2d <- generate_new_runs(c(ems2d_2, ems2d), 40, targets2d, resample = 0)
 #> Proposing from LHS...
-#> 157 initial valid points generated for I=3
+#> LHS has high yield - no other methods required.
 #> Selecting final points using maximin criterion...
 plot_wrap(new_new_points2d, ranges2d)
 ```
@@ -608,7 +617,7 @@ We can see that, as the colour gets darker (representing later waves), the propo
 
 ```r
 c(ems2d_2$f1$u_sigma, ems2d_2$f2$u_sigma)
-#> [1] 0.0778165 0.2008200
+#> [1] 0.3347667 0.1921376
 c(targets2d$f1$sigma, targets2d$f2$sigma)
 #> [1] 0.31622777 0.07071068
 ```

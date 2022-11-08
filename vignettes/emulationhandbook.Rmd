@@ -1,7 +1,7 @@
 ---
 title: "Emulation and History Matching Handbook"
 author: "Andy Iskauskas"
-date: "2022-07-06"
+date: "2022-11-08"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Emulation and History Matching Handbook}
@@ -76,30 +76,27 @@ invalid <- validation_diagnostics(bad_emulators, SIREmulators$targets, bad_valid
 ```r
 try_generate <- generate_new_runs(bad_emulators, 100, SIREmulators$targets, verbose = TRUE)
 #> Proposing from LHS...
-#> 15 initial valid points generated for I=8.86
+#> 15 initial valid points generated for I=5.324
 #> Performing line sampling...
 #> Line sampling generated 40 more points.
 #> Performing importance sampling...
-#> Importance sampling generated 110 more points.
-#> 14 initial valid points generated for I=4.676
+#> Importance sampling generated 72 more points.
+#> 14 initial valid points generated for I=3.478
 #> Performing line sampling...
 #> Line sampling generated 40 more points.
 #> Performing importance sampling...
-#> Importance sampling generated 105 more points.
-#> Point proposal seems to be asymptoting around implausibility 3.649 - terminating.
-#> Target nS consistently underestimated.
-#> Target nI consistently underestimated.
-```
-
-![plot of chunk bad_design_generation](handbook-bad_design_generation-1.png)
-
-```
-#> Inspect implausibility boxplot for problematic outputs, and consider transforming them or removing them from this wave.
+#> Importance sampling generated 73 more points.
+#> 54 initial valid points generated for I=3
+#> Performing line sampling...
+#> Line sampling generated 40 more points.
+#> Performing importance sampling...
+#> Importance sampling generated 8 more points.
+#> Selecting final points using maximin criterion...
 #> Resample 1 
 #> Performing line sampling...
 #> Line sampling generated 40 more points.
 #> Performing importance sampling...
-#> Importance sampling generated 84 more points.
+#> Importance sampling generated 19 more points.
 #> Selecting final points using maximin criterion...
 ```
 
@@ -153,8 +150,8 @@ problem_ems <- emulator_from_data(problem_data$data, names(problem_data$targets)
 #> Some outputs may not be adequately emulated, due to consistent over/underestimation in training data.
 #> Consider looking at the outputs (using, eg, behaviour_plot); some outputs may require extra runs and/or transformation.
 #> Warning in emulator_from_data(problem_data$data, names(problem_data$targets), : Fewer than 210 non-
-#> NA points in 21 dimensions - treat the emulated outputs with caution, or include more training
-#> points (minimum 10 times the number of input parameters).
+#> NA points in 21 dimensions - treat the emulated outputs with caution, or include more training points
+#> (minimum 10 times the number of input parameters).
 #> Fitting regression surfaces...
 #> Building correlation structures...
 #> Creating emulators...
@@ -235,9 +232,9 @@ plot(problem_ems[[7]], plot_type = 'imp', params = c('input9', 'input15'), fixed
 
 ```r
 new_emulator <- emulator_from_data(logit_data_first, c('output7'), problem_data$ranges)
-#> Warning in emulator_from_data(logit_data_first, c("output7"), problem_data$ranges): Fewer than 210
-#> non-NA points in 21 dimensions - treat the emulated outputs with caution, or include more training
-#> points (minimum 10 times the number of input parameters).
+#> Warning in emulator_from_data(logit_data_first, c("output7"), problem_data$ranges): Fewer than 210 non-
+#> NA points in 21 dimensions - treat the emulated outputs with caution, or include more training points
+#> (minimum 10 times the number of input parameters).
 #> Fitting regression surfaces...
 #> Building correlation structures...
 #> Creating emulators...

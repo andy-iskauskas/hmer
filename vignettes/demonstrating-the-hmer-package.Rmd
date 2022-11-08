@@ -1,7 +1,7 @@
 ---
 title: "Demonstrating the hmer Package"
 author: "Andrew Iskauskas"
-date: "2022-07-06"
+date: "2022-11-08"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Demonstrating the hmer Package}
@@ -171,11 +171,11 @@ While these plots represent slices of parameter space, other functionality allow
 
 ```r
 plot_lattice(wave1_emulators, targets)
-#> `geom_smooth()` using method = 'loess' and formula 'y ~ x'
-#> Warning: Removed 27 rows containing missing values (geom_smooth).
-#> `geom_smooth()` using method = 'loess' and formula 'y ~ x'
-#> Warning: Removed 25 rows containing missing values (geom_smooth).
-#> `geom_smooth()` using method = 'loess' and formula 'y ~ x'
+#> `geom_smooth()` using method = 'loess' and formula = 'y ~ x'
+#> Warning: Removed 27 rows containing missing values (`geom_smooth()`).
+#> `geom_smooth()` using method = 'loess' and formula = 'y ~ x'
+#> Warning: Removed 25 rows containing missing values (`geom_smooth()`).
+#> `geom_smooth()` using method = 'loess' and formula = 'y ~ x'
 ```
 
 ![plot of chunk lattice-plot](demo-lattice-plot-1.png)
@@ -199,20 +199,8 @@ Eventually, the aim of history matching is to propose new points which can enter
 ```r
 new_points <- generate_new_runs(wave1_emulators, 90, targets)
 #> Proposing from LHS...
-#> 15 initial valid points generated for I=3.806
-#> Performing line sampling...
-#> Line sampling generated 38 more points.
-#> Performing importance sampling...
-#> Importance sampling generated 42 more points.
-#> 70 initial valid points generated for I=3
-#> Performing line sampling...
-#> Line sampling generated 40 more points.
-#> Selecting final points using maximin criterion...
-#> Resample 1 
-#> Performing line sampling...
-#> Line sampling generated 39 more points.
-#> Performing importance sampling...
-#> Importance sampling generated 8 more points.
+#> LHS has high yield - no other methods required.
+#> Proposing from LHS...
 #> Selecting final points using maximin criterion...
 plot(rbind(rbind(SIRSample$training, SIRSample$validation)[,names(input_ranges)], new_points), pch = 16, cex = 0.8, col = rep(c('black', 'blue'), each = 90))
 ```
