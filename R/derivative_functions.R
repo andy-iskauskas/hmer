@@ -104,9 +104,11 @@ directional_deriv <- function(em, x, v, sd = NULL, ...) {
 #'  ems <- SIRMultiWaveEmulators[[3]]
 #'  targs <- SIREmulators$targets
 #'  # Using expected error as measure
-#'  new_point1 <- directional_proposal(ems, start_point, targs)
+#'  new_point1 <- directional_proposal(ems, start_point, targs, iteration.steps = 50,
+#'   nv = 100)
 #'  # Using implausibility as measure
-#'  new_point2 <- directional_proposal(ems, start_point, targs, iteration.measure = 'imp')
+#'  new_point2 <- directional_proposal(ems, start_point, targs, iteration.measure = 'imp',
+#'   iteration.steps = 50, nv = 100)
 #'  all_points <- do.call('rbind.data.frame', list(start_point, new_point1, new_point2))
 #'  nth_implausible(ems, all_points, targs)
 #'
