@@ -207,7 +207,7 @@ space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1
   title <- switch(modified, 'obs' = "observational error", 'disc' = 'structural discrepancy', 'var' = 'variance inflation', 'hp' = 'hyperparameter inflation')
   subtitle <- switch(modified, 'obs' = "% Observational\nError", 'disc' = '% Structural\nDiscrepancy', 'var' = '% Variance', 'hp' = '% Hyperparameter')
   g <- ggplot(data = df_pivot, aes(x = cutoff, y = value, group = name, colour = name)) +
-    geom_line(lwd = 1.5) +
+    geom_line(linewidth = 1.5) +
     viridis::scale_color_viridis(discrete = TRUE, option = 'cividis', labels = function(b) {paste0(round(as.numeric(b)*100, 0), "%")}) +
     scale_x_continuous("Implausibility cut-off", labels = function(b) round(b, 1)) +
     scale_y_continuous("Removed", labels = function(b) paste0(round(b*100, 0), "%")) +
@@ -391,7 +391,7 @@ effect_strength <- function(ems, plt = interactive(), line.plot = FALSE,
       if (line.plot) {
         g <- ggplot(data = lin.mat,
                     aes(x = Var2, y = value, group = Var1, colour = Var1)) +
-            geom_line(lwd = 1.2) +
+            geom_line(linewidth = 1.2) +
             viridis::scale_color_viridis(discrete = TRUE, name = "Output") +
             theme_bw() +
             labs(title = "Linear Effect Strength",
@@ -402,7 +402,7 @@ effect_strength <- function(ems, plt = interactive(), line.plot = FALSE,
         if(quadratic) {
           g <- ggplot(data = quad.mat,
                       aes(x = Var2, y = value, group = Var1, colour = Var1)) +
-            geom_line(lwd = 1.2) +
+            geom_line(linewidth = 1.2) +
             viridis::scale_color_viridis(discrete = TRUE, name = "Output") +
             theme_bw() +
             labs(title = "Quadratic Effect Strength",
@@ -441,7 +441,7 @@ effect_strength <- function(ems, plt = interactive(), line.plot = FALSE,
       if (line.plot) {
         g <- ggplot(data = lin.mat,
                     aes(x = Var1, y = value, group = Var2, colour = Var2)) +
-          geom_line(lwd = 1.2) +
+          geom_line(linewidth = 1.2) +
           viridis::scale_color_viridis(discrete = TRUE, name = "Parameter") +
           theme_bw() +
           labs(title = "Linear Effect Strength", x = "Output", y = "Strength") +
@@ -451,7 +451,7 @@ effect_strength <- function(ems, plt = interactive(), line.plot = FALSE,
         if(quadratic) {
           g <- ggplot(data = quad.mat,
                       aes(x = Var1, y = value, group = Var2, colour = Var2)) +
-            geom_line(lwd = 1.2) +
+            geom_line(linewidth = 1.2) +
             viridis::scale_color_viridis(discrete = TRUE, name = "Parameter") +
             theme_bw() +
             labs(title = "Quadratic Effect Strength",

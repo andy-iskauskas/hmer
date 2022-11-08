@@ -461,10 +461,10 @@ output_plot <- function(ems, targets, points = NULL, npoints = 1000) {
   name <- value <- run <- mn <- md <- mx <- label <- NULL
   em_exp$name <- factor(em_exp$name, levels = names(targets))
   ggplot(data = em_exp, aes(x = name, y = value)) +
-    geom_line(colour = 'purple', aes(group = run), lwd = 1) +
+    geom_line(colour = 'purple', aes(group = run), linewidth = 1) +
     geom_point(data = target_data, aes(x = label, y = md), size = 2) +
     geom_errorbar(data = target_data, aes(x = label, y = md, ymin = mn,
-                                          ymax = mx), width = .1, size = 1.25) +
+                                          ymax = mx), width = .1, linewidth = 1.25) +
     labs(title = "Emulator Runs versus Observations")
 }
 

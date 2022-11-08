@@ -256,7 +256,7 @@ wave_values <- function(waves, targets, output_names = names(targets),
                        xmax = targets[[xname]][2],
                        ymin = targets[[yname]][1],
                        ymax = targets[[yname]][2],
-                       colour = 'red', fill = NA, lwd = l_wid)
+                       colour = 'red', fill = NA, linewidth = l_wid)
     if (zoom) {
       xrange <- upper_scale*(targets[[xname]][2]-targets[[xname]][1])/2
       yrange <- upper_scale*(targets[[yname]][2]-targets[[yname]][1])/2
@@ -288,7 +288,7 @@ wave_values <- function(waves, targets, output_names = names(targets),
                        xmax = targets[[xname]][2],
                        ymin = targets[[yname]][1],
                        ymax = targets[[yname]][2],
-                       colour = 'red', fill = NA, lwd = l_wid)
+                       colour = 'red', fill = NA, linewidth = l_wid)
     if (zoom) {
       xrange <- upper_scale*(targets[[xname]][2]-targets[[xname]][1])/2
       yrange <- upper_scale*(targets[[yname]][2]-targets[[yname]][1])/2
@@ -306,7 +306,7 @@ wave_values <- function(waves, targets, output_names = names(targets),
   dfun <- function(data, mapping, targets) {
     xname <- rlang::as_string(rlang::quo_get_expr(mapping$x))
     g <- ggally_densityDiag(data = data, mapping = mapping, alpha = 0.4) +
-      geom_vline(xintercept = targets[[xname]], colour = 'red', lwd = l_wid) +
+      geom_vline(xintercept = targets[[xname]], colour = 'red', linewidth = l_wid) +
       scale_fill_manual(values = pal) +
       theme_bw()
     return(g)
@@ -417,7 +417,7 @@ wave_dependencies <- function(waves, targets, output_names = names(targets),
             scale_colour_manual(values = pal) +
             xlim(range(total_data[,input_names[j]])) +
             ylim(y_limit) +
-            geom_hline(yintercept = line_limits, colour = 'red', lwd = l_wid) +
+            geom_hline(yintercept = line_limits, colour = 'red', linewidth = l_wid) +
             theme_bw() +
             theme(axis.ticks = element_blank())
           if (normalize) {
@@ -519,7 +519,7 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL,
     geom_point(data = obs, aes(x = name, y = (min+max)/2)) +
     geom_errorbar(data = obs,
                   aes(y = (min+max)/2, ymax = max, ymin = min),
-                  width = 0.1, size = 1.25, colour = barcol) +
+                  width = 0.1, linewidth = 1.25, colour = barcol) +
     labs(title = paste0("Simulator evaluations at wave points",
                         (if (normalize) ": normalised" else (
                           if (logscale) ": log-scale" else "")))) +
