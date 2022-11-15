@@ -10,137 +10,156 @@ generate_new_runs(
   z,
   method = "default",
   cutoff = 3,
-  nth = NULL,
   plausible_set,
   verbose = interactive(),
-  cluster = FALSE,
-  resample = 1,
-  seek = 0,
-  c_tol = 0.5,
-  i_tol = 0.01,
-  to_file = NULL,
-  imp_func = function(ems, x, z, ...) nth_implausible(ems, x, z, ...),
+  opts = NULL,
   ...
 )
 }
 \arguments{
-\item{ems}{A list of \code{\link{Emulator}} objects, trained on previous design points.}
+\item{ems}{A list of \code{\link{Emulator}} objects, trained
+on previous design points.}
 
-\item{n_points}{The desired number of points to propose for the next wave.}
+\item{n_points}{The desired number of points to propose.}
 
 \item{z}{The targets to match to.}
 
-\item{method}{The method(s) to use.}
+\item{method}{Which methods to use.}
 
-\item{cutoff}{The implausibility cutoff(s) to compare outputs to.}
+\item{cutoff}{The value of the cutoff to use to assess suitability.}
 
-\item{nth}{A parameter to be passed to the \code{n} argument of \code{\link{nth_implausible}}.}
-
-\item{plausible_set}{An optional set of known non-implausible points (for eg line sampling).}
+\item{plausible_set}{An optional set of known non-implausible points, to avoid LHD sampling.}
 
 \item{verbose}{Should progress statements be printed to the console?}
 
-\item{cluster}{Should emulator clustering be considered in the LHS generation?}
+\item{opts}{A named list of opts as described.}
 
-\item{resample}{Number of times to resample using line and/or importance sampling.}
-
-\item{seek}{How many `good' points to search for}
-
-\item{c_tol}{The tolerance with which to determine that best implausibility has been reached.}
-
-\item{i_tol}{The tolerance on final desired implausibility}
-
-\item{to_file}{The filename to write to sequentially during proposal. Default is NULL (no writing)}
-
-\item{imp_func}{The implausibility measure to use to determine point acceptance.}
-
-\item{...}{Any parameters to pass to individual sampling functions, eg \code{distro} for importance sampling.}
+\item{...}{Any parameters to pass via chaining to individual sampling functions (eg \code{distro}
+for importance sampling).}
 }
 \value{
-A data.frame containing the set of new points to run the model at.
+A data.frame containing the set of new points upon which to run the model.
 }
 \description{
 Given a set of trained emulators, this finds the next set of points that will be
-informative for a subsequent wave of emulation.
+informative for a subsequent wave of emulation or, in the event that the
+current wave is the last desired, a set of points that optimally span the
+parameter region of interest. There are a number of different methods that can
+be utilised, alone or in combination with one another, to generate the points.
 }
 \details{
-If the method is \code{'lhs'}, a Latin hypercube is generated and non-implausible
-points from this design are retained. If enough points are accepted, the points
-outputted are chosen using either a maximin or V-optimality criteria (chosen by
-\code{measure.method}).
+If the \code{method} argument contains \code{'lhs'}, a Latin hypercube is generated and
+non-implausible points from this design are retained. If more points are accepted
+than the next design requires, then points are subselected using a maximin argument.
 
-The methods \code{'line'} and \code{'importance'} both require a predetermined set
-of non-implausible points \code{s_points}; if they are not provided then lhs sampling
-is performed first.
+If \code{method} contains \code{'line'}, then line sampling is performed. Given an
+already established collection of non-implausible points, rays are drawn between
+pairs of points (selected so as to maximise the distance between them) and more
+points are sampled along the rays. Points thus sampled are retained if they lie
+near a boundary of the non-implausible space, or on the boundary of the parameter
+region of interest.
 
-The method \code{'line'} performs line sampling for boundary detection. Given a set of
-non-implausible points, rays are drawn between pairs of points (selected so as to
-maximise the distance between them), and more points are sampled along these lines.
-Points are kept if they lie near a boundary of the non-implausible space.
+If \code{method} contains \code{'importance'}, importance sampling is performed.
+Given a collection of non-implausible points, a mixture distribution of either
+multivariate normal or uniform ellipsoid proposals around the current non-implausible
+set are constructed. The optimal standard deviation (in the normal case) or radius
+(in the ellipsoid case) is determined using a burn-in phase, and points are
+proposed until the desired number of points have been found.
 
-The method \code{'importance'} performs importance sampling, using a mixture distribution
-of multivariate normal or uniform spherical proposals around the current non-implausible
-points (determined by \code{distro}). The optimal standard deviation or radius is found
-using a burn-in phase, before the full set of points is generated.
+If \code{method} contains \code{'slice'}, then slice sampling is performed. Given
+a single known non-implausible point, a minimum enclosing hyperrectangle (perhaps
+after transforming the space) is determined and points are sampled for each dimension
+of the parameter space uniformly, shrinking the minimum enclosing hyperrectangle as
+appropriate. This method is akin to to a Gibbs sampler.
 
-The method \code{'slice'} performs slice sampling. Given one known non-implausible
-point, it attempts to find a minimum enclosing hyperrectangle for the non-implausible
-region around this point and samples uniformly from this, shrinking the hyperrectangle
-as appropriate. This method is also called if LH sampling has only generated one point
-(since any later methods require at least two points to be useful).
+If \code{method} contains \code{'optical'}, then optical depth sampling is used.
+Given a set of non-implausible points, an approximation of the one-dimensional
+marginal distributions for each parameter can be determined. From these derived
+marginals, points are sampled and subject to rejection as in the LHD sampling.
 
-The method \code{'optical'} uses optical depth sampling: given a set of known
-non-implausible points, the an approximation of the one-dimensional marginal distributions
-in each parameter direction can be determined. From these derived marginals, points are
-sampled.
+For any sampling strategy, the parameters \code{ems}, \code{n_points}, and \code{z}
+must be provided. All methods rely on a means of assessing point suitability, which
+we refer to as an implausibility measure. By default, this uses nth-maximum implausibility
+as provided by \code{\link{nth_implausible}}; a user-defined method can be provided
+instead by supplying the function call to \code{opts[["accept_measure"]]}. Any
+such function must take at least five arguments: the emulators, the points, the
+targets, and a cutoff, as well as a \code{...} argument to ensure compatibility with
+the default behaviour of the point proposal method.
 
-For any sampling strategy, the parameters \code{ems} and \code{z} must be provided.
-All of these methods depend on a means of assessing point suitability (henceforth
-referred to as 'implausibility'). By default, this is uses nth-maximum implausibility
-as provided by \code{\link{nth_implausible}}: a user-defined method can be substituted
-for this by supplying the function call to \code{imp_func}. As a minimum, the function
-should take four arguments: the emulators, the points, and the targets, and a \code{...}
-argument to allow compatibility with the standard behaviour.
+The option \code{opts[["seek"]]} determines how many points should be chosen that
+have a higher probability of matching targets, as opposed to not missing targets. Due
+to the danger of such an approach if a representative space-filling design over the
+space, this value should not be too high and should be used sparingly at early waves;
+even at later waves, it is inadvisable to seek more than 10\% of the output points
+using this metric. The default is \code{seek = 0}, and can be provided as either
+a percentage of points desired (in the range [0,1]) or the fixed number of points.
 
-The option \code{seek} determines how many points should be chosen that have a higher
-probability of matching targets, as opposed to not missing targets. Due to the danger of
-such an approach in terms of obtaining a representative space-filling design over the
-space, this value should not be too high: a rough guide is that it should be no larger
-than 10\% of the desired number of points. The default is \code{seek = 0}. If \code{seek}
-is in the range [0, 1], it is assumed to represent a proportion of the total number of
-points that should be sought using this method; otherwise, it is assumed to be the number
-of points that are desired.
+The default behaviour is as follows. A set of initial points are generated from a
+large LHD; line sampling is performed to find the boundaries of the space; then importance
+sampling is used to fill out the space. The proposed set of points are thinned and
+both line and importance sampling are applied again; this resampling behaviour is
+controlled by \code{opts[["resample"]]}, where \code{resample = n} indicates that
+the proposal will be thinned and resampled from \code{n} times (resulting in \code{n+1}
+proposal stages).
 
-The default behaviour is as follows. A set of initial points are generated from an LHD;
-line sampling is performed to find the boundaries; and finally this collection of points
-is augmented to the desired number of points by importance sampling using uniform
-spherical proposals.
+In regions where the non-implausible space at a given cutoff value is very hard to find,
+the point proposal will start at a higher cutoff where it can find a space-filling design.
+Given such a design at a higher cutoff, it can subselect to a lower cutoff by demanding
+some percentage of the proposed points are retained and repeat. This approach terminates
+if the 'ladder' of cutoffs reaches the desired cutoff, or if the process asymptotes at
+a particular higher cutoff. The opts \code{ladder_tolerance} and \code{cutoff_tolerance}
+determine the minimum improvement required in consecutive cutoffs for the process to not
+be considered to be asymptoting and the level of closeness to the desired cutoff at whihc
+we are prepared to stop, respectively. For instance, setting \code{ladder_tolerance} to
+0.1 and \code{cutoff_tolerance} to 0.01, with a cutoff of 3, will terminate the process
+if two consecutive cutoffs proposed are within 0.1 of each other, or when the points proposed
+all have implausibility less than the 3.01.
 
-In regions where the non-implausible space (at the given cutoff) is very hard to find,
-the function will start at a higher implausibility where it can find a space-filling
-design; using this as a starting point any other methods are performed. From this new
-proposal, a subset of lower-implausibility points are selected. This process iterates
-until either the desired implausibility has been reached or the process has reached a
-barrier to further reductions in implausibility. The argument \code{c_tol} is used to
-determine if the improvement in implausibility is small enough to justify stopping the
-process; by default this is 0.1. The process will also stop if it has produced points
-`close to' the desired implausibility: the level of closeness is defined using the
-\code{i_tol} argument.
-
-These methods may not work, or may work slowly, if the target space is very small
-compared to the current not-yet-ruled-out space, or it may miss small disconnected
-regions of parameter space.
+These methods may work slowly, or not at all, if the target space is extremely small in
+comparison with the initial non-yet-ruled-out (NROY) space; it may also fail to give a
+representative sample if the target space is formed of disconnected regions of different
+volumes.
 }
+\section{Arguments within \code{opts}}{
+
+ \describe{
+ \item{accept_measure}{A custom implausibility measure to be used.}
+ \item{cluster}{Whether to try to apply emulator clustering.}
+ \item{cutoff_tolerance}{Tolerance for an obtained cutoff to be similar enough to that desired.}
+ \item{ladder_tolerance}{Tolerance with which to determine if the process is asymptoting.}
+ \item{nth}{The level of nth implausibility to apply, if using the default implausibility.}
+ \item{resample}{How many times to perform the resampling step once points are found.}
+ \item{seek}{How many 'good' points should be sought: either as an integer or a ratio.}
+ \item{to_file}{If output is to be written to file periodically, the file location.}
+ \item{points.factor (LHS, Cluster LHS)}{How many more points than desired to sample.}
+ \item{pca_lhs (LHS)}{Whether to apply PCA to the space before proposing.}
+ \item{n_lines (Line)}{How many lines to draw.}
+ \item{ppl (Line)}{The number of points to sample per line.}
+ \item{distro (Importance)}{The distribution to propose around points.}
+ \item{sd (Importance)}{The radius, or standard deviation, of proposed distributions.}
+ \item{pca_slice (Slice)}{Whether to apply PCA to the space before slice sampling.}
+ \item{seek_distro (Seek)}{The distribution to apply when looking for 'good' points.}
+ }
+}
+
 \examples{
-\donttest{
- # A simple example that uses a number of the native and ... parameter options
- pts <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
- measure.method = 'maximin', distro = 'sphere', resample = 0)
- pts_optical <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
-  method = c('optical'))
- pts_slice <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
-  method = c('slice'))
- pts_no_importance <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
-  method = c('line'))
-}
+ \donttest{
+  # A simple example that uses  number of the native and ... parameter opts.
+  pts <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
+  distro = 'sphere', opts = list(resample = 0))
+  # Non-default methods
+  pts_slice <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
+  method = 'slice')
+  ## Example using custom measure functionality
+  custom_measure <- function(ems, x, z, cutoff, ...) {
+  imps_df <- nth_implausible(ems, x, z, get_raw = TRUE)
+  sorted_imps <- t(apply(imps_df, 1, sort, decreasing = TRUE))
+  imps1 <- sorted_imps[,1] <= cutoff
+  imps2 <- sorted_imps[,2] <= cutoff - 0.5
+  constraint <- apply(x, 1, function(y) y[[1]] <= 0.4)
+  return(imps1 & imps2 & constraint)
+  }
+  pts_custom <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
+  opts = list(accept_measure = custom_measure))
+ }
 }

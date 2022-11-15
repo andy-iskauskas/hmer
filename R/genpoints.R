@@ -11,192 +11,267 @@ runifs <- function(n, d, c = rep(0, d), r = 1) {
 punifs <- function(x, c = rep(0, length(x)), r = 1) {
   return(ifelse(sum((x-c)^2 / r^2) <= 1, 1, 0))
 }
+# Helper function to obtain the most 'recent' emulators for each output.
+obtain_recent <- function(ems, dup = FALSE, showReduce = TRUE) {
+  if (!is.null(ems$expectation)) {
+    em_indices <- duplicated(purrr::map_chr(ems$expectation, "output_name"))
+    if (!dup) em_indices <- !em_indices
+    ems <- list(
+      expectation = ems$expectation[em_indices],
+      variance = ems$variance[em_indices]
+    )
+  }
+  else if (!is.null(ems$mode1)) {
+    em_indices <- duplicated(purrr::map_chr(ems$mode1$expectation, "output_name"))
+    if (!dup) em_indices <- !em_indices
+    ems <- list(
+      mode1 = list(
+        expectation = ems$mode1$expectation[em_indices],
+        variance = ems$mode1$variance[em_indices]
+      ),
+      mode2 = list(
+        expectation = ems$mode2$expectation[em_indices],
+        variance = ems$mode2$variance[em_indices]
+      ),
+      prop = ems$prop[[1]]
+    )
+  }
+  else {
+    em_indices <- duplicated(purrr::map_chr(ems, "output_name"))
+    if (!dup) em_indices <- !em_indices
+    ems <- ems[em_indices]
+  }
+  if (showReduce) return(list(ems = ems, reduced = any(em_indices == FALSE)))
+  return(ems)
+}
+## Function for pca transformation based on a sample of points
 pca_transform <- function(x, s_points, forward = TRUE) {
   if ("data.frame" %in% class(s_points)) s_points <- data.matrix(s_points)
   if ("data.frame" %in% class(x)) x <- data.matrix(x)
   s_trafo <- sweep(
     sweep(
       s_points, 2,
-      apply(s_points, 2, mean), "-"), 2, apply(s_points, 2, sd), "/")
-
+      apply(s_points, 2, mean), "-"
+    ),
+    2, apply(s_points, 2, sd), "/"
+  )
   s_estruct <- eigen(cov(s_trafo))
-  s_estruct$values <- purrr::map_dbl(
-    s_estruct$values, function(x) {if(x < 1e-10) 1e-10 else x})
-  if (forward) x <- sweep(
-    sweep(
-      x, 2,
-      apply(s_points, 2, mean), "-"), 2, apply(s_points, 2, sd), "/")
-  if (forward) return (x %*% s_estruct$vectors %*% diag(1/sqrt(s_estruct$values)))
+  s_estruct$values <- purrr::map_dbl(s_estruct$values, ~ifelse(. < 1e-10, 1e-10, .))
+  if (forward) {
+    x <- sweep(
+      sweep(
+        x, 2, apply(s_points, 2, mean), "-"
+      ),
+      2, apply(s_points, 2, sd), "/"
+    )
+    return(x %*% s_estruct$vectors %*% diag(1/sqrt(s_estruct$values)))
+  }
   pre_traf <- x %*% diag(sqrt(s_estruct$values)) %*% t(s_estruct$vectors)
   return(sweep(sweep(pre_traf, 2, apply(s_points, 2, sd), "*"), 2, apply(s_points, 2, mean), "+"))
 }
+## Function to check points are in range
+in_range <- function(data, ranges) {
+  apply(data, 1, function(x)
+    all(purrr::map_lgl(seq_along(ranges),
+                       ~x[.] >= ranges[[.]][1] && x[.] <= ranges[[.]][2])))
+}
+## Function to obtain a maximin sample from a set of proposed points
 maximin_sample <- function(points, n, reps = 1000, nms) {
   c_measure <- op <- NULL
-  options <- purrr::map(1:reps, function(rep) {
+  opts <- purrr::map(1:reps, function(rep) {
     tp <- points[sample(nrow(points), n),]
     if (!"data.frame" %in% class(tp)) tp <- setNames(tp, nms)
     measure <- min(dist(tp))
     return(list(points = tp, value = measure))
   })
-  return(options[[which.max(purrr::map_dbl(options, "value"))]]$points)
-  for (i in 1:reps) {
-    tp <- points[sample(nrow(points), n),]
-    if (!"data.frame" %in% class(tp)) tp <- setNames(tp, nms)
-    measure <- min(dist(tp))
-    if (is.null(c_measure) || measure > c_measure) {
-      op <- tp
-      c_measure <- measure
-    }
-  }
-  return(op)
+  return(opts[[which.max(purrr::map_dbl(opts, "value"))]]$points)
 }
 
 #' Generate Proposal Points
 #'
 #' Given a set of trained emulators, this finds the next set of points that will be
-#' informative for a subsequent wave of emulation.
+#' informative for a subsequent wave of emulation or, in the event that the
+#' current wave is the last desired, a set of points that optimally span the
+#' parameter region of interest. There are a number of different methods that can
+#' be utilised, alone or in combination with one another, to generate the points.
 #'
-#' If the method is \code{'lhs'}, a Latin hypercube is generated and non-implausible
-#' points from this design are retained. If enough points are accepted, the points
-#' outputted are chosen using either a maximin or V-optimality criteria (chosen by
-#' \code{measure.method}).
+#' If the \code{method} argument contains \code{'lhs'}, a Latin hypercube is generated and
+#' non-implausible points from this design are retained. If more points are accepted
+#' than the next design requires, then points are subselected using a maximin argument.
 #'
-#' The methods \code{'line'} and \code{'importance'} both require a predetermined set
-#' of non-implausible points \code{s_points}; if they are not provided then lhs sampling
-#' is performed first.
+#' If \code{method} contains \code{'line'}, then line sampling is performed. Given an
+#' already established collection of non-implausible points, rays are drawn between
+#' pairs of points (selected so as to maximise the distance between them) and more
+#' points are sampled along the rays. Points thus sampled are retained if they lie
+#' near a boundary of the non-implausible space, or on the boundary of the parameter
+#' region of interest.
 #'
-#' The method \code{'line'} performs line sampling for boundary detection. Given a set of
-#' non-implausible points, rays are drawn between pairs of points (selected so as to
-#' maximise the distance between them), and more points are sampled along these lines.
-#' Points are kept if they lie near a boundary of the non-implausible space.
+#' If \code{method} contains \code{'importance'}, importance sampling is performed.
+#' Given a collection of non-implausible points, a mixture distribution of either
+#' multivariate normal or uniform ellipsoid proposals around the current non-implausible
+#' set are constructed. The optimal standard deviation (in the normal case) or radius
+#' (in the ellipsoid case) is determined using a burn-in phase, and points are
+#' proposed until the desired number of points have been found.
 #'
-#' The method \code{'importance'} performs importance sampling, using a mixture distribution
-#' of multivariate normal or uniform spherical proposals around the current non-implausible
-#' points (determined by \code{distro}). The optimal standard deviation or radius is found
-#' using a burn-in phase, before the full set of points is generated.
+#' If \code{method} contains \code{'slice'}, then slice sampling is performed. Given
+#' a single known non-implausible point, a minimum enclosing hyperrectangle (perhaps
+#' after transforming the space) is determined and points are sampled for each dimension
+#' of the parameter space uniformly, shrinking the minimum enclosing hyperrectangle as
+#' appropriate. This method is akin to to a Gibbs sampler.
 #'
-#' The method \code{'slice'} performs slice sampling. Given one known non-implausible
-#' point, it attempts to find a minimum enclosing hyperrectangle for the non-implausible
-#' region around this point and samples uniformly from this, shrinking the hyperrectangle
-#' as appropriate. This method is also called if LH sampling has only generated one point
-#' (since any later methods require at least two points to be useful).
+#' If \code{method} contains \code{'optical'}, then optical depth sampling is used.
+#' Given a set of non-implausible points, an approximation of the one-dimensional
+#' marginal distributions for each parameter can be determined. From these derived
+#' marginals, points are sampled and subject to rejection as in the LHD sampling.
 #'
-#' The method \code{'optical'} uses optical depth sampling: given a set of known
-#' non-implausible points, the an approximation of the one-dimensional marginal distributions
-#' in each parameter direction can be determined. From these derived marginals, points are
-#' sampled.
+#' For any sampling strategy, the parameters \code{ems}, \code{n_points}, and \code{z}
+#' must be provided. All methods rely on a means of assessing point suitability, which
+#' we refer to as an implausibility measure. By default, this uses nth-maximum implausibility
+#' as provided by \code{\link{nth_implausible}}; a user-defined method can be provided
+#' instead by supplying the function call to \code{opts[["accept_measure"]]}. Any
+#' such function must take at least five arguments: the emulators, the points, the
+#' targets, and a cutoff, as well as a \code{...} argument to ensure compatibility with
+#' the default behaviour of the point proposal method.
 #'
-#' For any sampling strategy, the parameters \code{ems} and \code{z} must be provided.
-#' All of these methods depend on a means of assessing point suitability (henceforth
-#' referred to as 'implausibility'). By default, this is uses nth-maximum implausibility
-#' as provided by \code{\link{nth_implausible}}: a user-defined method can be substituted
-#' for this by supplying the function call to \code{imp_func}. As a minimum, the function
-#' should take four arguments: the emulators, the points, and the targets, and a \code{...}
-#' argument to allow compatibility with the standard behaviour.
+#' The option \code{opts[["seek"]]} determines how many points should be chosen that
+#' have a higher probability of matching targets, as opposed to not missing targets. Due
+#' to the danger of such an approach if a representative space-filling design over the
+#' space, this value should not be too high and should be used sparingly at early waves;
+#' even at later waves, it is inadvisable to seek more than 10\% of the output points
+#' using this metric. The default is \code{seek = 0}, and can be provided as either
+#' a percentage of points desired (in the range [0,1]) or the fixed number of points.
 #'
-#' The option \code{seek} determines how many points should be chosen that have a higher
-#' probability of matching targets, as opposed to not missing targets. Due to the danger of
-#' such an approach in terms of obtaining a representative space-filling design over the
-#' space, this value should not be too high: a rough guide is that it should be no larger
-#' than 10\% of the desired number of points. The default is \code{seek = 0}. If \code{seek}
-#' is in the range [0, 1], it is assumed to represent a proportion of the total number of
-#' points that should be sought using this method; otherwise, it is assumed to be the number
-#' of points that are desired.
+#' The default behaviour is as follows. A set of initial points are generated from a
+#' large LHD; line sampling is performed to find the boundaries of the space; then importance
+#' sampling is used to fill out the space. The proposed set of points are thinned and
+#' both line and importance sampling are applied again; this resampling behaviour is
+#' controlled by \code{opts[["resample"]]}, where \code{resample = n} indicates that
+#' the proposal will be thinned and resampled from \code{n} times (resulting in \code{n+1}
+#' proposal stages).
 #'
-#' The default behaviour is as follows. A set of initial points are generated from an LHD;
-#' line sampling is performed to find the boundaries; and finally this collection of points
-#' is augmented to the desired number of points by importance sampling using uniform
-#' spherical proposals.
+#' In regions where the non-implausible space at a given cutoff value is very hard to find,
+#' the point proposal will start at a higher cutoff where it can find a space-filling design.
+#' Given such a design at a higher cutoff, it can subselect to a lower cutoff by demanding
+#' some percentage of the proposed points are retained and repeat. This approach terminates
+#' if the 'ladder' of cutoffs reaches the desired cutoff, or if the process asymptotes at
+#' a particular higher cutoff. The opts \code{ladder_tolerance} and \code{cutoff_tolerance}
+#' determine the minimum improvement required in consecutive cutoffs for the process to not
+#' be considered to be asymptoting and the level of closeness to the desired cutoff at whihc
+#' we are prepared to stop, respectively. For instance, setting \code{ladder_tolerance} to
+#' 0.1 and \code{cutoff_tolerance} to 0.01, with a cutoff of 3, will terminate the process
+#' if two consecutive cutoffs proposed are within 0.1 of each other, or when the points proposed
+#' all have implausibility less than the 3.01.
 #'
-#' In regions where the non-implausible space (at the given cutoff) is very hard to find,
-#' the function will start at a higher implausibility where it can find a space-filling
-#' design; using this as a starting point any other methods are performed. From this new
-#' proposal, a subset of lower-implausibility points are selected. This process iterates
-#' until either the desired implausibility has been reached or the process has reached a
-#' barrier to further reductions in implausibility. The argument \code{c_tol} is used to
-#' determine if the improvement in implausibility is small enough to justify stopping the
-#' process; by default this is 0.1. The process will also stop if it has produced points
-#' `close to' the desired implausibility: the level of closeness is defined using the
-#' \code{i_tol} argument.
+#' These methods may work slowly, or not at all, if the target space is extremely small in
+#' comparison with the initial non-yet-ruled-out (NROY) space; it may also fail to give a
+#' representative sample if the target space is formed of disconnected regions of different
+#' volumes.
 #'
-#' These methods may not work, or may work slowly, if the target space is very small
-#' compared to the current not-yet-ruled-out space, or it may miss small disconnected
-#' regions of parameter space.
+#' @section Arguments within \code{opts}:
+#'  \describe{
+#'  \item{accept_measure}{A custom implausibility measure to be used.}
+#'  \item{cluster}{Whether to try to apply emulator clustering.}
+#'  \item{cutoff_tolerance}{Tolerance for an obtained cutoff to be similar enough to that desired.}
+#'  \item{ladder_tolerance}{Tolerance with which to determine if the process is asymptoting.}
+#'  \item{nth}{The level of nth implausibility to apply, if using the default implausibility.}
+#'  \item{resample}{How many times to perform the resampling step once points are found.}
+#'  \item{seek}{How many 'good' points should be sought: either as an integer or a ratio.}
+#'  \item{to_file}{If output is to be written to file periodically, the file location.}
+#'  \item{points.factor (LHS, Cluster LHS)}{How many more points than desired to sample.}
+#'  \item{pca_lhs (LHS)}{Whether to apply PCA to the space before proposing.}
+#'  \item{n_lines (Line)}{How many lines to draw.}
+#'  \item{ppl (Line)}{The number of points to sample per line.}
+#'  \item{distro (Importance)}{The distribution to propose around points.}
+#'  \item{sd (Importance)}{The radius, or standard deviation, of proposed distributions.}
+#'  \item{pca_slice (Slice)}{Whether to apply PCA to the space before slice sampling.}
+#'  \item{seek_distro (Seek)}{The distribution to apply when looking for 'good' points.}
+#'  }
 #'
-#' @importFrom mvtnorm dmvnorm rmvnorm
+#' @importFrom  mvtnorm dmvnorm rmvnorm
 #' @importFrom stats setNames runif dist cov
 #' @importFrom utils write.csv
 #' @importFrom tidyr pivot_longer
 #'
-#' @param ems A list of \code{\link{Emulator}} objects, trained on previous design points.
-#' @param n_points The desired number of points to propose for the next wave.
+#' @param ems A list of \code{\link{Emulator}} objects, trained
+#' on previous design points.
+#' @param n_points The desired number of points to propose.
 #' @param z The targets to match to.
-#' @param method The method(s) to use.
-#' @param cutoff The implausibility cutoff(s) to compare outputs to.
-#' @param nth A parameter to be passed to the \code{n} argument of \code{\link{nth_implausible}}.
-#' @param plausible_set An optional set of known non-implausible points (for eg line sampling).
+#' @param method Which methods to use.
+#' @param cutoff The value of the cutoff to use to assess suitability.
+#' @param plausible_set An optional set of known non-implausible points, to avoid LHD sampling.
 #' @param verbose Should progress statements be printed to the console?
-#' @param cluster Should emulator clustering be considered in the LHS generation?
-#' @param resample Number of times to resample using line and/or importance sampling.
-#' @param seek How many `good' points to search for
-#' @param c_tol The tolerance with which to determine that best implausibility has been reached.
-#' @param i_tol The tolerance on final desired implausibility
-#' @param to_file The filename to write to sequentially during proposal. Default is NULL (no writing)
-#' @param imp_func The implausibility measure to use to determine point acceptance.
-#' @param ... Any parameters to pass to individual sampling functions, eg \code{distro} for importance sampling.
+#' @param opts A named list of opts as described.
+#' @param ... Any parameters to pass via chaining to individual sampling functions (eg \code{distro}
+#' for importance sampling).
 #'
-#' @return A data.frame containing the set of new points to run the model at.
+#' @return A data.frame containing the set of new points upon which to run the model.
 #'
 #' @export
 #'
 #' @examples
-#' \donttest{
-#'  # A simple example that uses a number of the native and ... parameter options
-#'  pts <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
-#'  measure.method = 'maximin', distro = 'sphere', resample = 0)
-#'  pts_optical <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
-#'   method = c('optical'))
-#'  pts_slice <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
-#'   method = c('slice'))
-#'  pts_no_importance <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
-#'   method = c('line'))
-#' }
-generate_new_runs <- function(ems, n_points, z,
-                              method = 'default',
-                              cutoff = 3,
-                              nth = NULL,
+#'  \donttest{
+#'   # A simple example that uses  number of the native and ... parameter opts.
+#'   pts <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
+#'   distro = 'sphere', opts = list(resample = 0))
+#'   # Non-default methods
+#'   pts_slice <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
+#'   method = 'slice')
+#'   ## Example using custom measure functionality
+#'   custom_measure <- function(ems, x, z, cutoff, ...) {
+#'   imps_df <- nth_implausible(ems, x, z, get_raw = TRUE)
+#'   sorted_imps <- t(apply(imps_df, 1, sort, decreasing = TRUE))
+#'   imps1 <- sorted_imps[,1] <= cutoff
+#'   imps2 <- sorted_imps[,2] <= cutoff - 0.5
+#'   constraint <- apply(x, 1, function(y) y[[1]] <= 0.4)
+#'   return(imps1 & imps2 & constraint)
+#'   }
+#'   pts_custom <- generate_new_runs(SIREmulators$ems, 100, SIREmulators$targets,
+#'   opts = list(accept_measure = custom_measure))
+#'  }
+generate_new_runs <- function(ems, n_points, z, method = "default", cutoff = 3,
                               plausible_set, verbose = interactive(),
-                              cluster = FALSE, resample = 1, seek = 0,
-                              c_tol = 0.5, i_tol = 0.01, to_file = NULL,
-                              imp_func = function(ems, x, z, ...) nth_implausible(ems, x, z, ...),
-                              ...) {
-  lhd_pca <- FALSE
-  if (!is.null(to_file)) { #nocov start
+                              opts = NULL, ...) {
+  if (is.null(opts)) opts <- list(...)
+  else {
+    collected_opts <- unlist(c(opts, list(...)), recursive = FALSE)
+    opts <- as.list(collected_opts[!duplicated(names(collected_opts))])
+  }
+  if (is.null(opts$accept_measure)) opts$accept_measure <- "default"
+  if (is.null(opts$cluster) || !is.logical(opts$cluster)) opts$cluster <- FALSE
+  if (is.null(opts$cutoff_tolerance)) opts$cutoff_tolerance <- 0.01
+  else tryCatch(opts$cutoff_tolerance <- as.numeric(opts$cutoff_tolerance), warning = function(e) {warning("Cutoff tolerance is not numeric; setting to 0.01"); opts$cutoff_tolerance <- 0.01})
+  if (is.null(opts$ladder_tolerance)) opts$ladder_tolerance <- 0.1
+  else tryCatch(opts$ladder_tolerance <- as.numeric(opts$ladder_tolerance), warning = function(e) {warning("Ladder tolerance is not numeric; setting to 0.1"); opts$ladder_tolerance <- 0.1})
+  if (is.null(opts$nth)) opts$nth <- NA
+  else tryCatch(opts$nth <- as.numeric(opts$nth), warning = function(e) {warning("Nth-implausibility nth is not numeric; setting to 1"); opts$nth <- 1})
+  if (is.null(opts$resample)) opts$resample <- 1
+  else tryCatch(opts$resample <- as.numeric(opts$resample), warning = function(e) {warning("Resample number is not numeric; setting to 1"); opts$resample <- 1})
+  if (is.null(opts$seek)) opts$seek <- 0
+  else tryCatch(opts$seek <- as.numeric(opts$seek), warning = function(e) {warning("Seek value is not numeric; setting to 0"); opts$seek <- 0})
+  if (opts$seek > n_points) {
+    warning("Value of seek is larger than the number of desired points; setting equal to the number of points.")
+    opts$seek <- n_points
+  }
+  if (is.null(opts$to_file)) opts$to_file <- NA
+  if (!is.na(opts$to_file)) { #nocov start
     tryCatch(
-      write.csv(data.frame(), file = to_file, row.names = FALSE),
-      error = function(e) {
-        warning("Cannot open directory provided in to_file; output will not be saved.")
-        to_file <<- NULL
-      }
+      write.csv(data.frame(), file = opts$to_file, row.names = FALSE),
+      error = function(e) {warning("Cannot open directory provided in to_file; output will not be saved to an external file"); opts$to_file <- NA}
     )
   } #nocov end
+  ## Other hidden opts here: lhd_pca, etc
   ems <- collect_emulators(ems, z)
   ranges <- getRanges(ems)
-  if (is.null(nth)) {
+  if (is.na(opts$nth)) {
     if (!is.null(ems$expectation))
-      nems <- length(unique(purrr::map_chr(
-        ems$expectation, ~.$output_name
-      )))
+      nems <- length(unique(purrr::map_chr(ems$expectation, "output_name")))
     else if (!is.null(ems$mode1))
-      nems <- length(unique(purrr::map_chr(
-        ems$mode1$expectation, ~.$output_name
-      )))
+      nems <- length(unique(purrr::map_chr(ems$mode1$expectation, "output_name")))
     else
-      nems <- length(unique(purrr::map_chr(
-        ems, ~.$output_name
-      )))
-    nth <- ifelse(nems > 10, 2, 1)
+      nems <- length(unique(purrr::map_chr(ems, "output_name")))
+    opts$nth <- ifelse(nems > 10, 2, 1)
   }
+  if (is.character(opts$accept_measure) && opts$accept_measure == "default") imp_func <- function(ems, x, z, ...) nth_implausible(ems, x, z, n = opts$nth, ...)
   if (length(method) == 1 && method == "default") {
     method <- c('lhs', 'line', 'importance')
     user_select <- FALSE
@@ -205,62 +280,96 @@ generate_new_runs <- function(ems, n_points, z,
   possible_methods <- c('lhs', 'line', 'importance', 'slice', 'optical')
   which_methods <- possible_methods[possible_methods %in% method]
   n_current <- 0
-  if (any(!method %in% possible_methods))
-    warning(paste("Unrecognised method name(s)",
-                  method[!method %in% possible_methods], "ignored."))
+  if (any(!method %in% possible_methods)) {
+    possible_user_methods <- which(!method %in% possible_methods)
+    for (i in possible_user_methods) {
+      tryCatch({get(i); which_methods <- c(which_methods, i)},
+               error = function(e) warning(paste("Method", i, "not found.")))
+    }
+  }
   if (missing(plausible_set) || 'lhs' %in% which_methods) {
     if (verbose) cat("Proposing from LHS...\n") #nocov
-    if (!cluster) {
+    if (!opts$cluster) {
       lh_gen <- lhs_gen(ems, ranges, max(n_points, 10*length(ranges)),
-                        z, cutoff, nth, use_pca = lhd_pca, imp_func = imp_func, ...)
+                        z, cutoff, verbose, opts)
       points <- lh_gen$points
       this_cutoff <- lh_gen$cutoff
     }
     else {
-      recent_ems <- ems[!duplicated(purrr::map_chr(ems, ~.$output_name))]
-      cluster_gen <- lhs_gen_cluster(recent_ems, ranges,
+      cluster_ems <- obtain_recent(ems)
+      cluster_gen <- lhs_gen_cluster(cluster_ems$ems, ranges,
                                      max(n_points, 10*length(ranges)),
-                                     z, cutoff, nth, verbose,
-                                     c_tol = c_tol, imp_func = imp_func, ...)
-      if (length(recent_ems) != length(ems)) {
-        leftover_imps <- imp_func(
-          ems[duplicated(purrr::map_chr(ems, ~.$output_name))],
-          cluster_gen$points, z, n = nth, ordered = TRUE)
-        this_cutoff <- max(cluster_gen$cutoff,
-                           sort(leftover_imps)[5*length(ranges)])
-        points <- cluster_gen$points[leftover_imps <= this_cutoff,]
+                                     z, cutoff, verbose, opts)
+      if (cluster_ems$reduced) {
+        if (is.character(opts$accept_measure) && opts$accept_measure == "default") {
+          leftover_imps <- imp_func(
+            obtain_recent(ems, TRUE, FALSE),
+            cluster_gen$points, z, ordered = TRUE
+          )
+          this_cutoff <- max(cluster_gen$cutoff,
+                             sort(leftover_imps)[min(length(leftover_imps)-1, floor(0.8*leftover_imps), 5*length(ranges))])
+          points <- cluster_gen$points[leftover_imps <= this_cutoff,]
+        }
+        else {
+          i_bools <- rep(FALSE, nrow(cluster_gen$points))
+          required_points <- min(nrow(cluster_gen$points)-1, floor(0.8*nrow(cluster_gen$points)), 5*length(ranges))
+          c_current <- cluster_gen$cutoff
+          while (sum(i_bools) < required_points) {
+            false_indices <- which(!i_bools)
+            imp_bools <- opts$accept_measure(obtain_recent(ems, TRUE, FALSE), cluster_gen$points[false_indices,], z, c_current)
+            i_bools[false_indices] <- i_bools[false_indices] | imp_bools
+            c_current <- c_current + 0.5
+          }
+          this_cutoff <- c_current - 0.5
+          points <- cluster_gen$points[i_bools,]
+        }
       }
       else {
         points <- cluster_gen$points
         this_cutoff <- cluster_gen$cutoff
       }
     }
-    maybe_verbose <- TRUE
+    meta_verbose <- TRUE
     if (this_cutoff == cutoff && nrow(points) >= 0.25 * n_points && !user_select) {
-      if (verbose) cat("LHS has high yield - no other methods required.\n") #nocov
-      maybe_verbose <- FALSE
+      if (verbose) cat("LHS has high yield; no other methods required.\n") #nocov
+      meta_verbose <- FALSE
       all_points <- points
       while(nrow(all_points) < n_points) {
         if (verbose) cat("Proposing from LHS...\n") #nocov
-        if (!cluster) {
+        if (!opts$cluster) {
           lh_gen <- lhs_gen(ems, ranges, max(n_points, 10*length(ranges)),
-                            z, cutoff, nth, use_pca = lhd_pca, imp_func = imp_func, ...)
+                            z, cutoff, verbose, opts)
           points <- lh_gen$points
           this_cutoff <- lh_gen$cutoff
         }
         else {
-          recent_ems <- ems[!duplicated(purrr::map_chr(ems, ~.$output_name))]
-          cluster_gen <- lhs_gen_cluster(recent_ems, ranges,
+          cluster_ems <- obtain_recent(ems)
+          cluster_gen <- lhs_gen_cluster(cluster_ems$ems, ranges,
                                          max(n_points, 10*length(ranges)),
-                                         z, cutoff, nth, verbose,
-                                         c_tol = c_tol, imp_func = imp_func, ...)
-          if (length(recent_ems) != length(ems)) {
-            leftover_imps <- imp_func(
-              ems[duplicated(purrr::map_chr(ems, ~.$output_name))],
-              cluster_gen$points, z, n = nth, ordered = TRUE)
-            this_cutoff <- max(cluster_gen$cutoff,
-                               sort(leftover_imps)[5*length(ranges)])
-            points <- cluster_gen$points[leftover_imps <= this_cutoff,]
+                                         z, cutoff, verbose, opts)
+          if (cluster_ems$reduce) {
+            if (is.character(opts$accept_measure) && opts$accept_measure == "default") {
+              leftover_imps <- imp_func(
+                obtain_recent(ems, TRUE, FALSE),
+                cluster_gen$points, z, ordered = TRUE
+              )
+              this_cutoff <- max(cluster_gen$cutoff,
+                                 sort(leftover_imps)[min(length(leftover_imps)-1, floor(0.8*leftover_imps), 5*length(ranges))])
+              points <- cluster_gen$points[leftover_imps <= this_cutoff,]
+            }
+            else {
+              i_bools <- rep(FALSE, nrow(cluster_gen$points))
+              required_points <- min(nrow(cluster_gen$points)-1, floor(0.8*nrow(cluster_gen$points)), 5*length(ranges))
+              c_current <- cluster_gen$cutoff
+              while (sum(i_bools) < required_points) {
+                false_indices <- which(!i_bools)
+                imp_bools <- opts$accept_measure(obtain_recent(ems, TRUE, FALSE), cluster_gen$points[false_indices,], z, c_current)
+                i_bools[false_indices] <- i_bools[false_indices] | imp_bools
+                c_current <- c_current + 0.5
+              }
+              this_cutoff <- c_current - 0.5
+              points <- cluster_gen$points[i_bools,]
+            }
           }
           else {
             points <- cluster_gen$points
@@ -272,207 +381,245 @@ generate_new_runs <- function(ems, n_points, z,
       points <- all_points
     }
     if (nrow(points) >= n_points && this_cutoff == cutoff) {
-      if (verbose & maybe_verbose) cat("Enough points generated from LHD - no need to apply other methods.\n") #nocov
-      if (seek > 0) {
-        if (verbose) cat("Searching for high-probability match points...\n") #nocov
-        if (seek <= 1) seek <- floor(n_points*seek)
-        extra_points <- seek_good(ems, seek, z, points, cutoff = cutoff, imp_func = imp_func, ...)
+      if (verbose && meta_verbose) cat("Enough points generated from LHD - no need to apply other methods.\n") #nocov
+      if (opts$seek > 0) {
+        if (verbose) cat("Searching for high probability match points...\n") #nocov
+        if (opts$seek <= 1) opts$seek <- floor(n_points * opts$seek)
+        extra_points <- seek_good(ems, opts$seek, z, points, cutoff, opts)
       }
       else extra_points <- NULL
-      if (nrow(points) > n_points - seek) {
+      if (nrow(points) > n_points - opts$seek) {
         if (verbose) cat("Selecting final points using maximin criterion...\n") #nocov
-        points <- maximin_sample(points, n_points-seek, nms = names)
+        points <- maximin_sample(points, n_points - opts$seek, nms = names(ranges))
       }
       return(rbind(extra_points, points))
     }
   }
   else {
-    point_imps <- imp_func(ems, plausible_set, z, n = nth, max_imp = Inf, ordered = TRUE)
-    optimal_cut <- sort(point_imps)[min(length(point_imps)-1, floor(0.8*length(point_imps)), 5*length(ranges))]
-    if (optimal_cut > cutoff && (optimal_cut - sort(point_imps)[1] < c_tol)) {
-      if (verbose) cat("Point proposal seems to be asymptoting around implausibility", #nocov
-                          round(optimal_cut, 3), "- terminating.\n") #nocov
-      if (!is.null(ems$expectation)) {
-        recent_ems <- ems$expectation[!duplicated(purrr::map_chr(ems$expectation, ~.$output_name))]
+    if (is.character(opts$accept_measure) && opts$accept_measure == "default") {
+      point_imps <- imp_func(ems, plausible_set, z, max_imp = Inf, ordered = TRUE)
+      optimal_cut <- sort(point_imps)[min(length(point_imps)-1, floor(0.8*length(point_imps)), 5*length(ranges))]
+      is_asymptoting <- (optimal_cut > cutoff && (optimal_cut - sort(point_imps)[1] < opts$cutoff_tolerance))
+    }
+    else {
+      cutoff_sequence <- seq(cutoff, 10, by = 0.1)
+      points_accept <- c(0)
+      optimal_cut <- cutoff
+      for (i in cutoff_sequence) {
+        required_points <- min(nrow(plausible_set)-1, floor(0.8*nrow(plausible_set)), 5*length(ranges))
+        c_bools <- opts$accept_measure(ems, plausible_set, z, i)
+        points_accept <- c(points_accept, sum(c_bools))
+        if (sum(c_bools) >= required_points) {
+          optimal_cut <- i
+          break
+        }
       }
-      else
-        recent_ems <- ems[!duplicated(purrr::map_chr(ems, ~.$output_name))]
-      recent_imps <- do.call(
-        'cbind.data.frame',
-        purrr::map(
-          recent_ems,
-          ~.$implausibility(plausible_set, z[[.$output_name]])))
-      recent_exps <- do.call(
-        'cbind.data.frame',
-        purrr::map(
-          recent_ems, ~.$get_exp(plausible_set)))
-      preflight(cbind(plausible_set, recent_exps), z)
-      name <- value <- NULL
-      plot_imps <- tidyr::pivot_longer(recent_imps, cols = everything())
-      plot_imps$name <- factor(plot_imps$name, levels = names(recent_ems))
-      if (verbose) { #nocov start
-        print(ggplot(data = plot_imps, aes(x = name, y = value)) +
-          geom_boxplot() +
-            labs(title = "Implausibility Boxplot",
-              x = "Output", y = "Implausibility"))
-        cat("Inspect implausibility boxplot for problematic outputs,",
-                  "and consider transforming them or",
-                  "removing them from this wave.\n")
-      } #nocov end
-      if (!is.null(to_file)) #nocov start
-        write.csv(plausible_set[point_imps <= optimal_cut,],
-                  file = to_file, row.names = FALSE) #nocov end
-      return(list(points = plausible_set[point_imps <= optimal_cut,],
-                  cutoff = optimal_cut))
+      is_asymptoting <- (optimal_cut > cutoff && points_accept[length(points_accept)-1] < 0.05*points_accept[length(points_accept)])
+    }
+    if (is_asymptoting) {
+      if (is.character(opts$accept_measure) && opts$accept_measure == "default") {
+        if (verbose) cat("Point proposal seems to be asymptoting around cutoff", #nocov
+                         round(optimal_cut, 3), "- terminating.\n") #nocov
+        recent_ems <- obtain_recent(ems, FALSE, FALSE)
+        if (!is.null(recent_ems$mode1))
+          relev_ems <- list(mode1 = recent_ems$mode1$expectation,
+                            mode2 = recent_ems$mode2$expectation)
+        else if (!is.null(recent_ems$expectation))
+          relev_ems <- recent_ems$expectation
+        else
+          relev_ems <- recent_ems
+        if (is.null(relev_ems$mode1)) {
+          recent_imps <- do.call("cbind.data.frame",
+                                 purrr::map(
+                                   recent_ems,
+                                   ~.$implausibility(plausible_set, z[[.$output_name]])
+                                 ))
+          recent_exps <- do.call("cbind.data.frame",
+                                 purrr::map(
+                                   recent_ems, ~.$get_exp(plausible_set)
+                                 ))
+          preflight(cbind(plausible_set, recent_exps), z)
+        }
+        else {
+          recent_imps1 <- do.call('cbind.data.frame',
+                                  purrr::map(
+                                    recent_ems$mode1,
+                                    ~.$implausibility(plausible_set, z[[.$output_name]])
+                                  ))
+          recent_imps2 <- do.call('cbind.data.frame',
+                                  purrr::map(
+                                    recent_ems$mode2,
+                                    ~.$implausibility(plausible_set, z[[.$output_name]])
+                                  ))
+          recent_imps <- pmin(recent_imps1, recent_imps2)
+        }
+        name <- value <- NULL
+        plot_imps <- tidyr::pivot_longer(recent_imps, cols = everything())
+        plot_imps$name <- factor(plot_imps$name, levels = names(recent_ems))
+        if (verbose) { #nocov start
+          print(ggplot(data = plot_imps, aes(x = name, y = value)) +
+                  geom_boxplot() +
+                  labs(title = "Implausibility Boxplot"))
+          cat("Inspect implausibility boxplot for problematic outputs,",
+              "and consider transforming them or removing them from",
+              "this wave.\n")
+        } #nocov end
+      }
+      else {
+        if (verbose) cat("Point proposal seems to be asymptoting around cutoff", #nocov
+                         round(optimal_cut, 3), "- terminating.\n") #nocov
+      }
+      if (!is.na(opts$to_file)) { #nocov start
+          if (is.character(opts$accept_measure) && opts$accept_measure == "default") {
+            write.csv(plausible_set[point_imps <= optimal_cut,],
+                      file = opts$to_file, row.names = FALSE)
+            return(list(points = plausible_set[point_imps <= optimal_cut,],
+                        cutoff = optimal_cut))
+          }
+          else {
+            good_points <- plausible_set[opts$accept_measure(ems, plausible_set, z, cutoff = optimal_cut),]
+            write.csv(good_points, file = opts$to_file, row.names = FALSE)
+            return(list(points = good_points, cutoff = optimal_cut))
+          }
+        } #nocov end
+      if (is.character(opts$accept_measure) && opts$accept_measure == "default")
+        return(list(points = plausible_set[point_imps <= optimal_cut,],
+                    cutoff = optimal_cut))
+      good_points <- plausible_set[opts$accept_measure(ems, plausible_set, z, cutoff = optimal_cut),]
+      return(list(points = good_points, cutoff = optimal_cut))
     }
     if (optimal_cut < cutoff) this_cutoff <- cutoff
     else this_cutoff <- round(optimal_cut, 3)
-    points <- plausible_set[point_imps <= this_cutoff,]
+    if (is.character(opts$accept_measure) && opts$accept_measure == "default")
+      points <- plausible_set[point_imps <= this_cutoff,]
+    else
+      points <- plausible_set[opts$accept_measure(ems, plausible_set, z, cutoff = this_cutoff),]
   }
   if (length(ranges) == 1)
     points <- setNames(data.frame(temp = points), names(ranges))
   n_current <- nrow(points)
-  if (is.null(nrow(points)) || nrow(points) == 0) {
+  if (is.null(n_current) || n_current == 0) {
     warning("No non-implausible points found from initial step.")
     return(points)
   }
   if (verbose) cat(n_current, " initial valid points generated for I=", #nocov
-                            round(this_cutoff, 3), "\n", sep = "") #nocov
-  if (!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
-  if ("optical" %in% which_methods && nrow(points) < n_points) {
-    if (verbose) cat("Performing optical depth sampling...\n") #nocov
-    points <- op_depth_gen(ems, ranges, n_points, z, cutoff = this_cutoff,
-                           nth = nth, plausible_set = points,
-                           verbose = verbose, imp_func = imp_func, ...)
-    if (verbose) cat("Optical depth sampling generated", #nocov
-                             nrow(points)-n_current, "more points.\n") #nocov
-    n_current <- nrow(points)
-  }
-  if (!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
+                   round(this_cutoff, 3), "\n", sep = "") #nocov
+  if (!is.na(opts$to_file)) write.csv(points, file = opts$to_file, row.names = FALSE)
+  # if ("optical" %in% which_methods && nrow(points) < n_points) {
+  #   if (verbose) cat("Performing optical depth sampling...\n") #nocov
+  #   points <- op_depth_gen(ems, ranges, n_points, z, cutoff = this_cutoff,
+  #                          plausible_set = points, verbose = verbose, opts = opts)
+  #   if (verbose) cat("Optical depth sampling generated", #nocov
+  #                    nrow(points)-n_current, "more points.\n") #nocov
+  #   n_current <- nrow(points)
+  # }
+  # if (!is.na(opts$to_file)) write.csv(points, file = opts$to_file, row.names = FALSE)
   if ("line" %in% which_methods && nrow(points) < n_points) {
     if (verbose) cat("Performing line sampling...\n") #nocov
-    points <- line_sample(ems, ranges, z, points,
-                          cutoff = this_cutoff, nth = nth, imp_func = imp_func, ...)
+    points <- line_sample(ems, ranges, z, points, cutoff = this_cutoff, opts = opts)
     if (verbose) cat("Line sampling generated", #nocov
-                        nrow(points)-n_current, "more points.\n") #nocov
+                     nrow(points) - n_current, "more points.\n") #nocov
     n_current <- nrow(points)
   }
   if ("slice" %in% which_methods) {
     if (verbose) cat("Performing slice sampling...\n") #nocov
-    spoints <- slice_gen(ems, ranges, n_points, z, points,
-                         this_cutoff, nth, imp_func = imp_func, ...)
+    points <- slice_gen(ems, ranges, n_points, z, points, this_cutoff, opts)
     if (verbose) cat("Slice sampling generated", #nocov
-                        nrow(spoints)-nrow(points), "more points.\n") #nocov
-    points <- spoints
+                     nrow(points) - n_current, "more points.\n") #nocov
     n_current <- nrow(points)
   }
-  if (!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE) #nocov
+  if (!is.na(opts$to_file)) write.csv(points, file = opts$to_file, row.names = FALSE) #nocov
   if ("importance" %in% which_methods && nrow(points) < n_points) {
     if (verbose) cat("Performing importance sampling...\n") #nocov
-    points <- importance_sample(ems, n_points, z, points,
-                                this_cutoff, nth, to_file = to_file, imp_func = imp_func, ...)
+    points <- importance_sample(ems, n_points, z, points, this_cutoff, opts)
     if (verbose) cat("Importance sampling generated", #nocov
-                          nrow(points)-n_current, "more points.\n") #nocov
+                     nrow(points)-n_current, "more points.\n") #nocov
     n_current <- nrow(points)
   }
-  if (this_cutoff - cutoff > i_tol) {
-    if (!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
-    if (length(which_methods) == 1 && which_methods == c('lhs')) {
-      warning("Could not generate points to desired target implausibility.")
+  if (this_cutoff - cutoff > opts$cutoff_tolerance) {
+    if(!is.na(opts$to_file)) write.csv(points, file = opts$to_file, row.names = FALSE) #nocov
+    if (length(which_methods) == 1 && which_methods == "lhs") {
+      warning("Could not generate points to desired target cutoff")
       return(points)
     }
-    points <- generate_new_runs(ems, n_points, z,
-                                which_methods[!which_methods %in% c('lhs')],
-                                cutoff = cutoff, nth = nth,
-                                plausible_set = points, verbose = verbose,
-                                resample = 0, c_tol = c_tol, i_tol = i_tol,
-                                to_file = to_file, chain.call = TRUE, ...)
+    new_opts <- opts
+    new_opts$chain_call <- TRUE
+    new_opts$resample <- 0
+    points <- generate_new_runs(ems, n_points, z, which_methods[!which_methods %in% c('lhs')],
+                         cutoff = cutoff, plausible_set = points, verbose = verbose,
+                         opts = new_opts)
   }
   else if (this_cutoff != cutoff) {
     if (verbose) #nocov start
       cat("Point implausibilities within tolerance.",
-                  "Proposed points have maximum implausibility",
-                  round(this_cutoff, 3), "\n") #nocov end
+          "Proposed points have maximum implausibility",
+          round(this_cutoff, 4), "\n") #nocov end
   }
   if (!is.null(points$cutoff)) {
     cutoff <- points$cutoff
     points <- points$points
   }
-  if(!is.null(to_file)) write.csv(points, file = to_file, row.names = FALSE)
-  if (("importance" %in% which_methods ||
-       "line" %in% which_methods ||
-       "slice" %in% which_methods) && resample > 0) {
-    for (nsamp in 1:resample) {
-      if (verbose) cat(paste("Resample", nsamp, "\n")) #nocov
+  if (!is.na(opts$to_file)) write.csv(points, file = opts$to_file, row.names = FALSE)
+  if (length(intersect(which_methods, c("importance", "line", "slice"))) > 0 && opts$resample > 0) {
+    for (nsamp in 1:opts$resample) {
+      if (verbose) cat("Resample", nsamp, "\n") #nocov
       points <- maximin_sample(points, min(nrow(points), ceiling(n_points/2)), nms = names(ranges))
       n_current <- nrow(points)
       if ("line" %in% which_methods) {
         if (verbose) cat("Performing line sampling...\n") #nocov
-        points <- line_sample(ems, ranges, z, points,
-                              cutoff = cutoff, nth = nth, imp_func = imp_func, ...)
+        points <- line_sample(ems, ranges, z, points, cutoff = cutoff, opts = opts)
         if (verbose) cat("Line sampling generated", #nocov
-                                 nrow(points)-n_current, "more points.\n") #nocov
-        if (!is.null(to_file)) write.csv(points, file = to_file, #nocov
-                                         row.names = FALSE) #nocov
+                         nrow(points)-n_current, "more points.\n") #nocov
+        if (!is.na(opts$to_file)) write.csv(points, file = opts$to_file, row.names = FALSE) #nocov
         n_current <- nrow(points)
       }
       if ("slice" %in% which_methods) {
         if (verbose) cat("Performing slice sampling...\n") #nocov
-        spoints <- slice_gen(ems, ranges, n_points, z, points,
-                             cutoff, nth, imp_func = imp_func, ...)
+        points <- slice_gen(ems, ranges, n_points, z, points, cutoff, opts)
         if (verbose) cat("Slice sampling generated", #nocov
-                                 nrow(spoints)-nrow(points), "more points.\n") #nocov
-        points <- spoints
-        if (!is.null(to_file)) write.csv(points, file = to_file, #nocov
-                                         row.names = FALSE) #nocov
+                         nrow(points)-n_current, "more points.\n") #nocov
+        if (!is.na(opts$to_file)) write.csv(points, file = opts$to_file, row.names = FALSE) #nocov
         n_current <- nrow(points)
       }
       if ("importance" %in% which_methods && nrow(points) < n_points) {
         if (verbose) cat("Performing importance sampling...\n") #nocov
-        points <- importance_sample(ems, n_points, z, points, cutoff,
-                                    nth, to_file = to_file, imp_func = imp_func, ...)
+        points <- importance_sample(ems, n_points, z, points, cutoff, opts)
         if (verbose) cat("Importance sampling generated", #nocov
-                                 nrow(points)-n_current, "more points.\n") #nocov
+                         nrow(points) - n_current, "more points.\n") #nocov
         n_current <- nrow(points)
       }
     }
   }
-  if (seek > 0) {
-    if (verbose) cat("Searching for high-probability match points...\n") #nocov
-    if (seek <= 1) seek <- floor(n_points*seek)
-    extra_points <- seek_good(ems, seek, z, points, cutoff = cutoff, imp_func, ...)
+  if (opts$seek > 0) {
+    if (verbose) cat("Searching for points with high matching probability...\n") #nocov
+    if (opts$seek <= 1) opts$seek <- floor(n_points*seek)
+    extra_points <- seek_good(ems, opts$seek, z, points, cutoff, opts)
   }
   else extra_points <- NULL
-  if (nrow(points) > n_points - seek) {
+  if (nrow(points) > n_points - opts$seek) {
     if (verbose) cat("Selecting final points using maximin criterion...\n") #nocov
-    points <- maximin_sample(points, n_points-seek, nms = names(ranges))
+    points <- maximin_sample(points, n_points - opts$seek, nms = names(ranges))
   }
-  chained <- list(...)[['chain.call']]
-  if (!is.null(chained)) return(list(points = rbind(points, extra_points),
-                                     cutoff = cutoff))
-  if(!is.null(to_file)) write.csv(rbind(points, extra_points), #nocov
-                                  file = to_file, row.names = FALSE) #nocov
+  if (!is.null(opts$chain_call)) return(list(points = rbind(points, extra_points), cutoff = cutoff))
+  if (!is.na(opts$to_file)) write.csv(rbind(points, extra_points), #nocov
+                                         file = opts$to_file, row.names = FALSE)
   return(rbind(points, extra_points))
 }
+## LHD sampling function
+lhs_gen <- function(ems, ranges, n_points, z, cutoff = 3, verbose, opts = NULL) {
+  if (is.null(opts$points.factor)) opts$points.factor <- 40
+  tryCatch(opts$points.factor <- as.numeric(opts$points.factor),
+           warning = function(e) {warning("opts$points.factor is not numeric; setting to 40"); opts$points.factor <- 40})
 
-## LHS Generation
-lhs_gen <- function(ems, ranges, n_points, z, cutoff = 3,
-                    nth = 1, points.factor = 40, use_pca = FALSE, imp_func, ...) {
-  if (use_pca) {
-    in_range <- function(data, ranges) {
-      apply(data, 1,
-            function(x) all(
-              purrr::map_lgl(
-                seq_along(ranges),
-                ~x[.] >= ranges[[.]][1] && x[.] <= ranges[[.]][2])))
-    }
+  if (is.null(opts$pca_lhs) || !is.logical(opts$pca_lhs)) opts$pca_lhs <- FALSE
+  if (opts$pca_lhs) {
     if (!is.null(ems$expectation)) {
       train_pts <- ems$expectation[[1]]$in_data
       init_ranges <- ems$expectation[[1]]$ranges
     }
     else if (!is.null(ems$mode1)) {
-      train_pts <- ems$mode1$expectation[[1]]$in_data
       init_ranges <- ems$mode1$expectation[[1]]$ranges
+      train_pts <- unique(rbind(ems$mode1$expectation[[1]]$in_data, ems$mode2$expectation[[1]]$in_data)[,init_ranges])
     }
     else {
       train_pts <- ems[[1]]$in_data
@@ -483,47 +630,64 @@ lhs_gen <- function(ems, ranges, n_points, z, cutoff = 3,
     pca_ranges <- purrr::map(seq_len(ncol(pca_points)), ~range(pca_points[,.])) |> setNames(paste0("X", seq_len(ncol(pca_points))))
     pca_ranges <- purrr::map(pca_ranges, ~.*c(0.9, 1.1))
     temp_pts <- eval_funcs(scale_input,
-                         setNames(
-                           data.frame(2 * lhs::randomLHS(n_points * points.factor, length(pca_ranges)) - 0.5),
-                         paste0("X", seq_along(pca_ranges))),
-                         pca_ranges, FALSE)
-    points <- data.frame(pca_transform(temp_pts, actual_points, FALSE)) |> setNames(names(ranges))
+                           setNames(
+                             data.frame(2 * lhs::randomLHS(n_points * opts$points.factor, length(pca_ranges)) - 0.5),
+                             paste0("X", seq_along(pca_ranges))
+                           ), pca_ranges, FALSE)
+    points <- data.frame(pca_transform(temp_pts, actual_points, FALSE)) |> setNames(names(init_ranges))
     points <- points[in_range(points, init_ranges),]
   }
   else {
-    points <- eval_funcs(
-      scale_input,
-      setNames(
-        data.frame(
-          2 * (lhs::randomLHS(n_points * points.factor, length(ranges)) - 0.5)),
-        names(ranges)), ranges, FALSE)
+    points <- eval_funcs(scale_input, setNames(
+      data.frame(2* (lhs::randomLHS(n_points * opts$points.factor, length(ranges)) - 0.5)),
+    names(ranges)), ranges, FALSE)
   }
-  point_imps <- imp_func(ems, points, z, n = nth, max_imp = Inf, ordered = TRUE)
-  required_points <- min(length(point_imps)-1, floor(0.8*length(point_imps)), 5*length(ranges))
-  if (sum(point_imps <= cutoff) < required_points) {
-    cutoff_current <- sort(point_imps)[required_points]
-    if (sort(point_imps)[1] >= 20) {
-      warning(paste("Parameter space has no points below implausibility 20;",
-                    "terminating early. This may not indicate model inadequacy:",
-                    "inspect results and re-run if applicable."))
-      return(list(points = points[point_imps <= 0,], cutoff = 0))
+  if (is.character(opts$accept_measure) && opts$accept_measure == "default") {
+    imp_func <- function(ems, x, z, ...) nth_implausible(ems, x, z, n = opts$nth, ...)
+    point_imps <- imp_func(ems, points, z, max_imp = Inf, ordered = TRUE)
+    required_points <- min(length(point_imps)-1, floor(0.8*length(point_imps)), 5*length(ranges))
+    if (sum(point_imps <= cutoff) < required_points) {
+      cutoff_current <- sort(point_imps)[required_points]
+      if (sort(point_imps)[1] >= 20) {
+        warning(paste("Parameter space has no points below implausibility 20;",
+                      "terminating early. This may not indicate model inadequacy:",
+                      "inspect results and re-run if applicable."))
+        return(list(points = points[point_imps <= 0,], cutoff = 0))
+      }
     }
+    else cutoff_current <- cutoff
+    return(list(points = points[point_imps <= cutoff_current,],
+                cutoff = cutoff_current))
   }
-  else
-    cutoff_current <- cutoff
-  return(list(points = points[point_imps <= cutoff_current,],
-              cutoff = cutoff_current))
+  else {
+    i_bools <- rep(FALSE, nrow(points))
+    required_points <- min(nrow(points)-1, floor(0.8*nrow(points)), 5*length(ranges))
+    c_current <- cutoff
+    while (sum(i_bools) < required_points) {
+      if (c_current > 20) {
+        warning(paste("Parameter space has no points below implausibility 20;",
+                      "terminating early. This may not indicate model inadequacy:",
+                      "inspect results and re-run if applicable."))
+        return(list(points = points[rep(FALSE, nrow(points)),], cutoff = 0))
+      }
+      false_indices <- which(!i_bools)
+      imp_bools <- opts$accept_measure(ems, points[false_indices,], z, c_current)
+      i_bools[false_indices] <- i_bools[false_indices] | imp_bools
+      c_current <- c_current + 0.5
+    }
+    return(list(points = points[i_bools,], cutoff = c_current - 0.5))
+  }
 }
-
-## LHS Generation with emulator clustering
-lhs_gen_cluster <- function(ems, ranges, n_points, z, cutoff = 3, nth = 1,
-                            verbose = FALSE,
-                            points.factor = 10, c_tol = 0.1, imp_func, ...) {
+## Cluster LHD sampling function
+lhs_gen_cluster <- function(ems, ranges, n_points, z, cutoff = 3, verbose = FALSE, opts) {
+  if (is.null(opts$points.factor)) opts$points.factor <- 40
+  tryCatch(opts$points.factor <- as.numeric(opts$points.factor),
+           warning = function(e) {warning("opts$points.factor is not numeric; setting to 40"); opts$points.factor <- 40})
   which_active <- setNames(
-    data.frame(
-      do.call(
-        'rbind',
-        purrr::map(ems, ~.$active_vars))), names(ranges))
+    data.frame(do.call('rbind',
+                       purrr::map(ems, ~.$active_vars))),
+    names(ranges)
+  )
   cluster_id <- tryCatch(
     Mclust(which_active, G = 1:2, verbose = FALSE)$classification,
     error = function(e) {
@@ -532,137 +696,183 @@ lhs_gen_cluster <- function(ems, ranges, n_points, z, cutoff = 3, nth = 1,
     }
   )
   if (is.null(cluster_id) || length(unique(cluster_id)) == 1)
-    return(lhs_gen(ems, ranges, n_points, z,
-                   cutoff, nth, points.factor, imp_func = imp_func, ...))
+    return(lhs_gen(ems, ranges, n_points, z, cutoff, verbose, opts))
   c1 <- ems[cluster_id == 1]
   c2 <- ems[cluster_id == 2]
-  p1 <- unique(do.call(c, purrr::map(c1, ~names(ranges)[.$active_vars])))
-  p2 <- unique(do.call(c, purrr::map(c2, ~names(ranges)[.$active_vars])))
+  p1 <- unique(purrr::map_chr(c1, ~names(ranges)[.$active_vars]))
+  p2 <- unique(purrr::map_chr(c2, ~names(ranges)[.$active_vars]))
   pn <- intersect(p1, p2)
   if (length(union(p1, p2)) == length(pn) && all(union(p1, p2) %in% pn))
-    return(lhs_gen(ems, ranges, n_points, z, cutoff, nth, imp_func = imp_func, ...))
+    return(lhs_gen(ems, ranges, n_points, z, cutoff, opts))
   if (length(p1) > length(p2)) {
     c1 <- ems[cluster_id == 2]
     c2 <- ems[cluster_id == 1]
-    p1 <- unique(do.call(c, purrr::map(c1, ~names(ranges)[.$active_vars])))
-    p2 <- unique(do.call(c, purrr::map(c2, ~names(ranges)[.$active_vars])))
+    p1 <- unique(purrr::map_chr(c2, ~names(ranges)[.$active_vars]))
+    p2 <- unique(purrr::map_chr(c1, ~names(ranges)[.$active_vars]))
   }
   if (verbose) cat("Clusters determined. Cluster 1 has length", #nocov start
-                      length(c1), "with", length(p1),
-                      "active variables; cluster 2 has length",
-                      length(c2), "with", length(p2),
-                      "active variables -", length(pn), "shared.\n")
-  if (verbose) cat("Proposing from clusters.\n") #nocov end
+                   length(c1), "with", length(p1),
+                   "active variables; cluster 2 has length",
+                   length(c2), "with", length(p2),
+                   "active variables -", length(pn), "shared.\n")
+  if (verbose) cat("Proposing from clusters...\n") #nocov end
   lhs1 <- setNames(
-    data.frame(2 * (lhs::randomLHS(n_points * 10, length(p1))-0.5)), p1)
+    data.frame(2 * (lhs::randomLHS(n_points * opts$points.factor, length(p1)) - 0.5)),
+    p1
+  )
   spare1 <- ranges[!names(ranges) %in% p1]
-  for (i in names(spare1)) lhs1[[i]] <- runif(nrow(lhs1), -1, 1)
+  for (i in names(spare1)) lhs[[i]] <- runif(nrow(lhs1), -1, 1)
   lhs1 <- eval_funcs(scale_input, lhs1[,names(ranges)], ranges, FALSE)
-  imps1 <- imp_func(c1, lhs1, z, n = nth, max_imp = Inf, ordered = TRUE)
-  required_points <- 5*length(ranges)
-  if (sum(imps1 <= cutoff) < required_points) {
-    cutoff_current <- sort(imps1)[required_points]
-    if (sort(imps1)[1] >= 20) {
-      warning(paste("Parameter space has no points below implausibility 20;",
-      "terminating early. This may not indicate model inadequacy:",
-      "inspect results and re-run if applicable."))
-      return(list(points = lhs1[imps1 <= 0,], cutoff = 0))
-    }
-  }
-  else cutoff_current <- cutoff
-  valid1 <- lhs1[imps1 <= cutoff_current,]
-  LHS_augment <- function(df, p1, p2, ranges, n_points) {
-    n_lhs <- ceiling(n_points * 10/nrow(df))
-    new_lhs <- setNames(
-      data.frame(2 * (lhs::randomLHS(n_lhs, length(p2)) - 0.5)), p2)
-    new_lhs <- eval_funcs(scale_input, new_lhs, ranges[p2], FALSE)
-    new_lhs <- new_lhs[rep(seq_len(nrow(new_lhs)), each = nrow(df)),]
-    new_lhs[,setdiff(p1, intersect(p1, p2))] <- df[
-      rep(seq_len(nrow(df)), n_lhs), setdiff(p1, intersect(p1, p2))]
-    if (length(intersect(p1, p2)) > 0)
-      for (i in intersect(p1, p2))
-        new_lhs[,i] <- df[rep(seq_len(nrow(df)), n_lhs), i] +
-      runif(nrow(new_lhs)) *
-      (new_lhs[,i] - df[rep(seq_len(nrow(df)), n_lhs), i])
-    if (length(setdiff(names(ranges), union(p1, p2))) > 0)
-      for (i in setdiff(names(ranges), union(p1, p2)))
-        new_lhs[,i] <- runif(nrow(new_lhs), ranges[[i]][1], ranges[[i]][2])
-    return(new_lhs[,names(ranges)])
-  }
-  second_stage <- function(df, cutoff, p1, p2, ranges, n_points, ems, z, nth) {
-    lhs2 <- LHS_augment(df, p1, p2, ranges, n_points)
-    imps2 <- imp_func(ems, lhs2, z, n = nth, max_imp = Inf, ordered = TRUE)
-    if (sum(imps2 <= cutoff) < required_points) {
-      coff <- sort(imps2)[required_points]
-      if (sort(imps2)[1] >= 20) {
+  if (is.character(opts$accept_measure) && opts$accept_measure == "default") {
+    imps1 <- nth_implausible(c1, lhs1, z, n = opts$nth, max_imp = Inf, ordered = TRUE)
+    required_points <- min(length(imps1)-1, floor(0.8*length(imps1)), 5*length(ranges))
+    if (sum(imps1 <= cutoff) < required_points) {
+      cutoff_current <- sort(imps1)[required_points]
+      if (sort(imps1)[1] >= 20) {
         warning(paste("Parameter space has no points below implausibility 20;",
                       "terminating early. This may not indicate model inadequacy:",
                       "inspect results and re-run if applicable."))
-        return(list(points = lhs2[imps2 <= 0, ], cutoff = 0))
+        return(list(points = lhs1[imps1 <= 0,], cutoff = 0))
       }
     }
-    else coff <- cutoff
-    return(list(points = lhs2[imps2 <= coff,], cutoff = coff))
+    else cutoff_current <- cutoff
+    valid1 <- lhs1[imps1 <= cutoff_current]
   }
-  valid2 <- second_stage(valid1, cutoff_current, p1, p2,
-                         ranges, n_points, c2, z, nth)
-  while (valid2$cutoff - cutoff_current > c_tol) {
+  else {
+    i_bools <- rep(FALSE, nrow(lhs1))
+    required_points <- min(nrow(lhs1)-1, floor(0.8*nrow(lhs1)), 5*length(ranges))
+    c_current <- cutoff
+    while (sum(i_bools) < required_points) {
+      if (c_current > 20) {
+        warning(paste("Parameter space has no points below implausibility 20;",
+                      "terminating early. This may not indicate model inadequacy:",
+                      "inspect results and re-run if applicable."))
+        return(list(points = lhs1[rep(FALSE, nrow(lhs1)),], cutoff = 0))
+      }
+      false_indices <- which(!i_bools)
+      imp_bools <- opts$accept_measure(ems, lhs1[false_indices,], z, c_current)
+      i_bools[false_indices] <- i_bools[false_indices] | imp_bools
+      c_current <- c_current + 0.5
+    }
+    cutoff_current <- c_current - 0.5
+    valid1 <- lhs1[i_bools,]
+  }
+  LHS_augment <- function(df, p1, p2, ranges, n_points) {
+    n_lhs <- ceiling(n_points * opts$points.factor / nrow(df))
+    new_lhs <- setNames(
+      data.frame(2 * (lhs::randomLHS(n_lhs, length(p2)) - 0.5)),
+    p2)
+    new_lhs <- eval_funcs(scale_input, new_lhs, ranges[p2], FALSE)
+    new_lhs <- new_lhs[rep(seq_len(nrow(new_lhs)), each = nrow(df)),]
+    new_lhs[,setdiff(p1, intersect(p1, p2))] <- df[
+      rep(seq_len(nrow(df)), n_lhs), setdiff(p1, intersect(p1, p2))
+    ]
+    if (length(intersect(p1, p2)) > 0) {
+      for (i in intersect(p1, p2))
+        new_lhs[,i] <- df[rep(seq_len(nrow(df)), n_lhs), i] +
+          runif(nrow(new_lhs)) *
+          (new_lhs[,i] - df[rep(seq_len(nrow(df)), n_lhs), i])
+    }
+    if (length(setdiff(names(ranges), union(p1, p2))) > 0)
+    {
+      for (i in setdiff(names(ranges), union(p1, p2)))
+        new_lhs[,i] <- runif(nrow(new_lhs), ranges[[i]][1], ranges[[i]][2])
+    }
+    return(new_lhs[,names(ranges)])
+  }
+  second_stage <- function(df, cutoff, p1, p2, ranges, n_points, ems, z) {
+    lhs2 <- LHS_augment(df, p1, p2, ranges, n_points)
+    if (is.character(opts$accept_measure) && opts$accept_measure == "default") {
+      imps2 <- nth_implausible(ems, lhs2, z, n = opts$nth, max_imp = Inf, ordered = TRUE)
+      if (sum(imps2 <= cutoff) < required_points) {
+        coff <- sort(imps2)[required_points]
+        if (sort(imps2)[1] >= 20) {
+          warning(paste("Parameter space has no points below implausibility 20;",
+                        "terminating early. This may not indicate model inadequacy:",
+                        "inspect results and re-run if applicable."))
+          return(list(points = lhs2[imps2 <= 0,], cutoff = 0))
+        }
+      }
+      else coff <- cutoff
+      return(list(points = lhs2[imps2 <= coff,], cutoff = coff))
+    }
+    else {
+      i_bools <- rep(FALSE, nrow(lhs2))
+      required_points <- min(nrow(lhs2)-1, floor(0.8*nrow(lhs2)), 5*length(ranges))
+      c_current <- cutoff
+      while (sum(i_bools) < required_points) {
+        if (c_current > 20) {
+          warning(paste("Parameter space has no points below implausibility 20;",
+                        "terminating early. This may not indicate model inadequacy:",
+                        "inspect results and re-run if applicable."))
+          return(list(points = lhs2[rep(FALSE, nrow(lhs2)),], cutoff = 0))
+        }
+        false_indices <- which(!i_bools)
+        imp_bools <- opts$accept_measure(ems, lhs2[false_indices,], z, c_current)
+        i_bools[false_indices] <- i_bools[false_indices] | imp_bools
+        c_current <- c_current + 0.5
+      }
+      return(list(points = lhs2[i_bools,], cutoff = c_current - 0.5))
+    }
+  }
+  valid2 <- second_stage(valid1, cutoff_current, p1, p2, ranges, n_points, c2, z)
+  while (valid2$cutoff - cutoff_current > opts$ladder_tolerance) {
     if (verbose) cat("Cutoff increase to", valid2$cutoff, #nocov
-                          "- resampling from cluster 1.\n") #nocov
+                     "- resampling from cluster 1.\n") #nocov
     cutoff_current <- valid2$cutoff
-    valid1 <- lhs1[imps1 <= cutoff_current,]
-    valid2 <- second_stage(valid1, cutoff_current, p1, p2,
-                           ranges, n_points, c2, z, nth)
+    if (is.character(opts$accept_measure) && opts$accept_measure == "default") {
+      valid1 <- lhs1[imps1 <= cutoff_current,]
+      valid2 <- second_stage(valid1, cutoff_current, p1, p2, ranges, n_points, c2, z)
+    }
+    else {
+      i_bools <- rep(FALSE, nrow(lhs1))
+      required_points <- min(nrow(lhs1)-1, floor(0.8*nrow(lhs1)), 5*length(ranges))
+      c_current <- cutoff_current
+      while (sum(i_bools) < required_points) {
+        if (c_current > 20) {
+          warning(paste("Parameter space has no points below implausibility 20;",
+                        "terminating early. This may not indicate model inadequacy:",
+                        "inspect results and re-run if applicable."))
+          return(list(points = lhs1[rep(FALSE, nrow(lhs1)),], cutoff = 0))
+        }
+        false_indices <- which(!i_bools)
+        imp_bools <- opts$accept_measure(ems, lhs1[false_indices,], z, c_current)
+        i_bools[false_indices] <- i_bools[false_indices] | imp_bools
+        c_current <- c_current + 0.5
+      }
+      cutoff_current <- c_current - 0.5
+      valid1 <- lhs1[i_bools,]
+    }
+    valid2 <- second_stage(valid1, cutoff_current, p1, p2, ranges, n_points, c2, z)
   }
   return(valid2)
 }
 
-## Line Sampling Function
-line_sample <- function(ems, ranges, z, s_points, n_lines = 20,
-                        ppl = 50, cutoff = 3, nth = 1, imp_func, ...) {
-  in_range <- function(data, ranges) {
-    apply(data, 1,
-          function(x) all(
-            purrr::map_lgl(
-              seq_along(ranges),
-              ~x[.] >= ranges[[.]][1] && x[.] <= ranges[[.]][2])))
-  }
+## Line sampling function
+line_sample <- function(ems, ranges, z, s_points, cutoff = 3, opts) {
+  if (is.null(opts$n_lines)) opts$n_lines <- 20
+  tryCatch(opts$n_lines <- as.numeric(opts$n_lines), warning = function(e) {warning("opts$n_lines not numeric; setting to 20"); opts$n_lines <- 20})
+  if (is.null(opts$ppl)) opts$ppl <- 50
+  tryCatch(opts$ppl <- as.numeric(opts$ppl), warning = function(e) {warning("opts$ppl not numeric; setting to 50"); opts$ppl <- 50})
   if (nrow(s_points) < 2) return(s_points)
-  n_lines <- min(nrow(s_points)*(nrow(s_points)-1)/2, n_lines)
-  if (ppl %% 4 == 1) ppl <- ppl + 1
-  s_lines <- lapply(1:(10*n_lines), function(x) {
+  n_lines <- min(nrow(s_points)*(nrow(s_points)-1)/2, opts$n_lines)
+  if (opts$ppl %% 4 == 1) opts$ppl <- opts$ppl + 1
+  s_lines <- lapply(1:(10*opts$n_lines), function(x) {
     pts <- s_points[sample(nrow(s_points), 2),]
     pt_dist <- dist(pts)
     return(list(p1 = pts[1,], p2 = pts[2,], d = pt_dist))
   })
   s_lines <- s_lines[!duplicated(purrr::map_dbl(s_lines, ~.$d))]
   best_pts <- s_lines[order(purrr::map_dbl(s_lines, ~.$d),
-                            decreasing = TRUE)][1:n_lines]
-  # get_limits <- function(points) {
-  #   point_dist <- sqrt(sum((points[[1]]-points[[2]])^2))
-  #   range_dist <- sqrt(sum(purrr::map_dbl(ranges, ~(.[[2]]-.[[1]])^2)))
-  #   dist_ratio <- range_dist/point_dist
-  #   l_seq <- seq(1-dist_ratio, dist_ratio, length.out = 500)
-  #   line_points <- setNames(
-  #     do.call(
-  #       'rbind.data.frame',
-  #       purrr::map(
-  #         l_seq,
-  #         ~points[[1]] + .*(points[[2]]-points[[1]]))), names(ranges))
-  #   is_in_range <- in_range(line_points, ranges)
-  #   valid_ls <- l_seq[is_in_range]
-  #   return(c(valid_ls[1], valid_ls[length(valid_ls)]))
-  # }
+                            decreasing = TRUE)][1:opts$n_lines]
   samp_pts <- lapply(best_pts, function(x) {
-    #these_lims <- get_limits(x)
     tryCatch(
       {
-        do.call(
-          'rbind',
-          lapply(seq(-x[[3]], x[[3]], length.out = ppl),
-                 function(y) (x[[1]]+x[[2]])/2 + y*(x[[2]]-x[[1]])))
-       },
+        do.call('rbind', lapply(seq(-x[[3]], x[[3]], length.out = opts$ppl),
+                                function(y) (x[[1]]+x[[2]])/2 + y * (x[[2]]-x[[1]])))
+      },
       error = function(e) {
+        warning("Problem with line sampling; investigate.")
         return(NULL)
       }
     )
@@ -670,13 +880,19 @@ line_sample <- function(ems, ranges, z, s_points, n_lines = 20,
   samp_pts <- samp_pts[!purrr::map_lgl(samp_pts, is.null)]
   samp_pts <- purrr::map(samp_pts, ~.[in_range(., ranges),])
   samp_pts <- samp_pts[!purrr::map_lgl(
-    samp_pts, ~is.null(nrow(.)) || is.null(.) || nrow(.) == 0)]
-  imps <- purrr::map(samp_pts, ~imp_func(ems, .,
-                                                z, n = nth, cutoff = cutoff,
-                                                ordered = TRUE))
-  include_pts <- purrr::map(seq_along(samp_pts), function(x) {
-    pts <- samp_pts[[x]]
-    imp <- imps[[x]]
+    samp_pts, ~(is.null(.) || is.null(nrow(.)) || nrow(.) == 0)
+  )]
+  if (is.character(opts$accept_measure) && opts$accept_measure == "default")
+    imps <- purrr::map(samp_pts,
+                       ~nth_implausible(
+                         ems, ., z,
+                         n = opts$nth, cutoff = cutoff,
+                         ordered = TRUE
+                         ))
+  else imps <- purrr::map(samp_pts, ~opts$accept_measure(ems, ., z, cutoff))
+  include_pts <- purrr::imap(samp_pts, function(x, i) {
+    pts <- x
+    imp <- imps[[i]]
     included <- purrr::map_lgl(seq_along(imp), function(y) {
       if (!imp[y]) return(FALSE)
       if (y == 1 || y == length(imp)) return(TRUE)
@@ -686,99 +902,65 @@ line_sample <- function(ems, ranges, z, s_points, n_lines = 20,
     return(pts[included,])
   })
   out_df <- rbind(s_points, do.call('rbind', include_pts))
-  uniqueness <- row.names(unique(signif(out_df, 6)))
-  return(out_df[uniqueness, ])
+  uniqueness <- row.names(unique(signif(out_df, 7)))
+  return(out_df[uniqueness,])
 }
 
-# Importance Sampling function
-importance_sample <- function(ems, n_points, z, s_points, cutoff = 3,
-                              nth = 1, distro = 'sphere', sd = NULL,
-                              to_file = NULL, imp_func, ...) {
+importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, opts) {
+  if (is.null(opts$distro) || !opts$distro %in% c('sphere', 'normal')) opts$distro <- 'sphere'
+  if (is.null(opts$sd)) opts$sd <- 2
+  tryCatch(opts$sd <- as.numeric(opts$sd),
+           warning = function(e) {warning("opts$sd is not numeric; setting to 3"); opts$sd <- 3})
   if (nrow(s_points) >= n_points)
     return(s_points)
   m_points <- n_points - nrow(s_points)
   ranges <- getRanges(ems, FALSE)
   new_points <- s_points
-  in_range <- function(data, ranges) {
-    apply(
-      data, 1,
-      function(x) all(purrr::map_lgl(
-        seq_along(ranges), ~x[.] >= ranges[[.]][1] && x[.] <= ranges[[.]][2])))
-  }
-  s_trafo <- sweep(
-    sweep(
-      s_points, 2,
-      apply(s_points, 2, mean), "-"), 2, apply(s_points, 2, sd), "/")
-  s_estruct <- eigen(cov(s_trafo))
-  s_estruct$values <- purrr::map_dbl(
-    s_estruct$values, function(x) {if(x < 1e-10) 1e-10 else x})
-  pca_transform <- function(x, forward = TRUE) {
-    if (forward) x <- sweep(
-      sweep(
-        x, 2,
-        apply(s_points, 2, mean), "-"), 2, apply(s_points, 2, sd), "/")
-    if ("data.frame" %in% class(x)) x <- data.matrix(x)
-    if (forward) return(x %*% s_estruct$vectors %*%
-                          diag(1/sqrt(s_estruct$values)))
-    pre_traf <- x %*% diag(sqrt(s_estruct$values)) %*% t(s_estruct$vectors)
-    return(sweep(
-      sweep(
-        pre_traf, 2,
-        apply(s_points, 2, sd), "*"), 2, apply(s_points, 2, mean), "+"))
-  }
   propose_points <- function(sp, sd, how_many = n_points) {
-    sp_trafo <- pca_transform(sp)
+    if (is.character(opts$accept_measure) && opts$accept_measure == "default")
+      imp_func <- function(ems, x, z, ...) nth_implausible(ems, x, z, n = opts$nth, ...)
+    else
+      imp_func <- opts$accept_measure
+    sp_trafo <- pca_transform(sp, s_points)
     wp <- sp_trafo[sample(nrow(sp_trafo), how_many, replace = TRUE), ]
-    if (distro == "normal")
-      pp <- t(apply(wp, 1,
-                    function(x) mvtnorm::rmvnorm(
-                      1, mean = unlist(x, use.names = F),
-                      sigma = sd)))
-    else pp <- t(apply(
-      wp, 1,
-      function(x) runifs(1, length(s_points), unlist(x, use.names = F),
-                         r = sd)))
+    if (opts$distro == "normal")
+      pp <- t(apply(wp, 1, function(x)
+        mvtnorm::rmvnorm(1, mean = unlist(x, use.names = FALSE), sigma = sd)))
+    else
+      pp <- t(apply(wp, 1, function(x)
+        runifs(1, length(s_points), unlist(x, use.names = FALSE), r = sd)))
     prop_points <- data.frame(pp)
-    back_traf <- setNames(data.frame(pca_transform(pp, FALSE)), names(ranges))
+    back_traf <- setNames(data.frame(pca_transform(pp, s_points, FALSE)), names(ranges))
     valid <- in_range(back_traf, ranges) &
-      imp_func(ems, back_traf, z, n = nth, cutoff = cutoff, ordered = TRUE)
-    if (distro == "normal") {
-      tweights <- apply(
-        prop_points, 1,
-        function(x) 1/nrow(sp_trafo) * sum(
-          apply(
-            sp_trafo, 1,
-            function(y) mvtnorm::dmvnorm(x, mean = y, sigma = sd))))
-      min_w <- min(
-        apply(
-          sp_trafo, 1,
-          function(x) 1/nrow(sp_trafo) * sum(
-            apply(
-              sp_trafo, 1,
-              function(y) mvtnorm::dmvnorm(x, mean = y, sigma = sd)))))
+      imp_func(ems, back_traf, z, cutoff = cutoff, ordered = TRUE)
+    if (opts$distro == "normal") {
+      tweights <- apply(prop_points, 1, function(x)
+        1/nrow(sp_trafo) * sum(
+          apply(sp_trafo, 1, function(y)
+            mvtnorm::dmvnorm(x, mean = y, sigma = sd))
+        ))
+      min_w <- min(apply(sp_trafo, 1, function(x)
+        1/nrow(sp_trafo) * sum(
+          apply(sp_trafo, 1, function(y) mvtnorm::dmvnorm(x, mean = y, sigma = sd))
+        )))
       weights <- min_w/tweights
     }
-    else
-      weights <- apply(
-        prop_points, 1,
-        function(x) sum(apply(sp_trafo, 1, function(y) punifs(x, y, r = sd))))
+    else {
+      weights <- apply(prop_points, 1, function(x)
+        sum(apply(sp_trafo, 1, function(y)
+          punifs(x, y, r = sd))))
+    }
     allow <- runif(length(weights)) < 1/weights
     accepted <- valid & allow
     return(back_traf[accepted,])
   }
-  if (is.null(sd)) {
-    if (distro == "normal")
-      sd <- diag(2, length(ranges))
-    else
-      sd <- rep(2, length(ranges))
-  }
+  if (opts$distro == "normal" && !is.matrix(opts$sd)) sd <- diag(2, length(ranges))
+  else if (length(opts$sd) == 1) sd <- rep(2, length(ranges))
   accept_rate <- NULL
   upper_accept <- 0.225
   lower_accept <- 0.075
-  while ((is.null(accept_rate) ||
-          accept_rate > upper_accept ||
-          accept_rate < lower_accept) &&
-         nrow(new_points) < n_points) {
+  while((is.null(accept_rate) || accept_rate > upper_accept ||
+         accept_rate < lower_accept) && nrow(new_points) < n_points) {
     if (!is.null(accept_rate)) {
       if (accept_rate > upper_accept) sd <- sd * 1.1
       else sd <- sd * 0.9
@@ -788,53 +970,25 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3,
     new_points <- rbind(new_points, prop_points)
     uniqueness <- row.names(unique(signif(new_points, 7)))
     new_points <- new_points[uniqueness,]
-    if (!is.null(to_file)) #nocov
-      write.csv(new_points, file = to_file, row.names = FALSE) #nocov
+    if (!is.na(opts$to_file)) write.csv(new_points, file = opts$to_file, row.names = FALSE) #nocov
     accept_rate <- nrow(prop_points)/how_many
   }
-  while (nrow(new_points) < n_points) {
-    prop_points <- propose_points(s_points, sd,
-                                  ceiling(1.5*m_points/accept_rate))
+  while(nrow(new_points) < n_points) {
+    prop_points <- propose_points(s_points, sd, ceiling(1.5*m_points/accept_rate))
     new_points <- rbind(new_points, prop_points)
     uniqueness <- row.names(unique(signif(new_points, 7)))
     new_points <- new_points[uniqueness,]
-    if (!is.null(to_file)) write.csv(new_points, #nocov
-                                     file = to_file, row.names = FALSE) #nocov
+    if (!is.na(opts$to_file)) write.csv(new_points, file = opts$to_file, row.names = FALSE) #nocov
   }
   return(new_points)
 }
 
-# Slice sampling point generation
-slice_gen <- function(ems, ranges, n_points, z, points, cutoff = 3, nth = 1, pca = FALSE, imp_func, ...) {
-  in_range <- function(data, ranges) {
-    apply(
-      data, 1,
-      function(x) all(
-        purrr::map_lgl(
-          seq_along(ranges),
-          ~x[.] >= ranges[[.]][1] && x[.] <= ranges[[.]][2])))
-  }
-  pca_transform <- function(x, points, forward = TRUE) {
-    s_trafo <- sweep(
-      sweep(
-        points, 2,
-        apply(points, 2, mean), "-"), 2, apply(points, 2, sd), "/")
-    s_estruct <- eigen(cov(s_trafo))
-    s_estruct$values <- purrr::map_dbl(
-      s_estruct$values, function(x) {if(x < 1e-10) 1e-10 else x})
-    if (forward) x <- sweep(
-      sweep(
-        x, 2,
-        apply(points, 2, mean), "-"), 2, apply(points, 2, sd), "/")
-    if ("data.frame" %in% class(x)) x <- data.matrix(x)
-    if (forward)
-      return(x %*% s_estruct$vectors %*% diag(1/sqrt(s_estruct$values)))
-    pre_traf <- x %*% diag(sqrt(s_estruct$values)) %*% t(s_estruct$vectors)
-    return(sweep(
-      sweep(
-        pre_traf, 2,
-        apply(points, 2, sd), "*"), 2, apply(points, 2, mean), "+"))
-  }
+slice_gen <- function(ems, ranges, n_points, z, points, cutoff, opts) {
+  if (is.null(opts$pca_slice) || !is.logical(opts$pca_slice)) opts$pca_slice <- FALSE
+  if (is.character(opts$accept_measure) && opts$accept_measure == "default")
+    imp_func <- function(ems, x, z, ...) nth_implausible(ems, x, z, n = opts$nth, ...)
+  else
+    imp_func <- opts$accept_measure
   make_slice <- function(points, ranges, indices) {
     new_coords <- vapply(ranges, function(x) runif(1, x[1], x[2]), numeric(1))
     old_values <- rep(0, nrow(points))
@@ -845,45 +999,42 @@ slice_gen <- function(ems, ranges, n_points, z, points, cutoff = 3, nth = 1, pca
     return(list(p = points, o = old_values))
   }
   complete_points <- pca_base <- points
-  if (pca) {
+  if (opts$pca_slice) {
     points <- pca_transform(points, pca_base)
-    pca_ranges <- purrr::map(seq_along(pca_base), ~c(-5, 5))
+    pca_ranges <- purrr::map(seq_along(pca_base), ~c(-5,5))
   }
   else
     pca_ranges <- ranges
   index_list <- rep(1, nrow(points))
-  while(nrow(complete_points) < n_points) {
+  while (nrow(complete_points) < n_points) {
     range_list <- purrr::map(seq_along(index_list),
                              ~pca_ranges[[index_list[.]]])
     new_slice <- make_slice(points, range_list, index_list)
     points <- new_slice$p
     old_vals <- new_slice$o
-    if (pca) {
+    if (opts$pca_slice) {
       imps <- imp_func(ems,
-                              setNames(
-                                data.frame(
-                                  matrix(
-                                    pca_transform(points, pca_base, FALSE),
-                                    nrow = nrow(points))), names(ranges)),
-                              z, n = nth, cutoff = cutoff, ordered = TRUE)
+                       setNames(data.frame(matrix(
+                         pca_transform(points, pca_base, FALSE),
+                         nrow = nrow(points)
+                         )), names(ranges)),
+                       z, cutoff = cutoff, ordered = TRUE)
       in_ranges <- in_range(pca_transform(points, pca_base, FALSE), ranges)
     }
     else {
-      imps <- imp_func(ems, points, z, n = nth, cutoff = cutoff, ordered = TRUE)
+      imps <- imp_func(ems, points, z, cutoff = cutoff, ordered = TRUE)
       in_ranges <- in_range(points, ranges)
     }
     for (i in seq_along(imps)) {
       if (imps[i] && in_ranges[i]) {
         range_list[[index_list[i]]] <- pca_ranges[[index_list[i]]]
         if (index_list[i] == length(pca_ranges)) {
-          if (pca)
+          if (opts$pca_slice)
             complete_points <- rbind(complete_points,
-                                     setNames(
-                                       data.frame(
-                                         matrix(
-                                           pca_transform(points[i,],
-                                                         pca_base, FALSE),
-                                           nrow = 1)), names(ranges)))
+                                     setNames(data.frame(matrix(
+                                       pca_transform(points[i,], pca_base, FALSE),
+                                       nrow = 1
+                                     )), names(ranges)))
           else
             complete_points <- rbind(complete_points, points[i,])
           index_list[i] <- 1
@@ -901,57 +1052,13 @@ slice_gen <- function(ems, ranges, n_points, z, points, cutoff = 3, nth = 1, pca
   return(complete_points)
 }
 
-# Optical depth point generation
-op_depth_gen <- function(ems, ranges, n_points, z, n.runs = 100, cutoff = 3,
-                         nth = 1, plausible_set, verbose = interactive(), imp_func, ...) {
-  get_depth <- function(p_set, v_name, nbins = 100) {
-    output <- c()
-    varseq <- seq(ranges[[v_name]][1],
-                  ranges[[v_name]][2], length.out = (nbins+1))
-    for (i in 1:(length(varseq)-1)) {
-      odepth <- nrow(p_set[p_set[[v_name]]>=varseq[i] &
-                             p_set[[v_name]]<varseq[i+1],])/nrow(p_set)
-      output <- c(output, (varseq[i]+varseq[i+1])/2, odepth)
-    }
-    return(setNames(data.frame(t(matrix(output, nrow = 2))), c('bin', 'prob')))
-  }
-  out_stuff <- c()
-  for (i in seq_along(ranges)) {
-    probs <- get_depth(plausible_set, names(ranges)[i], ...)
-    new_pts <- sample(
-      probs$bin,
-      n_points*10, prob = probs$prob, replace = TRUE) +
-      runif(n_points*10, 0, probs$bin[2]-probs$bin[1])
-    out_stuff <- c(out_stuff, new_pts)
-  }
-  df <- setNames(
-    data.frame(
-      matrix(out_stuff, nrow = n_points*10)), names(ranges))
-  df <- df[imp_func(ems, df, z, n = nth, cutoff = cutoff, ordered = TRUE),]
-  if (nrow(df) > n_points) {
-    if(verbose) cat("Selecting final points using maximin criterion...\n") #nocov
-    c_measure <- op <- NULL
-    for (i in 1:100) {
-      tp <- df[sample(nrow(df), n_points),]
-      if (!"data.frame" %in% class(tp))
-        tp <- setNames(data.frame(tp), names(ranges))
-      measure <- min(dist(tp))
-      if (is.null(c_measure) || measure > c_measure) {
-        op <- tp
-        c_measure <- measure
-      }
-    }
-    df <- op
-  }
-  return(df)
-}
-
 ## Good point generation
 #'
 #' @importFrom stats pnorm
 seek_good <- function(ems, n_points, z, plausible_set, cutoff = 3,
-                      distro = "norm", imp_func, ...) {
-  dist_func <- get(paste0("p", distro))
+                      opts) {
+  if (is.null(opts$seek_distro)) opts$seek_distro <- "norm"
+  dist_func <- get(paste0("p", opts$seek_distro))
   get_prob <- function(ems, points, targets) {
     for (i in seq_along(targets)) {
       if (!is.atomic(targets[[i]]))
@@ -964,13 +1071,13 @@ seek_good <- function(ems, n_points, z, plausible_set, cutoff = 3,
                            purrr::map(ems, ~.$get_cov(points))))
     em_probs <- do.call('rbind.data.frame',
                         purrr::map(seq_len(nrow(em_exps)), function(x) {
-      purrr::map_dbl(seq_along(em_exps[x,]), function(y) {
-        pnorm(targets[[ems[[y]]$output_name]][2],
-              em_exps[x,y], em_sds[x,y]) -
-          pnorm(targets[[ems[[y]]$output_name]][1],
-                em_exps[x,y], em_sds[x,y])
-      })
-    }))
+                          purrr::map_dbl(seq_along(em_exps[x,]), function(y) {
+                            pnorm(targets[[ems[[y]]$output_name]][2],
+                                  em_exps[x,y], em_sds[x,y]) -
+                              pnorm(targets[[ems[[y]]$output_name]][1],
+                                    em_exps[x,y], em_sds[x,y])
+                          })
+                        }))
     result <- apply(
       em_probs, 1,
       function(x) prod(
@@ -996,7 +1103,7 @@ seek_good <- function(ems, n_points, z, plausible_set, cutoff = 3,
     return(data[picked_rows,])
   }
   point_set <- importance_sample(ems, max(20*n_points, 4*nrow(plausible_set)),
-                                 z, plausible_set, cutoff = cutoff, imp_func = imp_func, ...)
+                                 z, plausible_set, cutoff = cutoff, opts)
   probs <- get_prob(ems, point_set, z)
   o_points <- point_set[order(probs, decreasing = TRUE),]
   keep_points <- o_points[1:(10*n_points),]

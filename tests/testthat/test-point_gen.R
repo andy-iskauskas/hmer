@@ -35,15 +35,6 @@ test_that("Point generation methods", {
     nrow(points_slice),
     100
   )
-  points_optical <- generate_new_runs(
-    ems, 100, targs, method = c('optical'),
-    plausible_set = points_line[1:50,], nth = 2,
-    resample = 0, verbose = FALSE
-  )
-  expect_equal(
-    nrow(points_optical),
-    100
-  )
   points_importance <- generate_new_runs(
     ems, 100, targs, method = c('importance'),
     plausible_set = points_line[1:50,], cutoff = 4,
