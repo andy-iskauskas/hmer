@@ -181,8 +181,8 @@ maximin_sample <- function(points, n, reps = 1000, nms) {
 #'  \item{pca_lhs (LHS)}{Whether to apply PCA to the space before proposing.}
 #'  \item{n_lines (Line)}{How many lines to draw.}
 #'  \item{ppl (Line)}{The number of points to sample per line.}
-#'  \item{distro (Importance)}{The distribution to propose around points.}
-#'  \item{sd (Importance)}{The radius, or standard deviation, of proposed distributions.}
+#'  \item{imp_distro (Importance)}{The distribution to propose around points.}
+#'  \item{imp_scale (Importance)}{The radius, or standard deviation, of proposed distributions.}
 #'  \item{pca_slice (Slice)}{Whether to apply PCA to the space before slice sampling.}
 #'  \item{seek_distro (Seek)}{The distribution to apply when looking for 'good' points.}
 #'  }
@@ -259,7 +259,6 @@ generate_new_runs <- function(ems, n_points, z, method = "default", cutoff = 3,
       error = function(e) {warning("Cannot open directory provided in to_file; output will not be saved to an external file"); opts$to_file <- NA}
     )
   } #nocov end
-  ## Other hidden opts here: lhd_pca, etc
   ems <- collect_emulators(ems, z)
   ranges <- getRanges(ems)
   if (is.na(opts$nth)) {
@@ -385,7 +384,7 @@ generate_new_runs <- function(ems, n_points, z, method = "default", cutoff = 3,
       if (opts$seek > 0) {
         if (verbose) cat("Searching for high probability match points...\n") #nocov
         if (opts$seek <= 1) opts$seek <- floor(n_points * opts$seek)
-        extra_points <- seek_good(ems, opts$seek, z, points, cutoff, opts)
+        extra_points <- seek_good(ems, z, points, cutoff, opts)
       }
       else extra_points <- NULL
       if (nrow(points) > n_points - opts$seek) {
@@ -593,7 +592,7 @@ generate_new_runs <- function(ems, n_points, z, method = "default", cutoff = 3,
   if (opts$seek > 0) {
     if (verbose) cat("Searching for points with high matching probability...\n") #nocov
     if (opts$seek <= 1) opts$seek <- floor(n_points*seek)
-    extra_points <- seek_good(ems, opts$seek, z, points, cutoff, opts)
+    extra_points <- seek_good(ems, z, points, cutoff, opts)
   }
   else extra_points <- NULL
   if (nrow(points) > n_points - opts$seek) {
@@ -688,164 +687,170 @@ lhs_gen_cluster <- function(ems, ranges, n_points, z, cutoff = 3, verbose = FALS
                        purrr::map(ems, ~.$active_vars))),
     names(ranges)
   )
-  cluster_id <- tryCatch(
-    Mclust(which_active, G = 1:2, verbose = FALSE)$classification,
+  cluster_id <- NULL
+  tryCatch({
+      dist_mat <- suppressWarnings(cluster::daisy(which_active, metric = 'gower'))
+      single_clust <- cluster::fanny(dist_mat, k = 1)
+      double_clust <- cluster::fanny(dist_mat, k = 2)
+      if (single_clust$objective[["objective"]] < double_clust$objective[["objective"]])
+        cluster_id <- c(single_clust$clustering, use.names = FALSE)
+      else cluster_id <- c(double_clust$clustering, use.names = FALSE)
+    },
     error = function(e) {
       warning("Cannot distinguish two clusters in emulator active variables.")
-      return(NULL)
     }
   )
+  # cluster_id <- tryCatch(
+  #   Mclust(which_active, G = 1:2, verbose = FALSE)$classification,
+  #   error = function(e) {
+  #     warning("Cannot distinguish two clusters in emulator active variables.")
+  #     return(NULL)
+  #   }
+  # )
   if (is.null(cluster_id) || length(unique(cluster_id)) == 1)
     return(lhs_gen(ems, ranges, n_points, z, cutoff, verbose, opts))
   c1 <- ems[cluster_id == 1]
   c2 <- ems[cluster_id == 2]
-  p1 <- unique(purrr::map_chr(c1, ~names(ranges)[.$active_vars]))
-  p2 <- unique(purrr::map_chr(c2, ~names(ranges)[.$active_vars]))
+  p1 <- unique(do.call(c, purrr::map(c1, ~names(ranges)[.$active_vars])))
+  p2 <- unique(do.call(c, purrr::map(c2, ~names(ranges)[.$active_vars])))
   pn <- intersect(p1, p2)
   if (length(union(p1, p2)) == length(pn) && all(union(p1, p2) %in% pn))
     return(lhs_gen(ems, ranges, n_points, z, cutoff, opts))
   if (length(p1) > length(p2)) {
     c1 <- ems[cluster_id == 2]
     c2 <- ems[cluster_id == 1]
-    p1 <- unique(purrr::map_chr(c2, ~names(ranges)[.$active_vars]))
-    p2 <- unique(purrr::map_chr(c1, ~names(ranges)[.$active_vars]))
+    p1 <- unique(do.call(c, purrr::map(c2, ~names(ranges)[.$active_vars])))
+    p2 <- unique(do.call(c, purrr::map(c1, ~names(ranges)[.$active_vars])))
   }
   if (verbose) cat("Clusters determined. Cluster 1 has length", #nocov start
                    length(c1), "with", length(p1),
                    "active variables; cluster 2 has length",
                    length(c2), "with", length(p2),
-                   "active variables -", length(pn), "shared.\n")
+                   "active variables;", length(pn), "shared.\n")
   if (verbose) cat("Proposing from clusters...\n") #nocov end
-  lhs1 <- setNames(
-    data.frame(2 * (lhs::randomLHS(n_points * opts$points.factor, length(p1)) - 0.5)),
-    p1
-  )
-  spare1 <- ranges[!names(ranges) %in% p1]
-  for (i in names(spare1)) lhs[[i]] <- runif(nrow(lhs1), -1, 1)
-  lhs1 <- eval_funcs(scale_input, lhs1[,names(ranges)], ranges, FALSE)
-  if (is.character(opts$accept_measure) && opts$accept_measure == "default") {
-    imps1 <- nth_implausible(c1, lhs1, z, n = opts$nth, max_imp = Inf, ordered = TRUE)
-    required_points <- min(length(imps1)-1, floor(0.8*length(imps1)), 5*length(ranges))
-    if (sum(imps1 <= cutoff) < required_points) {
-      cutoff_current <- sort(imps1)[required_points]
-      if (sort(imps1)[1] >= 20) {
-        warning(paste("Parameter space has no points below implausibility 20;",
-                      "terminating early. This may not indicate model inadequacy:",
-                      "inspect results and re-run if applicable."))
-        return(list(points = lhs1[imps1 <= 0,], cutoff = 0))
-      }
-    }
-    else cutoff_current <- cutoff
-    valid1 <- lhs1[imps1 <= cutoff_current]
-  }
-  else {
-    i_bools <- rep(FALSE, nrow(lhs1))
-    required_points <- min(nrow(lhs1)-1, floor(0.8*nrow(lhs1)), 5*length(ranges))
-    c_current <- cutoff
-    while (sum(i_bools) < required_points) {
-      if (c_current > 20) {
-        warning(paste("Parameter space has no points below implausibility 20;",
-                      "terminating early. This may not indicate model inadequacy:",
-                      "inspect results and re-run if applicable."))
-        return(list(points = lhs1[rep(FALSE, nrow(lhs1)),], cutoff = 0))
-      }
-      false_indices <- which(!i_bools)
-      imp_bools <- opts$accept_measure(ems, lhs1[false_indices,], z, c_current)
-      i_bools[false_indices] <- i_bools[false_indices] | imp_bools
-      c_current <- c_current + 0.5
-    }
-    cutoff_current <- c_current - 0.5
-    valid1 <- lhs1[i_bools,]
-  }
-  LHS_augment <- function(df, p1, p2, ranges, n_points) {
-    n_lhs <- ceiling(n_points * opts$points.factor / nrow(df))
-    new_lhs <- setNames(
-      data.frame(2 * (lhs::randomLHS(n_lhs, length(p2)) - 0.5)),
-    p2)
-    new_lhs <- eval_funcs(scale_input, new_lhs, ranges[p2], FALSE)
-    new_lhs <- new_lhs[rep(seq_len(nrow(new_lhs)), each = nrow(df)),]
-    new_lhs[,setdiff(p1, intersect(p1, p2))] <- df[
-      rep(seq_len(nrow(df)), n_lhs), setdiff(p1, intersect(p1, p2))
-    ]
-    if (length(intersect(p1, p2)) > 0) {
-      for (i in intersect(p1, p2))
-        new_lhs[,i] <- df[rep(seq_len(nrow(df)), n_lhs), i] +
-          runif(nrow(new_lhs)) *
-          (new_lhs[,i] - df[rep(seq_len(nrow(df)), n_lhs), i])
-    }
-    if (length(setdiff(names(ranges), union(p1, p2))) > 0)
-    {
-      for (i in setdiff(names(ranges), union(p1, p2)))
-        new_lhs[,i] <- runif(nrow(new_lhs), ranges[[i]][1], ranges[[i]][2])
-    }
-    return(new_lhs[,names(ranges)])
-  }
-  second_stage <- function(df, cutoff, p1, p2, ranges, n_points, ems, z) {
-    lhs2 <- LHS_augment(df, p1, p2, ranges, n_points)
+  cluster_proposal <- function(ems, params, ranges, np, what_cutoff = cutoff) {
+    req_points <- min(floor(np * opts$points.factor/2 - 1),
+                      floor(0.4 * np * opts$points.factor),
+                      5*length(ranges))
+    prop_lhs <- setNames(
+      data.frame(2 * (lhs::randomLHS(np * opts$points.factor, length(params)) - 0.5)),
+      params
+    )
+    spare_p <- ranges[!names(ranges) %in% params]
+    for (i in names(spare_p)) prop_lhs[[i]] <- runif(nrow(prop_lhs), -1, 1)
+    prop_lhs <- eval_funcs(scale_input, prop_lhs[,names(ranges)], ranges, FALSE)
     if (is.character(opts$accept_measure) && opts$accept_measure == "default") {
-      imps2 <- nth_implausible(ems, lhs2, z, n = opts$nth, max_imp = Inf, ordered = TRUE)
-      if (sum(imps2 <= cutoff) < required_points) {
-        coff <- sort(imps2)[required_points]
-        if (sort(imps2)[1] >= 20) {
+      imps <- nth_implausible(ems, prop_lhs, z, n = max(1, opts$nth-1), max_imp = Inf, ordered = TRUE)
+      if (sum(imps <= what_cutoff) < req_points) {
+        cutoff_current <- sort(imps)[req_points]
+        if (sort(imps)[1] >= 20) {
           warning(paste("Parameter space has no points below implausibility 20;",
                         "terminating early. This may not indicate model inadequacy:",
                         "inspect results and re-run if applicable."))
-          return(list(points = lhs2[imps2 <= 0,], cutoff = 0))
+          return(list(points = prop_lhs[imps <= 0,], cutoff = 0))
         }
       }
-      else coff <- cutoff
-      return(list(points = lhs2[imps2 <= coff,], cutoff = coff))
+      else cutoff_current <- what_cutoff
+      valid <- prop_lhs[imps <= cutoff_current,]
     }
     else {
-      i_bools <- rep(FALSE, nrow(lhs2))
-      required_points <- min(nrow(lhs2)-1, floor(0.8*nrow(lhs2)), 5*length(ranges))
-      c_current <- cutoff
-      while (sum(i_bools) < required_points) {
+      i_bools <- rep(FALSE, nrow(prop_lhs))
+      c_current <- what_cutoff
+      while (sum(i_bools) < req_points) {
         if (c_current > 20) {
           warning(paste("Parameter space has no points below implausibility 20;",
                         "terminating early. This may not indicate model inadequacy:",
                         "inspect results and re-run if applicable."))
-          return(list(points = lhs2[rep(FALSE, nrow(lhs2)),], cutoff = 0))
+          return(list(points = prop_lhs[rep(FALSE, nrow(prop_lhs)),], cutoff = 0))
         }
         false_indices <- which(!i_bools)
-        imp_bools <- opts$accept_measure(ems, lhs2[false_indices,], z, c_current)
-        i_bools[false_indices] <- i_bools[false_indices] | imp_bools
-        c_current <- c_current + 0.5
-      }
-      return(list(points = lhs2[i_bools,], cutoff = c_current - 0.5))
-    }
-  }
-  valid2 <- second_stage(valid1, cutoff_current, p1, p2, ranges, n_points, c2, z)
-  while (valid2$cutoff - cutoff_current > opts$ladder_tolerance) {
-    if (verbose) cat("Cutoff increase to", valid2$cutoff, #nocov
-                     "- resampling from cluster 1.\n") #nocov
-    cutoff_current <- valid2$cutoff
-    if (is.character(opts$accept_measure) && opts$accept_measure == "default") {
-      valid1 <- lhs1[imps1 <= cutoff_current,]
-      valid2 <- second_stage(valid1, cutoff_current, p1, p2, ranges, n_points, c2, z)
-    }
-    else {
-      i_bools <- rep(FALSE, nrow(lhs1))
-      required_points <- min(nrow(lhs1)-1, floor(0.8*nrow(lhs1)), 5*length(ranges))
-      c_current <- cutoff_current
-      while (sum(i_bools) < required_points) {
-        if (c_current > 20) {
-          warning(paste("Parameter space has no points below implausibility 20;",
-                        "terminating early. This may not indicate model inadequacy:",
-                        "inspect results and re-run if applicable."))
-          return(list(points = lhs1[rep(FALSE, nrow(lhs1)),], cutoff = 0))
-        }
-        false_indices <- which(!i_bools)
-        imp_bools <- opts$accept_measure(ems, lhs1[false_indices,], z, c_current)
+        imp_bools <- opts$accept_measure(ems, prop_lhs[false_indices,], z, c_current)
         i_bools[false_indices] <- i_bools[false_indices] | imp_bools
         c_current <- c_current + 0.5
       }
       cutoff_current <- c_current - 0.5
-      valid1 <- lhs1[i_bools,]
+      valid <- prop_lhs[i_bools,]
     }
-    valid2 <- second_stage(valid1, cutoff_current, p1, p2, ranges, n_points, c2, z)
+    return(list(points = valid, cutoff = cutoff_current))
   }
-  return(valid2)
+  clust_1_prop <- cluster_proposal(c1, p1, ranges, n_points)
+  clust_2_prop <- cluster_proposal(c2, p2, ranges, n_points)
+  if (nrow(clust_1_prop$points) == 0) return(clust_1_prop)
+  if (nrow(clust_2_prop$points) == 0) return(clust_2_prop)
+  if (clust_1_prop$cutoff != clust_2_prop$cutoff) {
+    if (clust_1_prop$cutoff < clust_2_prop$cutoff)
+      clust_1_prop <- cluster_proposal(c1, p1, ranges, n_points, clust_2_prop$cutoff)
+    else
+      clust_2_prop <- cluster_proposal(c2, p2, ranges, n_points, clust_1_prop$cutoff)
+  }
+  cutoff_val <- clust_1_prop$cutoff
+  if (length(intersect(p1, p2)) == 0) {
+    if (verbose) cat("No shared variables in clusters.\n")
+    relev_1 <- clust_1_prop$points[,p1, drop = FALSE] |> setNames(p1)
+    relev_2 <- clust_2_prop$points[,p2, drop = FALSE] |> setNames(p2)
+    complete_df <- cbind(relev_1[rep(seq_len(nrow(relev_1)),
+                                     each = nrow(relev_2)),],
+                         relev_2[rep(seq_len(nrow(relev_2)),
+                                     nrow(relev_1)),]) |> setNames(c(p1, p2))
+    if (length(setdiff(names(ranges), union(p1, p2))) != 0) {
+      for (i in setdiff(names(ranges), union(p1, p2)))
+        complete_df[,i] <- runif(nrow(complete_df), ranges[[i]][1], ranges[[i]][2])
+    }
+    complete_df <- complete_df[,names(ranges)]
+    return(list(points = complete_df, cutoff = cutoff_val))
+  }
+  relev_1 <- data.frame(clust_1_prop$points[,setdiff(p1, pn), drop = FALSE]) |>
+    setNames(setdiff(p1, pn))
+  relev_2 <- data.frame(clust_2_prop$points[,setdiff(p2, pn), drop = FALSE]) |>
+    setNames(setdiff(p2, pn))
+  combine_relev <- rbind(clust_1_prop$points[,pn, drop = FALSE],
+                         clust_2_prop$points[,pn, drop = FALSE]) |> setNames(pn)
+  combine_ranges <- apply(combine_relev, 2, range)
+  complete_df <- cbind(relev_1[rep(seq_len(nrow(relev_1)),
+                                   each = nrow(relev_2)),],
+                       relev_2[rep(seq_len(nrow(relev_2)),
+                                   nrow(relev_1)),]) |>
+    setNames(c(names(relev_1), names(relev_2)))
+  for (i in pn) {
+    complete_df[,i] <- runif(nrow(complete_df), combine_ranges[1,i], combine_ranges[2,i])
+  }
+  complete_df <- complete_df[,names(ranges)]
+  req_points <- min(floor(n_points * opts$points.factor/2 - 1),
+                    floor(0.4 * n_points * opts$points.factor),
+                    5*length(ranges))
+  if (is.character(opts$accept_measure) && opts$accept_measure == "default") {
+    imps <- nth_implausible(ems, complete_df, z, n = opts$nth, max_imp = Inf, ordered = TRUE)
+    if (sum(imps <= cutoff_val) < req_points) {
+      cutoff_current <- sort(imps)[req_points]
+      if (sort(imps)[1] >= 20) {
+        warning(paste("Parameter space has no points below implausibility 20;",
+                      "terminating early. This may not indicate model inadequacy:",
+                      "inspect results and re-run if applicable."))
+        return(list(points = complete_df[imps <= 0,], cutoff = 0))
+      }
+    }
+    else cutoff_current <- cutoff_val
+    valid <- complete_df[imps <= cutoff_current,]
+  }
+  else {
+    i_bools <- rep(FALSE, nrow(complete_df))
+    c_current <- cutoff_val
+    while (sum(i_bools) < req_points) {
+      if (c_current > 20) {
+        warning(paste("Parameter space has no points below implausibility 20;",
+                      "terminating early. This may not indicate model inadequacy:",
+                      "inspect results and re-run if applicable."))
+        return(list(points = complete_df[rep(FALSE, nrow(complete_df)),], cutoff = 0))
+      }
+      false_indices <- which(!i_bools)
+      imp_bools <- opts$accept_measure(ems, complete_df[false_indices,], z, c_current)
+      i_bools[false_indices] <- i_bools[false_indices] | imp_bools
+      c_current <- c_current + 0.5
+    }
+    cutoff_current <- c_current - 0.5
+    valid <- complete_df[i_bools,]
+  }
+  return(list(points = valid, cutoff = cutoff_current))
 }
 
 ## Line sampling function
@@ -907,10 +912,10 @@ line_sample <- function(ems, ranges, z, s_points, cutoff = 3, opts) {
 }
 
 importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, opts) {
-  if (is.null(opts$distro) || !opts$distro %in% c('sphere', 'normal')) opts$distro <- 'sphere'
-  if (is.null(opts$sd)) opts$sd <- 2
-  tryCatch(opts$sd <- as.numeric(opts$sd),
-           warning = function(e) {warning("opts$sd is not numeric; setting to 3"); opts$sd <- 3})
+  if (is.null(opts$imp_distro) || !opts$imp_distro %in% c('sphere', 'normal')) opts$imp_distro <- 'sphere'
+  if (is.null(opts$imp_scale)) opts$imp_scale <- 2
+  tryCatch(opts$imp_scale <- as.numeric(opts$imp_scale),
+           warning = function(e) {warning("opts$imp_scale is not numeric; setting to 2"); opts$imp_scale <- 2})
   if (nrow(s_points) >= n_points)
     return(s_points)
   m_points <- n_points - nrow(s_points)
@@ -923,7 +928,7 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, opts) {
       imp_func <- opts$accept_measure
     sp_trafo <- pca_transform(sp, s_points)
     wp <- sp_trafo[sample(nrow(sp_trafo), how_many, replace = TRUE), ]
-    if (opts$distro == "normal")
+    if (opts$imp_distro == "normal")
       pp <- t(apply(wp, 1, function(x)
         mvtnorm::rmvnorm(1, mean = unlist(x, use.names = FALSE), sigma = sd)))
     else
@@ -933,7 +938,7 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, opts) {
     back_traf <- setNames(data.frame(pca_transform(pp, s_points, FALSE)), names(ranges))
     valid <- in_range(back_traf, ranges) &
       imp_func(ems, back_traf, z, cutoff = cutoff, ordered = TRUE)
-    if (opts$distro == "normal") {
+    if (opts$imp_distro == "normal") {
       tweights <- apply(prop_points, 1, function(x)
         1/nrow(sp_trafo) * sum(
           apply(sp_trafo, 1, function(y)
@@ -954,8 +959,8 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, opts) {
     accepted <- valid & allow
     return(back_traf[accepted,])
   }
-  if (opts$distro == "normal" && !is.matrix(opts$sd)) sd <- diag(2, length(ranges))
-  else if (length(opts$sd) == 1) sd <- rep(2, length(ranges))
+  if (opts$imp_distro == "normal" && !is.matrix(opts$imp_scale)) sd <- diag(2, length(ranges))
+  else if (length(opts$imp_scale) == 1) sd <- rep(2, length(ranges))
   accept_rate <- NULL
   upper_accept <- 0.225
   lower_accept <- 0.075
@@ -1055,8 +1060,9 @@ slice_gen <- function(ems, ranges, n_points, z, points, cutoff, opts) {
 ## Good point generation
 #'
 #' @importFrom stats pnorm
-seek_good <- function(ems, n_points, z, plausible_set, cutoff = 3,
+seek_good <- function(ems, z, plausible_set, cutoff = 3,
                       opts) {
+  n_points <- opts$seek
   if (is.null(opts$seek_distro)) opts$seek_distro <- "norm"
   dist_func <- get(paste0("p", opts$seek_distro))
   get_prob <- function(ems, points, targets) {

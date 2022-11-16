@@ -135,8 +135,8 @@ volumes.
  \item{pca_lhs (LHS)}{Whether to apply PCA to the space before proposing.}
  \item{n_lines (Line)}{How many lines to draw.}
  \item{ppl (Line)}{The number of points to sample per line.}
- \item{distro (Importance)}{The distribution to propose around points.}
- \item{sd (Importance)}{The radius, or standard deviation, of proposed distributions.}
+ \item{imp_distro (Importance)}{The distribution to propose around points.}
+ \item{imp_scale (Importance)}{The radius, or standard deviation, of proposed distributions.}
  \item{pca_slice (Slice)}{Whether to apply PCA to the space before slice sampling.}
  \item{seek_distro (Seek)}{The distribution to apply when looking for 'good' points.}
  }

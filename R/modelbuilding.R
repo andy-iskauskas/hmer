@@ -874,7 +874,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges,
 #' while \code{prop} has the form of an \code{emulator_from_data} output.
 #'
 #' @importFrom rlang hash
-#' @importFrom mclust Mclust mclustBIC emControl mclust.options
+#' @importFrom cluster daisy fanny
 #'
 #' @param data The data to train emulators on (as in variance_emulator_from_data)
 #' @param output_names The names of the outputs to emulate
@@ -906,13 +906,9 @@ bimodal_emulator_from_data <- function(data, output_names, ranges,
     data[apply(data[,input_names], 1, hash) == x,]
   })
   if(verbose) cat("Separated dataset by unique points.\n") #nocov
-  modNames <- mclust.options("emModelNames")[
-    !mclust.options("emModelNames") == "EEE"]
   proportion <- purrr::map_dbl(param_sets, function(x) {
-    prop_clust <- Mclust(x[, output_names], G = 1:2, verbose = FALSE,
-                         modelNames = modNames,
-                         control = emControl(tol = 1e-3))$classification
-    return(sum(prop_clust ==1)/length(prop_clust))
+    p_clust <- fanny(suppressWarnings(daisy(x[,output_names])), k = 2)$clustering
+    return(sum(p_clust == 1)/length(p_clust))
   })
   prop_df <- setNames(
     data.frame(cbind(unique_points, proportion)),
@@ -921,13 +917,15 @@ bimodal_emulator_from_data <- function(data, output_names, ranges,
   prop_em <- emulator_from_data(prop_df,
                                 c('prop'), ranges, verbose = FALSE, ...)
   if (verbose) cat("Performing clustering to identify modes.\n") #nocov
-  has_bimodality <- setNames(
-    do.call('rbind.data.frame', purrr::map(param_sets, function(x) {
+  has_bimodality <- do.call('rbind.data.frame', purrr::map(param_sets, function(x) {
     purrr::map_lgl(output_names, function(y) {
       if (length(unique(x[,y])) == 1) return(FALSE)
-      return(Mclust(x[,y], G = 1:2, verbose = FALSE)$G == 2)
+      clust1 <- fanny(suppressWarnings(daisy(x[,y, drop = FALSE])), k = 1)
+      clust2 <- fanny(suppressWarnings(daisy(x[,y, drop = FALSE])), k = 2)
+      if (clust1$objective[["objective"]] < clust2$objective[["objective"]]) return(FALSE)
+      return(TRUE)
     })
-  })), output_names)
+  })) |> setNames(output_names)
   is_bimodal_target <- apply(
     has_bimodality, 2,
     function(x) sum(x)/length(x) >= 0.1)
@@ -954,8 +952,7 @@ bimodal_emulator_from_data <- function(data, output_names, ranges,
         c2_data[[length(c2_data)+1]] <- param_sets[[i]]
       }
       else {
-        this_clust <- Mclust(param_sets[[i]][,x], G = 1:2,
-                             verbose = FALSE)$classification
+        this_clust <- fanny(suppressWarnings(daisy(param_sets[[i]][,x, drop = FALSE])), k = 2)$clustering
         c1_data[[length(c1_data)+1]] <- param_sets[[i]][this_clust == 1,]
         c2_data[[length(c2_data)+1]] <- param_sets[[i]][this_clust == 2,]
       }
