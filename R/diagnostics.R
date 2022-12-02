@@ -650,7 +650,8 @@ validation_diagnostics <- function(emulators, targets = NULL,
       v_outputs <- validation[,
                               unique(c(purrr::map_chr(m1_ems, ~.$output_name),
                                        purrr::map_chr(m2_ems, ~.$output_name)))]
-      v_class <- Mclust(v_outputs, G = 1:2, verbose = FALSE)$classification
+      v_class <- fanny(suppressWarnings(daisy(v_outputs)), k = 2)$clustering
+      #v_class <- Mclust(v_outputs, G = 1:2, verbose = FALSE)$classification
       valid_one <- validation[v_class == 1,]
       valid_two <- validation[v_class == 2,]
       cleaning_dat1 <- purrr::map(m1_ems, function(x) {
