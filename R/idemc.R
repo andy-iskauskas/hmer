@@ -175,6 +175,7 @@ idemc_step <- function(ems, targets, points, point_imps, ladder, clusters, #noco
 #' of the algorithm are performed on all rungs to determine final clusters.
 #'
 #' @importFrom stats predict
+#' @import mclust
 #'
 #' @param ems The emulators to evaluate implausibility on
 #' @param N The desired number of points to generate

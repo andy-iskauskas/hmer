@@ -187,7 +187,7 @@ maximin_sample <- function(points, n, reps = 1000, nms) {
 #'  \item{seek_distro (Seek)}{The distribution to apply when looking for 'good' points.}
 #'  }
 #'
-#' @importFrom  mvtnorm dmvnorm rmvnorm
+#' @importFrom mvtnorm dmvnorm rmvnorm
 #' @importFrom stats setNames runif dist cov
 #' @importFrom utils write.csv
 #' @importFrom tidyr pivot_longer
@@ -679,6 +679,8 @@ lhs_gen <- function(ems, ranges, n_points, z, cutoff = 3, verbose, opts = NULL) 
   }
 }
 ## Cluster LHD sampling function
+#'
+#' @importFrom cluster daisy fanny
 lhs_gen_cluster <- function(ems, ranges, n_points, z, cutoff = 3, verbose = FALSE, opts) {
   if (is.null(opts$points.factor)) opts$points.factor <- 40
   tryCatch(opts$points.factor <- as.numeric(opts$points.factor),

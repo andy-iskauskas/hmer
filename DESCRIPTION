@@ -34,6 +34,7 @@ Imports:
   GGally,
   rlang,
   isoband,
+  cluster,
   mclust,
   pdist
 License: MIT + file LICENSE
