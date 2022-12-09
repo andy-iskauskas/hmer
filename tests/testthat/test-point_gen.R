@@ -86,3 +86,22 @@ test_that("Forced laddering of implausibility", {
     nrow(g2) < 100
   )
 })
+
+test_that("Optional pca arguments", {
+  skip_on_cran()
+  lhd_pca_prop <- generate_new_runs(ems, 100, targs, verbose = FALSE,
+                                    opts = list(pca_lhs = TRUE))
+  expect_equal(nrow(lhd_pca_prop), 100)
+  slice_pca_prop <- generate_new_runs(ems, 100, targs, method = c('lhs', 'slice'),
+                                      verbose = FALSE, opts = list(pca_slice = TRUE))
+  expect_equal(nrow(slice_pca_prop), 100)
+})
+
+test_that("Handling options via opts", {
+  skip_on_cran()
+  all_options <- generate_new_runs(ems, 100, targs, verbose = FALSE, opts = list(
+    accept_measure = "default", cluster = FALSE, cutoff_tolerance = 0.01,
+    ladder_tolerance = 0.1, nth = 1, resample = 0, seek = 0
+  ))
+  expect_true(nrow(all_options) == 100)
+})

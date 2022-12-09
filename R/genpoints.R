@@ -237,6 +237,7 @@ generate_new_runs <- function(ems, n_points, z, method = "default", cutoff = 3,
     opts <- as.list(collected_opts[!duplicated(names(collected_opts))])
   }
   if (is.null(opts$accept_measure)) opts$accept_measure <- "default"
+  if (!is.null(opts$cluster) && opts$cluster == 1) opts$cluster <- TRUE
   if (is.null(opts$cluster) || !is.logical(opts$cluster)) opts$cluster <- FALSE
   if (is.null(opts$cutoff_tolerance)) opts$cutoff_tolerance <- 0.01
   else tryCatch(opts$cutoff_tolerance <- as.numeric(opts$cutoff_tolerance), warning = function(e) {warning("Cutoff tolerance is not numeric; setting to 0.01"); opts$cutoff_tolerance <- 0.01})
@@ -788,10 +789,10 @@ lhs_gen_cluster <- function(ems, ranges, n_points, z, cutoff = 3, verbose = FALS
     if (verbose) cat("No shared variables in clusters.\n")
     relev_1 <- clust_1_prop$points[,p1, drop = FALSE] |> setNames(p1)
     relev_2 <- clust_2_prop$points[,p2, drop = FALSE] |> setNames(p2)
-    complete_df <- cbind(relev_1[rep(seq_len(nrow(relev_1)),
+    complete_df <- data.frame(cbind(relev_1[rep(seq_len(nrow(relev_1)),
                                      each = nrow(relev_2)),],
                          relev_2[rep(seq_len(nrow(relev_2)),
-                                     nrow(relev_1)),]) |> setNames(c(p1, p2))
+                                     nrow(relev_1)),])) |> setNames(c(p1, p2))
     if (length(setdiff(names(ranges), union(p1, p2))) != 0) {
       for (i in setdiff(names(ranges), union(p1, p2)))
         complete_df[,i] <- runif(nrow(complete_df), ranges[[i]][1], ranges[[i]][2])
@@ -806,10 +807,10 @@ lhs_gen_cluster <- function(ems, ranges, n_points, z, cutoff = 3, verbose = FALS
   combine_relev <- rbind(clust_1_prop$points[,pn, drop = FALSE],
                          clust_2_prop$points[,pn, drop = FALSE]) |> setNames(pn)
   combine_ranges <- apply(combine_relev, 2, range)
-  complete_df <- cbind(relev_1[rep(seq_len(nrow(relev_1)),
+  complete_df <- data.frame(cbind(relev_1[rep(seq_len(nrow(relev_1)),
                                    each = nrow(relev_2)),],
                        relev_2[rep(seq_len(nrow(relev_2)),
-                                   nrow(relev_1)),]) |>
+                                   nrow(relev_1)),])) |>
     setNames(c(names(relev_1), names(relev_2)))
   for (i in pn) {
     complete_df[,i] <- runif(nrow(complete_df), combine_ranges[1,i], combine_ranges[2,i])
