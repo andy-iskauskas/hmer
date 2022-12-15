@@ -18,7 +18,8 @@ Suggests:
     rmarkdown,
     deSolve,
     testthat (>= 3.0.0),
-    covr
+    covr,
+    progressr
 VignetteBuilder: knitr
 Depends: R (>= 4.1.0)
 Imports:
@@ -35,7 +36,6 @@ Imports:
   rlang,
   isoband,
   cluster,
-  mclust,
   pdist
 License: MIT + file LICENSE
 Encoding: UTF-8

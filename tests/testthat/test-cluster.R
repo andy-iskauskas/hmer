@@ -1,3 +1,17 @@
+all_ranges <- list(
+  alpha1 = c(0, 0.3),
+  beta1 = c(0, 0.05),
+  gamma1 = c(0, 0.005),
+  alpha2 = c(0, 0.4),
+  beta2 = c(0, 0.025),
+  gamma2 = c(0, 0.01),
+  birth = c(0, 0.001),
+  death = c(0, 0.001)
+)
+ems_split <- emulator_from_data(split_data, names(targets_split), all_ranges[1:6],
+                                verbose = FALSE, more_verbose = FALSE)
+ems_unsplit <- emulator_from_data(unsplit_data, names(targets_unsplit), all_ranges,
+                                  verbose = FALSE, more_verbose = FALSE)
 fake_custom <- function(ems, x, z, cutoff, ...) {
   nth_implausible(ems, x, z, n = 1, cutoff = cutoff, ...)
 }

@@ -17,88 +17,96 @@ idemc(
   w = 0.8,
   M = 10,
   detailed = FALSE,
-  verbose = interactive()
+  verbose = interactive(),
+  get_burnt = FALSE,
+  burnt = NULL
 )
 }
 \arguments{
 \item{ems}{The emulators to evaluate implausibility on}
 
-\item{N}{The desired number of points to generate}
+\item{N}{The desired number of final points to generate}
 
-\item{targets}{The target values for the outputs}
+\item{targets}{The target values for the emulated outputs}
 
-\item{cutoff}{The desired final implausibility cutoff}
+\item{cutoff}{The desired implausibility cutoff of the final proposal}
 
-\item{s}{The number of points to generate at each intermediate burn-in stage}
+\item{s}{The number of points to generate at intermediate burn-in steps}
 
-\item{sn}{The number of points to generate in the final burn-in stage}
+\item{sn}{The number of points to generate at the final burn-in stage}
 
-\item{p}{The proportion of space that should remain in a move along the ladder}
+\item{p}{The proportion of space that should remain between ladder rungs}
 
-\item{thin}{The thinning factor: a factor T means that N*T points are generated to get N}
+\item{thin}{The thinning factor: a factor T means N*T points are generated to obtain N}
 
-\item{pm}{The probability that mutation is chosen in an IDEMC step}
+\item{pm}{The probability that an idemc step will use mutation moves}
 
-\item{w}{The probability of local random walk moves in the mutation step}
+\item{w}{The probability of local random walks in the mutation step}
 
-\item{M}{The number of mutations to perform in an IDEMC step, if chosen}
+\item{M}{The number of mutations to perform in an IDEMC step}
 
-\item{detailed}{If TRUE, points from every ladder rung are returned}
+\item{detailed}{If TRUE, points proposed at every rung will be returned}
 
 \item{verbose}{Should information about burn-in be displayed during the process?}
+
+\item{get_burnt}{If TRUE, the procedure stops after burn-in, returning seeding for a full IDEMC proposal}
+
+\item{burnt}{If provided, this is assumed to be the result of a burn-in (or a priori analysis)}
 }
 \value{
-Either a list of points (for each rung), or a single data.frame from the last rung.
+Either a list of data.frames, one per rung, or a single data.frame of points.
 }
 \description{
 Performs Implausibility-driven Evolutionary Monte Carlo
 }
 \details{
-This method for generating points is focused on finding non-implausible regions
-that are either extremely small relative to the initial space, are have interesting
-structure (particularly disconnected structure) that would potentially be overlooked
-by more standard point generation methods. The method is robust but computationally
-intensive, and should not be used as a default - for more standard methods of finding
-points, see \code{\link{generate_new_runs}} and the methods therein.
+This method for generating points is focused on finding non-implausible
+regions that are either extremely small relative to the initial parameter
+domain, or have interesting structure (particularly disconnected structure)
+that would potentially be overlooked by more standard point generation methods.
+The method is robust but computationally intensive, compared to normal methods,
+and should not be used as a default - see \code{\link{generate_new_runs}} for
+less computationally expensive methods.
 
-The IDEMC method operates on an `implausibility ladder', in the spirit of annealing
-methods. Each `rung' of the ladder is characterised by within-cluster and overall
-variance. The stages performed in one step of the evolutionary algorithm are as follows:
+The IDEMC method operates on an 'implausibility ladder', in the vein of common
+annealing methods. Each rung of the ladder is characterised by the implausibility
+threshold, and determinations are made about the structure of the points in each
+rung using clustering. One step of the evolutionary algorithm can consist of the
+following steps:
 
-Mutation: A point is modified using a process akin to a random walk step. The parameters
-that determine the walk can be a global step (determined by the second-order quantities of
-the entire rung) or a within-cluster step (where the point's cluster is determined and the
-second-order quantities are drawn from that particular cluster). Local, within-cluster,
-moves are chosen with probability \code{w}. The move is retained if the new point satisfies
-the constraints of its rung.
+Mutation. A point is modified using a random-walk proposal, which can be a global
+move or a within-cluster move. Within-cluster moves are chosen with probability
+\code{w}. The move is retained if the new point satisfies the implausibility
+constraints of the rung.
 
-Crossover: Points are reorganised in descending order of how active their variables are in
-the emulated outputs, and two different rungs are selected. The points are 'mixed' using a
-one-point crossover: given a randomly selected index k and two points x1, x2, the new points
-are y1 = (x11, x12, ..., x1k, x2(k+1), ... x2n) and similarly for y2. The move is retained
-if both new points satisfy the constraints on their respective rungs. Choices of rung where
-the first is a later (more restrictive) rung are favoured.
+Crossover. Points are re-organised in descending order of how active each variable
+is for the emulated outputs, and two different rungs are selected randomly. The
+points are 'mixed' using one-point real crossover at a random crossover point,
+producing two new points. The move is retained if both new points satisfy the
+relevant implausibility constraints of their rung.
 
-Exchange: Two adjacent rungs are chosen and their points swapped wholesale. The move is
-retained if the point coming from the less restrictive rung satisfies the constraints of the
-rung it moves to.
+Exchange. Two adjacent rungs are chosen and their points are swapped. The move
+is retained if the higher-implausibility rung is appropriate for being in the
+lower implausibility rung.
 
-At a given step, only one of mutation or crossover is performed: the probability of performing
-mutation is given by \code{pm}. If mutation is chosen, \code{M} such moves are performed on
-each rung; if crossover is chosen, then \code{(n+1)/2} such moves are performed across the
-\code{n} rungs. Exchange is always performed and \code{n+1} such moves are performed.
+At a given step, one of mutation or crossover is performed, with probability
+of mutation being chosen determined by \code{pm}. If mutation is chosen, then
+\code{M} mutation moves are performed; else \code{(n+1)/2} crossover moves are
+performed on the \code{n} rungs. Exchange is always perfomed and \code{n+1} such
+moves are performed.
 
-The choice of `implausibility ladder' and clusters has a large bearing on the results. This
-function performs a `burn-in' to determine a reasonable ladder by starting with a uniform
-sample across the whole space and defining the next rung by demanding that a percentage
-(determined by \code{p}) of the original points satisfy the constraint of this new rung.
-The IDEMC process is performed on these two rungs to generate \code{s} points, from which
-the process is repeated. Once the desired implausibility has been reached, \code{sn} steps
-of the algorithm are performed on all rungs to determine final clusters.
+The choice of 'implausibility ladder' and clusters can be determined a priori,
+or else this function performs a burn-in phase to determine them. Points are
+generated using the idemc steps at the current rungs, and the next ladder rung
+implausibility is chosen by requiring that a proportion \code{p} of points from
+the previous rung are accepted in the new one. At each stage, \code{s} idemc
+steps are performed. Once the final rung has implausibility no larger than the
+desired \code{cutoff}, a final set of \code{sn} idemc steps are performed across
+all rungs to determine final clusters.
 }
 \examples{
  \donttest{
-  idemc_res <- idemc(SIREmulators$ems, 500, SIREmulators$targets, s = 250, p = 0.3)
+  idemc_res <- idemc(SIREmulators$ems, 200, SIREmulators$targets, s = 100, p = 0.3)
  }
 
 }
