@@ -347,7 +347,7 @@ generate_new_runs <- function(ems, n_points, z, method = "default", cutoff = 3,
           cluster_gen <- lhs_gen_cluster(cluster_ems$ems, ranges,
                                          max(n_points, 10*length(ranges)),
                                          z, cutoff, verbose, opts)
-          if (cluster_ems$reduce) {
+          if (cluster_ems$reduced) {
             if (is.character(opts$accept_measure) && opts$accept_measure == "default") {
               leftover_imps <- imp_func(
                 obtain_recent(ems, TRUE, FALSE),

@@ -178,6 +178,7 @@ likelihood_estimate <- function(inputs, outputs, h, corr_name = 'exp_sq',
                                       ~hp_range[[.]][[1]]), names(hp_range)))
   if (!"data.frame" %in% class(inputs)) inputs <- data.frame(inputs)
   H <- t(eval_funcs(h, inputs))
+  if (dim(H)[1] == 1) H <- t(H)
   if (!is.null(beta) && length(beta) != length(h))
     stop("Number of coefficients does not match number of regression functions.")
   av <- purrr::map_lgl(seq_along(names(inputs)), function(x) {

@@ -113,7 +113,7 @@ Emulator <- R6Class(
         g <- t(
           apply(
             x, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y)))
-        if (length(self$beta_mu) == 1) beta_part <- g * self$beta_mu
+        if (length(self$beta_mu) == 1) beta_part <- g * self$beta_mu[[1]]
         else beta_part <- g %*% self$beta_mu
       }
       else {

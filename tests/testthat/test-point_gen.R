@@ -29,7 +29,7 @@ test_that("Point generation methods", {
   points_slice <- generate_new_runs(
     ems, 100, targs, method = c('slice'),
     plausible_set = points_line[1:50,], cutoff = 3,
-    resample = 0, verbose = FALSE, pca = TRUE
+    resample = 0, verbose = FALSE
   )
   expect_equal(
     nrow(points_slice),
@@ -47,7 +47,7 @@ test_that("Point generation methods", {
   points_importance_sphere <- generate_new_runs(
     ems, 100, targs, method = c("importance"),
     plausible_set = points_line[1:50,], cutoff = 4,
-    resample = 0, verbose = FALSE, distro = "normal"
+    resample = 0, verbose = FALSE, imp_distro = "normal"
   )
   expect_equal(
     nrow(points_importance_sphere),

@@ -221,23 +221,55 @@ test_that("Derivative functions", {
 
 test_that("Batch processing is called for >1000 points", {
   many_points <- data.frame(
-    aSI = runif(1400, 0.1, 0.8),
-    aIR = runif(1400, 0, 0.5),
-    aSR = runif(1400, 0, 0.05)
+    aSI = runif(2400, 0.1, 0.8),
+    aIR = runif(2400, 0, 0.5),
+    aSR = runif(2400, 0, 0.05)
   )
   expect_equal(
     length(c(
       em$get_exp(many_points))),
-    1400
+    2400
   )
   expect_equal(
     length(c(
       em$get_cov(many_points))),
-    1400
+    2400
   )
   expect_equal(
     length(em$implausibility(many_points, SIREmulators$targets$nS)),
-    1400
+    2400
+  )
+})
+
+test_that("Emulator with no variable dependence", {
+  fake_grid <- expand.grid(x = seq(1, 10, by = 1), y = seq(1, 10, by = 1))
+  fake_output <- runif(100, -5, 5)
+  fake_data <- cbind.data.frame(fake_grid, fake_output) |> setNames(letters[24:26])
+  fake_em <- emulator_from_data(fake_data, c('z'), list(x = c(1, 10), y = c(1, 10)),
+                                beta_var = TRUE, verbose = FALSE)$z
+  expect_equal(
+    c(fake_em$get_exp(fake_data), use.names = FALSE),
+    c(fake_data$z),
+    tolerance = 1e-6
+  )
+  expect_true(
+    all(fake_em$get_cov(fake_data) < 1e-6)
+  )
+  expect_equal(
+    length(c(fake_em$o_em$get_exp(fake_data))),
+    100
+  )
+  expect_equal(
+    length(c(fake_em$o_em$get_cov(fake_data))),
+    100
+  )
+  expect_equal(
+    length(c(fake_em$get_exp_d(fake_data, 'x'))),
+    100
+  )
+  expect_equal(
+    length(c(fake_em$get_cov_d(fake_data, 'x'))),
+    100
   )
 })
 

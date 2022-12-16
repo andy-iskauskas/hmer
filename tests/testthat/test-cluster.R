@@ -59,6 +59,16 @@ test_that("Cluster generation shared - custom implausibility", {
   )
 })
 
+test_that("Cluster generation - multi wave", {
+  skip_on_cran()
+  multi_ems <- list(ems_split, ems_split)
+  test_multi <- generate_new_runs(multi_ems, 100, targets_split, verbose = FALSE,
+                                  opts = list(nth = 1, cluster = TRUE))
+  expect_true(
+    max(nth_implausible(ems_split, test_multi, targets_split)) <= 3
+  )
+})
+
 test_that("No cluster determined", {
   skip_on_cran()
   rest_ems2 <- subset_emulators(ems_unsplit, c("R110", "R1100",
