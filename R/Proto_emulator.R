@@ -8,7 +8,8 @@ Proto_emulator <- R6::R6Class(
     varf = NULL,
     impf = NULL,
     printf = NULL,
-    initialize = function(ranges, output_name, predict_func, variance_func, implausibility_func = NULL, print_func = NULL) {
+    add_args = NULL,
+    initialize = function(ranges, output_name, predict_func, variance_func, implausibility_func = NULL, print_func = NULL, ...) {
       self$ranges <- ranges
       self$output_name <- output_name
       ## Want to add tests on the predict_func here
@@ -19,12 +20,29 @@ Proto_emulator <- R6::R6Class(
       ## Checks here (if not null)
       self$impf <- implausibility_func
       self$printf <- print_func
+      self$add_args <- list(...)
     },
     get_exp = function(x) {
-      return(self$predf(x))
+      args <- formalArgs(self$predf)
+      if(args[1] != "x") stop("First argument to 'predf' must be 'x'")
+      if(length(args) > 1) {
+          argsOK <- args[-1] %in% names(self$add_args)
+          if(any(!argsOK)) stop(paste0("You must pass '", paste0(args[-1], collapse = ", "), "' arguments for 'predf' when setting up emulator"))
+          return(do.call(self$predf, c(list(x = x), self$add_args[match(args[-1], names(self$add_args))])))
+      } else {
+          return(self$predf(x))
+      }
     },
     get_cov = function(x) {
-      return(self$varf(x))
+      args <- formalArgs(self$varf)
+      if(args[1] != "x") stop("First argument to 'varf' must be 'x'")
+      if(length(args) > 1) {
+          argsOK <- args[-1] %in% names(self$add_args)
+          if(any(!argsOK)) stop(paste0("You must pass '", paste0(args[-1], collapse = ", "), "' arguments for 'varf' when setting up emulator"))
+          return(do.call(self$varf, c(list(x = x), self$add_args[match(args[-1], names(self$add_args))])))
+      } else {
+          return(self$varf(x))
+      }
     },
     implausibility = function(x, z, cutoff = NULL) {
       if (is.null(self$impf)) {
@@ -47,15 +65,30 @@ Proto_emulator <- R6::R6Class(
           uncerts[uncerts <= 0] <- 0.0001
           imp <- bound_check * (pred - which_compare)/sqrt(uncerts)
         }
+      } else {
+        args <- formalArgs(self$impf)
+        if(!identical(args[1:3], c("x", "z", "cutoff"))) stop("First three arguments to 'impf' must be 'x', 'z' and 'cutoff'")
+        if(length(args) > 3) {
+          argsOK <- args[-c(1:3)] %in% names(self$add_args)
+          if(any(!argsOK)) stop(paste0("You must pass '", paste0(args[-c(1:3)], collapse = ", "), "' arguments for 'impf' when setting up emulator"))
+          return(do.call(self$impf, c(list(x = x, z = z, cutoff = cutoff), self$add_args[match(args[-c(1:3)], names(self$add_args))])))
+        } else {
+          return(self$impf(x, z, cutoff))
+        }
       }
-      else
-        imp <- self$impf(x, z)
-      if (!is.null(cutoff)) return(imp <= cutoff)
-      return(imp)
     },
     print = function(...) {
       if (is.null(self$printf)) cat("Emulator protoype from custom object.\n")
-      else return(self$printf(...))
+      else {
+        args <- formalArgs(self$printf)
+        if(length(args) > 0) {
+            argsOK <- args %in% names(self$add_args)
+            if(any(!argsOK)) stop(paste0("You must pass '", paste0(args, collapse = ", "), "' arguments for 'printf' when setting up emulator"))
+            return(do.call(self$printf, self$add_args[match(args, names(self$add_args))]))
+        } else {
+            return(self$printf())
+        }
+      }
     }
   )
 )

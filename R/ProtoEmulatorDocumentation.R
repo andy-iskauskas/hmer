@@ -26,18 +26,18 @@
 #'
 #'
 #'    \code{predict_func} The function that provides the predictions at a new
-#'    point. This should be a function that takes one argument, \code{x}, which
+#'    point. This should be a function with first argument, \code{x}, which
 #'    can be a single point or a data.frame of points.
 #'
 #'    \code{variance_func} The function that encodes the prediction error due to
-#'    the model of choice. This, too, takes an argument \code{x} of the same form
+#'    the model of choice. This, too, takes a first argument \code{x} of the same form
 #'    as that of \code{predict_func}.
 #'
 #'    Optional:
 #'
 #'    \code{implausibility_func} A function that takes points \code{x} and a
-#'    target \code{z} (and possibly a cutoff value \code{cutoff}) and returns
-#'    a measure of closeness of the predicted value to the target (or a boolean
+#'    target \code{z} (and possibly a cutoff value \code{cutoff} and additional arguments) 
+#'    and returns a measure of closeness of the predicted value to the target (or a boolean
 #'    representing whether the prediction is within the specified amount).
 #'    If not provided, then the standard implausibility is used: namely the
 #'    absolute value of the prediction minus the observation, dividied by the
@@ -45,6 +45,9 @@
 #'
 #'    \code{print_func} If the prediction object has a suitable print function
 #'    that one wishes to transfer to the R6 class, it is specified here.
+#'
+#'    \code{...} Additional objects to pass to emulators and/or implausibility
+#'    measures.
 #'
 #' @section Constructor Details:
 #'
