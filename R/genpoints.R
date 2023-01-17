@@ -316,7 +316,7 @@ generate_new_runs <- function(ems, n_points, z, method = "default", cutoff = 3,
           c_current <- cluster_gen$cutoff
           while (sum(i_bools) < required_points) {
             false_indices <- which(!i_bools)
-            imp_bools <- opts$accept_measure(obtain_recent(ems, TRUE, FALSE), cluster_gen$points[false_indices,], z, c_current)
+            imp_bools <- opts$accept_measure(obtain_recent(ems, TRUE, FALSE), cluster_gen$points[false_indices,], z, n = opts$nth, cutoff = c_current)
             i_bools[false_indices] <- i_bools[false_indices] | imp_bools
             c_current <- c_current + 0.5
           }
@@ -363,7 +363,7 @@ generate_new_runs <- function(ems, n_points, z, method = "default", cutoff = 3,
               c_current <- cluster_gen$cutoff
               while (sum(i_bools) < required_points) {
                 false_indices <- which(!i_bools)
-                imp_bools <- opts$accept_measure(obtain_recent(ems, TRUE, FALSE), cluster_gen$points[false_indices,], z, c_current)
+                imp_bools <- opts$accept_measure(obtain_recent(ems, TRUE, FALSE), cluster_gen$points[false_indices,], z, n = opts$nth, cutoff = c_current)
                 i_bools[false_indices] <- i_bools[false_indices] | imp_bools
                 c_current <- c_current + 0.5
               }
@@ -407,7 +407,7 @@ generate_new_runs <- function(ems, n_points, z, method = "default", cutoff = 3,
       optimal_cut <- cutoff
       for (i in cutoff_sequence) {
         required_points <- min(nrow(plausible_set)-1, floor(0.8*nrow(plausible_set)), 5*length(ranges))
-        c_bools <- opts$accept_measure(ems, plausible_set, z, i)
+        c_bools <- opts$accept_measure(ems, plausible_set, z, cutoff = i, n = opts$nth)
         points_accept <- c(points_accept, sum(c_bools))
         if (sum(c_bools) >= required_points) {
           optimal_cut <- i
@@ -477,7 +477,7 @@ generate_new_runs <- function(ems, n_points, z, method = "default", cutoff = 3,
                         cutoff = optimal_cut))
           }
           else {
-            good_points <- plausible_set[opts$accept_measure(ems, plausible_set, z, cutoff = optimal_cut),]
+            good_points <- plausible_set[opts$accept_measure(ems, plausible_set, z, n = opts$nth, cutoff = optimal_cut),]
             write.csv(good_points, file = opts$to_file, row.names = FALSE)
             return(list(points = good_points, cutoff = optimal_cut))
           }
@@ -493,7 +493,7 @@ generate_new_runs <- function(ems, n_points, z, method = "default", cutoff = 3,
     if (is.character(opts$accept_measure) && opts$accept_measure == "default")
       points <- plausible_set[point_imps <= this_cutoff,]
     else
-      points <- plausible_set[opts$accept_measure(ems, plausible_set, z, cutoff = this_cutoff),]
+      points <- plausible_set[opts$accept_measure(ems, plausible_set, z, n = opts$nth, cutoff = this_cutoff),]
   }
   if (length(ranges) == 1)
     points <- setNames(data.frame(temp = points), names(ranges))
@@ -671,7 +671,7 @@ lhs_gen <- function(ems, ranges, n_points, z, cutoff = 3, verbose, opts = NULL) 
         return(list(points = points[rep(FALSE, nrow(points)),], cutoff = 0))
       }
       false_indices <- which(!i_bools)
-      imp_bools <- opts$accept_measure(ems, points[false_indices,], z, c_current)
+      imp_bools <- opts$accept_measure(ems, points[false_indices,], z, cutoff = c_current, n = opts$nth)
       i_bools[false_indices] <- i_bools[false_indices] | imp_bools
       c_current <- c_current + 0.5
     }
@@ -767,7 +767,7 @@ lhs_gen_cluster <- function(ems, ranges, n_points, z, cutoff = 3, verbose = FALS
           return(list(points = prop_lhs[rep(FALSE, nrow(prop_lhs)),], cutoff = 0))
         }
         false_indices <- which(!i_bools)
-        imp_bools <- opts$accept_measure(ems, prop_lhs[false_indices,], z, c_current)
+        imp_bools <- opts$accept_measure(ems, prop_lhs[false_indices,], z, cutoff = c_current, n = opts$nth)
         i_bools[false_indices] <- i_bools[false_indices] | imp_bools
         c_current <- c_current + 0.5
       }
@@ -846,7 +846,7 @@ lhs_gen_cluster <- function(ems, ranges, n_points, z, cutoff = 3, verbose = FALS
         return(list(points = complete_df[rep(FALSE, nrow(complete_df)),], cutoff = 0))
       }
       false_indices <- which(!i_bools)
-      imp_bools <- opts$accept_measure(ems, complete_df[false_indices,], z, c_current)
+      imp_bools <- opts$accept_measure(ems, complete_df[false_indices,], z, cutoff = c_current, n = opts$nth)
       i_bools[false_indices] <- i_bools[false_indices] | imp_bools
       c_current <- c_current + 0.5
     }
@@ -897,7 +897,7 @@ line_sample <- function(ems, ranges, z, s_points, cutoff = 3, opts) {
                          n = opts$nth, cutoff = cutoff,
                          ordered = TRUE
                          ))
-  else imps <- purrr::map(samp_pts, ~opts$accept_measure(ems, ., z, cutoff))
+  else imps <- purrr::map(samp_pts, ~opts$accept_measure(ems, ., z, cutoff = cutoff, n = opts$nth))
   include_pts <- purrr::imap(samp_pts, function(x, i) {
     pts <- x
     imp <- imps[[i]]
@@ -926,7 +926,7 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, opts) {
   new_points <- s_points
   propose_points <- function(sp, sd, how_many = n_points) {
     if (is.character(opts$accept_measure) && opts$accept_measure == "default")
-      imp_func <- function(ems, x, z, ...) nth_implausible(ems, x, z, n = opts$nth, ...)
+      imp_func <- function(ems, x, z, ...) nth_implausible(ems, x, z, ...)
     else
       imp_func <- opts$accept_measure
     sp_trafo <- pca_transform(sp, s_points)
@@ -940,7 +940,7 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, opts) {
     prop_points <- data.frame(pp)
     back_traf <- setNames(data.frame(pca_transform(pp, s_points, FALSE)), names(ranges))
     valid <- in_range(back_traf, ranges) &
-      imp_func(ems, back_traf, z, cutoff = cutoff, ordered = TRUE)
+      imp_func(ems, back_traf, z, cutoff = cutoff, n = opts$nth, ordered = TRUE)
     if (opts$imp_distro == "normal") {
       tweights <- apply(prop_points, 1, function(x)
         1/nrow(sp_trafo) * sum(
@@ -994,7 +994,7 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, opts) {
 slice_gen <- function(ems, ranges, n_points, z, points, cutoff, opts) {
   if (is.null(opts$pca_slice) || !is.logical(opts$pca_slice)) opts$pca_slice <- FALSE
   if (is.character(opts$accept_measure) && opts$accept_measure == "default")
-    imp_func <- function(ems, x, z, ...) nth_implausible(ems, x, z, n = opts$nth, ...)
+    imp_func <- function(ems, x, z, ...) nth_implausible(ems, x, z, ...)
   else
     imp_func <- opts$accept_measure
   make_slice <- function(points, ranges, indices) {
@@ -1026,11 +1026,11 @@ slice_gen <- function(ems, ranges, n_points, z, points, cutoff, opts) {
                          pca_transform(points, pca_base, FALSE),
                          nrow = nrow(points)
                          )), names(ranges)),
-                       z, cutoff = cutoff, ordered = TRUE)
+                       z, cutoff = cutoff, n = opts$nth, ordered = TRUE)
       in_ranges <- in_range(pca_transform(points, pca_base, FALSE), ranges)
     }
     else {
-      imps <- imp_func(ems, points, z, cutoff = cutoff, ordered = TRUE)
+      imps <- imp_func(ems, points, z, cutoff = cutoff, n = opts$nth, ordered = TRUE)
       in_ranges <- in_range(points, ranges)
     }
     for (i in seq_along(imps)) {

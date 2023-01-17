@@ -12,8 +12,8 @@ ems_split <- emulator_from_data(split_data, names(targets_split), all_ranges[1:6
                                 verbose = FALSE, more_verbose = FALSE)
 ems_unsplit <- emulator_from_data(unsplit_data, names(targets_unsplit), all_ranges,
                                   verbose = FALSE, more_verbose = FALSE)
-fake_custom <- function(ems, x, z, cutoff, ...) {
-  nth_implausible(ems, x, z, n = 1, cutoff = cutoff, ...)
+fake_custom <- function(ems, x, z, cutoff, n = 1, ...) {
+  nth_implausible(ems, x, z, n = n, cutoff = cutoff, ...)
 }
 
 test_that("Cluster generation disjoint", {
