@@ -474,6 +474,24 @@ emulator_from_data <- function(input_data, output_names, ranges,
         input_data[,names(ranges)],
         ranges), input_data[,output_names]),
     c(names(ranges), output_names))
+  if (length(ranges) != length(input_names)) {
+    red_act <- list(...)[["reduce_actives"]]
+    if (is.null(red_act) || !red_act) {
+      in_both <- intersect(names(ranges), input_names)
+      ranges <- ranges[in_both]
+      input_names <- in_both
+      ranges_fit <- ranges
+      inputs_fit <- input_names
+    }
+    else {
+      inputs_fit <- intersect(names(ranges), input_names)
+      ranges_fit <- ranges[inputs_fit]
+    }
+  }
+  else {
+    inputs_fit <- input_names
+    ranges_fit <- ranges
+  }
   if (!"data.frame" %in% class(data))
     data <- setNames(data.frame(data), c(names(ranges), output_names))
   if (is.null(list(...)[['more_verbose']]))
@@ -482,35 +500,35 @@ emulator_from_data <- function(input_data, output_names, ranges,
   if (missing(funcs)) {
     if (verbose) cat("Fitting regression surfaces...\n") #nocov
     if (quadratic) {
-      does_add <- (choose(length(input_names)+2,
-                          length(input_names)) > nrow(data))
+      does_add <- (choose(length(inputs_fit)+2,
+                          length(inputs_fit)) > nrow(data))
       models <- purrr::map(
         output_names,
-        ~get_coefficient_model(data, ranges, ., add = does_add,
+        ~get_coefficient_model(data, ranges_fit, ., add = does_add,
                                printing = (if(more_verbose) . else NULL)))
     }
     else {
-      does_add <- (length(input_names)+1 > nrow(data))
+      does_add <- (length(inputs_fit)+1 > nrow(data))
       models <- purrr::map(
         output_names,
-        ~get_coefficient_model(data, ranges, ., add = does_add, order = 1,
+        ~get_coefficient_model(data, ranges_fit, ., add = does_add, order = 1,
                                printing = (if(more_verbose) . else NULL)))
     }
     all_funcs <- c(function(x) 1,
-                   purrr::map(seq_along(input_names), ~function(x) x[[.]]))
-    all_coeffs <- c("(Intercept)", input_names)
+                   purrr::map(seq_along(inputs_fit), ~function(x) x[[.]]))
+    all_coeffs <- c("(Intercept)", inputs_fit)
     if (quadratic) {
       all_funcs <- c(all_funcs,
                      apply(
                        expand.grid(
-                         seq_along(input_names),
-                         seq_along(input_names)), 1,
+                         seq_along(inputs_fit),
+                         seq_along(inputs_fit)), 1,
                        function(y) function(x) x[[y[[1]]]] * x[[y[[2]]]]))
       all_coeffs <- c(all_coeffs,
                       apply(
                         expand.grid(
-                          input_names,
-                          input_names), 1, paste, collapse = ":"))
+                          inputs_fit,
+                          inputs_fit), 1, paste, collapse = ":"))
       all_coeffs <- sub("(.*):(\\1)$", "I(\\1^2)", all_coeffs)
     }
     model_basis_funcs <- purrr::map(
