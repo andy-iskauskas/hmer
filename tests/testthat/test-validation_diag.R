@@ -27,7 +27,7 @@ test_that("Space removal", {
       SIREmulators$ems,
       SIREmulators$targets,
     ),
-    c(nS = 1/30, nI = 1/10, nR = 0)
+    c(nS = 29/30, nI = 9/10, nR = 1)
   )
   expect_equal(
     space_removal(
@@ -35,7 +35,7 @@ test_that("Space removal", {
       SIREmulators$targets,
       cutoff = 4.5
     ),
-    c(nS = 1/30, nI = 4/30, nR = 0)
+    c(nS = 29/30, nI = 26/30, nR = 1)
   )
   expect_equal(
     space_removal(
@@ -43,7 +43,7 @@ test_that("Space removal", {
       SIREmulators$targets,
       individual = FALSE
     ),
-    0
+    1
   )
 })
 

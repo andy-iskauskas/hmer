@@ -89,7 +89,7 @@ test_that("Modifying priors and functional sigma - untrained", {
   em_o3 <- em_o2$mult_sigma(2)
   expect_equal(
     unname(em_o3$get_cov(test_points[1,,drop=FALSE])),
-    359.2923,
+    257.5781,
     tolerance = 1e-4
   )
   expect_equal(

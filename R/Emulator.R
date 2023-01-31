@@ -801,6 +801,16 @@ Emulator <- R6Class(
         c(names(self$ranges), self$output_name))
       return(new_o_em$adjust(dat, self$output_name))
     },
+    # set = function(name, replacement) {
+    #   if (is.null(self[[name]])) stop("No attribute to replace.")
+    #   s_env <- environment(self[[name]])$self
+    #   p_env <- environment(self[[name]])
+    #   unlockBinding(name, s_env)
+    #   self[[name]] <- replacement
+    #   environment(self[[name]]) <- p_env
+    #   lockBinding(name, s_env)
+    #   invisible(self)
+    # },
     print = function(...) {
       cat("Parameters and ranges: ",
           paste(names(self$ranges),

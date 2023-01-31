@@ -151,6 +151,12 @@ space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1
   value <- name <- cutoff <- NULL
   if ("Emulator" %in% class(ems))
     ems <- setNames(list(ems), ems$output_name)
+  if ("EmProto" %in% class(ems[[1]])) {
+    if (modified == 'var' || modified == 'hp') {
+      warning("Cannot consider space removed with respect to prior variance or hyperparameter for proto ems. Setting to observation error (obs).")
+      modified <- 'obs'
+    }
+  }
   ranges <- ems[[1]]$ranges
   if (is.null(maxpoints)) maxpoints <- 100*length(ranges)
   if (ppd^length(ranges) > maxpoints) {
@@ -326,6 +332,8 @@ validation_pairs <- function(ems, points, targets, ranges, nth = 1, cb = FALSE) 
 effect_strength <- function(ems, plt = interactive(), line.plot = FALSE,
                             grid.plot = FALSE, labels = TRUE, quadratic = TRUE,
                             xvar = TRUE) {
+  if ("EmProto" %in% unlist(purrr::map(ems, class), use.names = FALSE))
+    stop("effect_strength not applicable for Proto_emulator objects.")
   get_effect_strength <- function(em, quad = FALSE) {
     es <- c()
     for (i in seq_along(em$ranges)) {

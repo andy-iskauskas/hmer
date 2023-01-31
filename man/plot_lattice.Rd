@@ -4,7 +4,15 @@
 \alias{plot_lattice}
 \title{Plot Lattice of Emulator Implausibilities}
 \usage{
-plot_lattice(ems, targets, ppd = 20, cb = FALSE, cutoff = 3, maxpoints = 50000)
+plot_lattice(
+  ems,
+  targets,
+  ppd = 20,
+  cb = FALSE,
+  cutoff = 3,
+  maxpoints = 50000,
+  imp_breaks = NULL
+)
 }
 \arguments{
 \item{ems}{The \code{\link{Emulator}} objects in question.}
@@ -18,6 +26,9 @@ plot_lattice(ems, targets, ppd = 20, cb = FALSE, cutoff = 3, maxpoints = 50000)
 \item{cutoff}{The cutoff value for non-implausible points.}
 
 \item{maxpoints}{The limit on the number of points to be evaluated.}
+
+\item{imp_breaks}{If plotting nth maximum implausibility, defines the levels at
+which to draw contours.}
 }
 \value{
 A ggplot object

@@ -4,7 +4,14 @@
 \alias{space_removal}
 \title{Percentage of Space Removed}
 \usage{
-space_removal(ems, targets, points = NULL, cutoff = 3, individual = TRUE)
+space_removal(
+  ems,
+  targets,
+  points = NULL,
+  ppd = NULL,
+  cutoff = 3,
+  individual = TRUE
+)
 }
 \arguments{
 \item{ems}{The emulators to compute over, as a list}
@@ -13,12 +20,15 @@ space_removal(ems, targets, points = NULL, cutoff = 3, individual = TRUE)
 
 \item{points}{The points to test against}
 
+\item{ppd}{If no points are provided and uniform grid is wanted, the number of
+points per parameter dimension.}
+
 \item{cutoff}{The cutoff value for implausibility}
 
 \item{individual}{If true, gives emulator-by-emulator results; otherwise works with maximum implausibility}
 }
 \value{
-A numeric corresponding to the proportions of points accepted.
+A numeric corresponding to the proportions of points removed.
 }
 \description{
 For a wave of emulators, estimates the proportion of space removed at this wave.

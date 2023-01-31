@@ -808,13 +808,13 @@ variance_emulator_from_data <- function(input_data, output_names, ranges,
       }
       else {
         variance_em <- emulator_from_data(
-          var_df, i, ranges, quadratic = FALSE,
+          var_df, i, ranges,
           adjusted = FALSE, has.hierarchy = TRUE, verbose = FALSE, ...)[[1]]
       }
     }
     else {
       variance_em <- emulator_from_data(
-        all_var, i, ranges, quadratic = FALSE,
+        all_var, i, ranges,
         adjusted = FALSE, has.hierarchy = TRUE, verbose = FALSE, ...)[[1]]
     }
     if (round(variance_em$u_sigma, 10) <= 0) {
@@ -825,8 +825,8 @@ variance_emulator_from_data <- function(input_data, output_names, ranges,
     }
     var_mod <- function(x, n) {
       if (n > 1)
-        return(variance_em$get_exp(x)^2 +
-                 variance_em$get_cov(x))/n * (kurt_ave - 1 + 2/(n-1))
+        return((variance_em$get_exp(x)^2 +
+                 variance_em$get_cov(x))/n * (kurt_ave - 1 + 2/(n-1)))
       return(0)
     }
     variance_em$s_diag <- var_mod

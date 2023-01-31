@@ -156,6 +156,7 @@ kurtosis <- function(x, na.rm = FALSE) {
 #'
 #' @return Either the new expectation or the new variance.
 get_truncation <- function(e, v, mu = TRUE, nu = 6, a = 0, b = Inf) {
+  if (v <= 0) v <- 1e-10
   eff_v <- (nu-2)*v/nu
   new_a <- (a-e)/sqrt(eff_v)
   new_b <- (b-e)/sqrt(eff_v)

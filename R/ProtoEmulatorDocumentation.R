@@ -1,0 +1,110 @@
+# --------------------------------
+# Emulator Prototype Documentation
+# --------------------------------
+#' @title Prototype Class for Emulator-like Objects
+#'
+#' @description Converts a prediction object into a form useable in hmer.
+#'
+#'     The history matching process can be used for objects that are not
+#'     created by the \code{hmer} package: most notably Gaussian Process
+#'     (GP) emulators but even for simple linear models. This R6 class
+#'     converts such an object into a form that can be called directly and
+#'     reliably by the methods of the package, including for visualisation
+#'     and diagnostics.
+#'
+#' @name Proto_emulator
+#'
+#' @importFrom R6 R6Class
+#'
+#' @section Constructor: \code{Proto_emulator$new(ranges, output_name,
+#'     predict_func, variance_func, ...)}
+#'
+#' @section Arguments:
+#'
+#'     Required:
+#'
+#'     \code{ranges} A list of ranges for the inputs to the model.
+#'
+#'     \code{output_name} The name of the output modelled.
+#'
+#'     \code{predict_func} The function that provides the predictions at
+#'     a new point or points. This should be a function that takes one
+#'     argument, \code{x}, where \code{x} is a \code{data.frame} of points.
+#'
+#'     \code{variance_func} The function that encodes the prediction error
+#'     due to the model of choice. This, too, takes an argument \code{x} as
+#'     above.
+#'
+#'     Optional:
+#'
+#'     \code{implausibility_func} A function that takes points \code{x} and a
+#'     targets \code{z} (and potentially a cutoff value \code{cutoff}) and
+#'     returns a measure of closeness of the predicted value to the target (or
+#'     a boolean representing whether the prediction is within the specified
+#'     cutoff). Any custom implausbility should satisfy the definition: that is,
+#'     a point that is unlikely to match to the observation should have higher
+#'     implausibility than a point likely to match to the observation. If, for
+#'     example, a likelihood to be maximised is used as a surrogate for an
+#'     implausibility function, then one should transform it accordingly.
+#'
+#'     If this argument is not provided, the standard implausibility is used:
+#'     namely, the absolute value of the difference between prediction and
+#'     observation, divided by the square root of the sum in quadrature of
+#'     the errors.
+#'
+#'     \code{print_func} If the prediction object has a suitable print function
+#'     that one wishes to transfer to the R6 class (e.g. \code{summary.lm}), it
+#'     is specified here.
+#'
+#' @section Constructor Details:
+#'
+#'     The constructor must take, as a minimum, the first four arguments (input
+#'     ranges, output name, and the prediction and variance functions). Default
+#'     behaviour exists if the implausibility function and print function are not
+#'     specified. The output of the constructor is an R6 object with the classes
+#'     "Emulator" and "EmProto".
+#'
+#' @section Accessor Methods:
+#'
+#'     Note that these have the same external structure as those in \code{\link{Emulator}}.
+#'
+#'     \code{get_exp(x)} Returns the prediction.
+#'
+#'     \code{get_cov(x)} Returns the prediction error.
+#'
+#'     \code{implausibility(x, z, cutoff = NULL)} Returns the 'implausibility'.
+#'
+#'     \code{print()} Prints relevant details of the object.
+#'
+#' @export
+#'
+#' @examples
+#'     # Use linear regression with an "error" on the SIR dataset.
+#'     ranges <- list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05))
+#'     targets <- SIREmulators$targets
+#'     lms <- purrr::map(names(targets),
+#'      ~step(lm(data = SIRSample$training[,c(names(ranges), .)],
+#'       formula = as.formula(paste0(., "~(",
+#'        paste0(names(ranges), collapse = "+"),
+#'        ")^2"
+#'       ))
+#'     ), trace = 0))
+#'     # Set up the proto emulators
+#'     proto_ems <- purrr::map(seq_along(lms), function(l) {
+#'       Proto_emulator$new(
+#'          ranges,
+#'          names(targets)[l],
+#'          function(x) predict(lms[[l]], x),
+#'          function(x) predict(lms[[l]], x, se.fit = TRUE)$se.fit^2 +
+#'             predict(lms[[l]], x, se.fit = TRUE)$residual.scale^2,
+#'          print_func = function() print(summary(lms[[l]]))
+#'       )
+#'     }) |> setNames(names(targets))
+#'     # Test with some hmer functions
+#'     nth_implausible(proto_ems, SIRSample$validation, targets)
+#'     emulator_plot(proto_ems)
+#'     emulator_plot(proto_ems, 'imp', targets = targets)
+#'     validation_diagnostics(proto_ems, targets, SIRSample$validation)
+#'     new_points <- generate_new_runs(proto_ems, 100, targets)
+#'
+NULL

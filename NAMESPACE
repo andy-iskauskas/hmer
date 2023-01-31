@@ -3,6 +3,7 @@
 export(Correlator)
 export(Emulator)
 export(HierarchicalEmulator)
+export(Proto_emulator)
 export(analyze_diagnostic)
 export(behaviour_plot)
 export(bimodal_emulator_from_data)
