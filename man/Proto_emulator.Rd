@@ -28,20 +28,24 @@ Converts a prediction object into a form useable in hmer.
     \code{output_name} The name of the output modelled.
 
     \code{predict_func} The function that provides the predictions at
-    a new point or points. This should be a function that takes one
-    argument, \code{x}, where \code{x} is a \code{data.frame} of points.
+    a new point or points. The first argument of this function should be
+    \code{x}, where \code{x} is a \code{data.frame} of points. Additional
+    arguments can be specified as long as they match additional objects
+    passed via \code{...} (see below for details).
 
     \code{variance_func} The function that encodes the prediction error
     due to the model of choice. This, too, takes an argument \code{x} as
-    above.
+    above as its first argument. Additional arguments can be specified as
+    long as they match additional objects passed via \code{...}
+    (see below for details).
 
     Optional:
 
     \code{implausibility_func} A function that takes points \code{x} and a
-    targets \code{z} (and potentially a cutoff value \code{cutoff}) and
-    returns a measure of closeness of the predicted value to the target (or
+    target \code{z} (and potentially a cutoff value \code{cutoff} and additional
+    arguments) and returns a measure of closeness of the predicted value to the target (or
     a boolean representing whether the prediction is within the specified
-    cutoff). Any custom implausbility should satisfy the definition: that is,
+    cutoff). Any custom implausibility should satisfy the definition: that is,
     a point that is unlikely to match to the observation should have higher
     implausibility than a point likely to match to the observation. If, for
     example, a likelihood to be maximised is used as a surrogate for an
@@ -52,9 +56,16 @@ Converts a prediction object into a form useable in hmer.
     observation, divided by the square root of the sum in quadrature of
     the errors.
 
+    Additional arguments can be specified as long as they match additional
+    objects passed via \code{...} (see below for details).
+
     \code{print_func} If the prediction object has a suitable print function
     that one wishes to transfer to the R6 class (e.g. \code{summary.lm}), it
     is specified here.
+
+    \code{...} Additional objects to pass to \code{predict_func}, \code{variance_func},
+    \code{implausibility_func} or \code{print_func}. The names of these objects
+    must match the additional argument names in the corresponding functions.
 }
 
 \section{Constructor Details}{

@@ -243,18 +243,36 @@ subset_emulators <- function(emulators, output_names) {
 #' \code{nth_implausible}, this takes a list of emulators in a variety of forms
 #' coming from either multiple waves of history matching, hierarchical emulation
 #' or bimodal emulation, and arrange them in a form suitable for sequential analysis.
-#' Emulators are also ordered by their ranges: those with the lower ranges are placed
-#' to the front of their respective list (representing the fact that these are likely
-#' the most recent, and therefore most restrictive, emulators).
+#' Emulators are also ordered by a number of factors: number of parameters, size of
+#' the minimum enclosing hyperrectangle, and implausibility (where applicable).
+#'
+#' If targets are provided, then the emulators can also be tested on the basis of
+#' how restrictive they are: this is included in the ordering. The cutoff by which to
+#' make a determination of implausibility for a point is governed by \code{cutoff}.
+#' The number of points to sample to consider implausibility is chosen by the value
+#' of \code{sample_size}: higher values are likely to be a more accurate reflection
+#' but will take longer.
+#'
+#' The weighting of each of the three metrics can be chosen using the \code{ordering}
+#' argument: metrics with higher weight are closer to the front of the character vector.
+#' The metrics are denoted "params" for number of parameters, "imp" for restrictiveness,
+#' and "volume" for volume of the hyperrectangle. For instance, a character vector
+#' \code{c("volume", "imp")} would sort first by volume of the minimum enclosing hyperrectangle,
+#' resolve ties by restrictiveness, and not consider the number of parameters.
 #'
 #' @param emulators The recursive list of emulators
 #' @param targets If not NULL, uses implausibility to order the emulators.
+#' @param cutoff The implausibility cutoff to use (if required)
+#' @param ordering The order in which to apply the relevant metrics
+#' @param sample_size The number of points to apply implausibility to (if required)
 #'
 #' @return A list of emulators with the ordered property described above.
 #'
 #' @noRd
 #' @keywords internal
-collect_emulators <- function(emulators, targets = NULL) {
+collect_emulators <- function(emulators, targets = NULL, cutoff = 3,
+                              ordering = c("params", "imp", "volume"),
+                              sample_size = 200) {
   if ("Emulator" %in% class(emulators))
     return(setNames(list(emulators), emulators$output_name))
   if (all(purrr::map_lgl(emulators, ~"Emulator" %in% class(.)))) {
@@ -262,8 +280,17 @@ collect_emulators <- function(emulators, targets = NULL) {
     em_range_lengths <- purrr::map_dbl(emulators, ~length(.$ranges))
     em_range_prods <- purrr::map_dbl(emulators,
                                      ~prod(purrr::map_dbl(.$ranges, diff)))
-    em_ordering <- order(em_range_lengths, em_range_prods, decreasing = c(TRUE, FALSE))
-    ## Add in support to order emulators by acceptance rate
+    if (is.null(targets)) {
+      which_ordering <- match(ordering, c("params", "volume"))
+    } else {
+      which_ordering <- match(ordering, c("params", "imp", "volume"))
+    }
+    which_ordering <- which_ordering[!is.na(which_ordering)]
+    if (length(which_ordering) == 0) {
+      warning("No valid ordering parameters specified. Reverting to default.")
+      if (is.null(targets)) which_ordering <- 1:2
+      else which_ordering <- 1:3
+    }
     if (!is.null(targets)) {
       if (!is.null(targets$expectation)) targets <- targets$expectation
       for (i in seq_along(targets)) {
@@ -271,11 +298,13 @@ collect_emulators <- function(emulators, targets = NULL) {
           targets[[i]] <- list(val = targets[[i]], sigma = 0.05*targets[[i]])
         }
       }
-      maximal_ranges <- emulators[[em_ordering[1]]]$ranges
-      sample_points <- do.call('cbind.data.frame', purrr::map(maximal_ranges, ~runif(200, min = .[[1]], max = .[[2]]))) |> setNames(names(maximal_ranges))
-      em_imps <- do.call('cbind', purrr::map(emulators, ~.$implausibility(sample_points, targets[[.$output_name]], cutoff = 3)))
+      maximal_ranges <- purrr::map(emulators, "ranges")[[which.max(purrr::map_dbl(emulators, ~length(.$ranges)))]]
+      sample_points <- do.call('cbind.data.frame', purrr::map(maximal_ranges, ~runif(sample_size, min = .[[1]], max = .[[2]]))) |> setNames(names(maximal_ranges))
+      em_imps <- do.call('cbind', purrr::map(emulators, ~.$implausibility(sample_points, targets[[.$output_name]], cutoff = cutoff)))
       imp_restriction <- apply(em_imps, 2, sum)
-      em_ordering <- order(em_range_lengths, imp_restriction, em_range_prods, decreasing = c(TRUE, FALSE, FALSE))
+      em_ordering <- do.call(order, list(-em_range_lengths, imp_restriction, em_range_prods)[which_ordering])
+    } else {
+      em_ordering <- do.call(order, list(-em_range_lengths, em_range_prods)[which_ordering])
     }
     return(setNames(emulators[em_ordering], em_names[em_ordering]))
   }

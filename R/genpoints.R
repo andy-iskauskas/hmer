@@ -406,7 +406,7 @@ generate_new_runs <- function(ems, n_points, z, method = "default", cutoff = 3,
       points_accept <- c(0)
       optimal_cut <- cutoff
       for (i in cutoff_sequence) {
-        required_points <- min(nrow(plausible_set)-1, floor(0.8*nrow(plausible_set)), 5*length(ranges))
+        required_points <- min(max(1, nrow(plausible_set)-1, floor(0.8*nrow(plausible_set))), 5*length(ranges))
         c_bools <- opts$accept_measure(ems, plausible_set, z, cutoff = i, n = opts$nth)
         points_accept <- c(points_accept, sum(c_bools))
         if (sum(c_bools) >= required_points) {
@@ -645,7 +645,7 @@ lhs_gen <- function(ems, ranges, n_points, z, cutoff = 3, verbose, opts = NULL) 
   if (is.character(opts$accept_measure) && opts$accept_measure == "default") {
     imp_func <- function(ems, x, z, ...) nth_implausible(ems, x, z, n = opts$nth, ...)
     point_imps <- imp_func(ems, points, z, max_imp = Inf, ordered = TRUE)
-    required_points <- min(length(point_imps)-1, floor(0.8*length(point_imps)), 5*length(ranges))
+    required_points <- min(max(1, length(point_imps)-1, floor(0.8*length(point_imps))), 5*length(ranges))
     if (sum(point_imps <= cutoff) < required_points) {
       cutoff_current <- sort(point_imps)[required_points]
       if (sort(point_imps)[1] >= 20) {
@@ -661,7 +661,7 @@ lhs_gen <- function(ems, ranges, n_points, z, cutoff = 3, verbose, opts = NULL) 
   }
   else {
     i_bools <- rep(FALSE, nrow(points))
-    required_points <- min(nrow(points)-1, floor(0.8*nrow(points)), 5*length(ranges))
+    required_points <- min(max(1, nrow(points)-1, floor(0.8*nrow(points))), 5*length(ranges))
     c_current <- cutoff
     while (sum(i_bools) < required_points) {
       if (c_current > 20) {

@@ -791,7 +791,6 @@ validation_diagnostics <- function(emulators, targets = NULL,
         diag_results[[i]][[j]], names(diag_results)[[i]], targets, ...)
     }
   }
-  par(op)
   failed_points <- unique(do.call('rbind', fail_point_list))
   return(failed_points)
 }

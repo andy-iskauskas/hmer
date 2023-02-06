@@ -12,7 +12,7 @@ vf <- function(x) {
   pred <- predict(relev_lm, x, se.fit = TRUE)
   return(pred$se.fit^2 + pred$residual.scale^2)
 }
-ifunc <- function(x, z) return(x-z)
+ifunc <- function(x, z, cutoff) return(x-z)
 
 test_that("Basic proto_emulator behaviour works", {
   pe1 <- Proto_emulator$new(
@@ -58,9 +58,9 @@ test_that("Proto em failure states",  {
   )
   expect_error(
     Proto_emulator$new(
-      ranges, targets, pf, vf, function(x) ifunc(x, z)
+      ranges, targets, pf, vf, function(x) ifunc(x, z, cutoff)
     ),
-    "must have at least two arguments"
+    "at least two arguments"
   )
 })
 
