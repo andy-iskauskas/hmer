@@ -13,7 +13,8 @@ nth_implausible(
   cutoff = NULL,
   sequential = FALSE,
   get_raw = FALSE,
-  ordered = FALSE
+  ordered = FALSE,
+  ...
 )
 }
 \arguments{
@@ -34,6 +35,9 @@ nth_implausible(
 \item{get_raw}{Boolean - determines whether nth-implausibility should be applied.}
 
 \item{ordered}{If FALSE, emulators are ordered according to restrictiveness.}
+
+\item{...}{Any additional arguments to pass to chained functions (e.g. \code{ordering}
+to pass to \code{collect_emulators})}
 }
 \value{
 Either the nth maximum implausibilities, or booleans (if cutoff is given).

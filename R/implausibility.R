@@ -58,6 +58,8 @@ sequential_imp <- function(ems, x, z, n = 1, cutoff = 3) {
 #' @param sequential Should the emulators be evaluated sequentially?
 #' @param get_raw Boolean - determines whether nth-implausibility should be applied.
 #' @param ordered If FALSE, emulators are ordered according to restrictiveness.
+#' @param ... Any additional arguments to pass to chained functions (e.g. \code{ordering}
+#' to pass to \code{collect_emulators})
 #'
 #' @return Either the nth maximum implausibilities, or booleans (if cutoff is given).
 #' @export
@@ -94,13 +96,13 @@ sequential_imp <- function(ems, x, z, n = 1, cutoff = 3) {
 nth_implausible <- function(ems, x, z, n = NULL,
                             max_imp = Inf, cutoff = NULL,
                             sequential = FALSE, get_raw = FALSE,
-                            ordered = FALSE) {
+                            ordered = FALSE, ...) {
   if (!"data.frame" %in% class(x))  {
     if (!is.null(dim(x)) && !is.null(colnames(x)))
       x <- data.frame(x)
     else stop("Named array or data.frame of points required.")
   }
-  if (!ordered) ems <- collect_emulators(ems, z)
+  if (!ordered) ems <- collect_emulators(ems, z, cutoff, ...)
   ## Preprocessing for variance emulation
   if (!is.null(ems$expectation) && !is.null(ems$variance)) {
     if (is.null(n))

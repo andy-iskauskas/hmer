@@ -268,11 +268,10 @@ subset_emulators <- function(emulators, output_names) {
 #'
 #' @return A list of emulators with the ordered property described above.
 #'
-#' @noRd
-#' @keywords internal
+#' @export
 collect_emulators <- function(emulators, targets = NULL, cutoff = 3,
                               ordering = c("params", "imp", "volume"),
-                              sample_size = 200) {
+                              sample_size = 200, ...) {
   if ("Emulator" %in% class(emulators))
     return(setNames(list(emulators), emulators$output_name))
   if (all(purrr::map_lgl(emulators, ~"Emulator" %in% class(.)))) {

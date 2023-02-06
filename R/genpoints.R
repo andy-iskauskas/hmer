@@ -202,7 +202,7 @@ maximin_sample <- function(points, n, reps = 1000, nms) {
 #' @param verbose Should progress statements be printed to the console?
 #' @param opts A named list of opts as described.
 #' @param ... Any parameters to pass via chaining to individual sampling functions (eg \code{distro}
-#' for importance sampling).
+#' for importance sampling or \code{ordering} for collecting emulators).
 #'
 #' @return A data.frame containing the set of new points upon which to run the model.
 #'
@@ -260,7 +260,7 @@ generate_new_runs <- function(ems, n_points, z, method = "default", cutoff = 3,
       error = function(e) {warning("Cannot open directory provided in to_file; output will not be saved to an external file"); opts$to_file <- NA}
     )
   } #nocov end
-  ems <- collect_emulators(ems, z)
+  ems <- collect_emulators(ems, z, cutoff, ...)
   ranges <- getRanges(ems)
   if (is.na(opts$nth)) {
     if (!is.null(ems$expectation))

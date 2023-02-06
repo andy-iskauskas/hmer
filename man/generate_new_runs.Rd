@@ -35,7 +35,7 @@ on previous design points.}
 \item{opts}{A named list of opts as described.}
 
 \item{...}{Any parameters to pass via chaining to individual sampling functions (eg \code{distro}
-for importance sampling).}
+for importance sampling or \code{ordering} for collecting emulators).}
 }
 \value{
 A data.frame containing the set of new points upon which to run the model.
