@@ -31,7 +31,7 @@ Proto_emulator <- R6::R6Class(
       args <- formalArgs(predict_func)
       if (args[1] != "x") stop("First argument to 'predict_func' must be 'x'")
       if (length(args) > 1) {
-        argsOk <- args[-1] %in% names(self$add_args)
+        argsOK <- args[-1] %in% names(self$add_args)
         if (any(!argsOK)) stop(paste0("'predict_func' requires missing '",
                                       paste0(args[-1][!argsOK], collapse = ", "),
                                       "' object(s) to be passed to 'Proto_emulator'"))
