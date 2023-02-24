@@ -783,8 +783,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges,
       apply(collected_df[,paste0(output_names, "var")], 1,
             function(a) !any(is.na(a))),]
   if (verbose) cat("Computed summary statistics...\n") #nocov
-  variance_emulators <- list()
-  for (i in output_names) {
+  variance_emulators <- purrr::map(output_names, function(i) {
     is_high_rep <- !is.na(collected_df_var[,paste0(i,"kurt")])
     all_var <- setNames(
       collected_df_var[,c(input_names, paste0(i, 'var'))], c(input_names, i))
@@ -792,6 +791,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges,
     if (all(is_high_rep)) kurt_ave <- mean(collected_df_var[,paste0(i,'kurt')])
     else if (!any(is_high_rep)) kurt_ave <- 3
     else kurt_ave <- mean(collected_df_var[is_high_rep, paste0(i, 'kurt')])
+    print(paste0(i, " kurtosis:", kurt_ave))
     if (all(is_high_rep) || any(is_high_rep)) {
       var_df <- setNames(
         collected_df_var[is_high_rep, c(input_names, paste0(i, "var"))],
@@ -842,8 +842,8 @@ variance_emulator_from_data <- function(input_data, output_names, ranges,
           collected_df[!is_high_rep, c(input_names, paste0(i, 'var'))],
           c(input_names, i)), i)
     }
-    variance_emulators <- c(variance_emulators, v_em)
-  }
+    return(v_em)
+  })
   variance_emulators <- setNames(variance_emulators, output_names)
   if (verbose) cat("Completed variance emulators. Training mean emulators...\n") #nocov
   exp_mods <- purrr::map(variance_emulators, ~function(x, n) .$get_exp(x)/n)

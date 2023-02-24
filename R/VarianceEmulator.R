@@ -88,7 +88,7 @@ HierarchicalEmulator <- R6Class(
       }
     },
     get_exp = function(x, samps = NULL, check_neg = TRUE, c_data = NULL) {
-      if (check_neg) x <- eval_funcs(
+      x <- eval_funcs(
         scale_input,
         x[, names(self$ranges)[names(self$ranges) %in% names(x)]], self$ranges)
       if (!all(self$beta_sigma == 0) || is.null(self$model)) {
@@ -144,7 +144,11 @@ HierarchicalEmulator <- R6Class(
       if (length(self$beta_mu) == 1) out_val <- c(beta_part + u_part)
       else out_val <- beta_part + u_part
       if (self$em_type == 'variance' && check_neg && any(out_val <= 0)) {
-        vars <- self$get_cov(x, check_neg = FALSE)
+        x_chg <- data.frame(eval_funcs(
+          scale_input,
+          x, self$ranges,
+          forward = FALSE)) |> setNames(names(self$ranges))
+        vars <- self$get_cov(x_chg, check_neg = FALSE)
         which_neg <- which(out_val <= 0)
         relev_vals <- data.frame(m = out_val[which_neg], v = vars[which_neg])
         replace_vals <- apply(
@@ -159,7 +163,7 @@ HierarchicalEmulator <- R6Class(
                        samps = NULL, check_neg = TRUE,
                        c_x = NULL, c_xp = NULL) {
       beta_part <- 0
-      if (check_neg) x <- eval_funcs(
+      x <- eval_funcs(
         scale_input,
         x[, names(self$ranges)[names(self$ranges) %in% names(x)]], self$ranges)
       if (!all(self$beta_sigma == 0))
@@ -177,7 +181,7 @@ HierarchicalEmulator <- R6Class(
         bupart_xp <- bupart_x
       }
       else {
-        if (check_neg) xp <- eval_funcs(
+        xp <- eval_funcs(
           scale_input,
           xp[, names(self$ranges)[names(self$ranges %in% names(x))]],
           self$ranges)
@@ -358,7 +362,11 @@ HierarchicalEmulator <- R6Class(
       ## I don't like this, but there's a lot of rounding error going on
       out_val <- round(beta_part+u_part+bupart, 10)
       if (self$em_type == "variance" && check_neg) {
-        exps <- self$get_exp(x, check_neg = FALSE)
+        x_chg <- data.frame(eval_funcs(
+          scale_input,
+          x, self$ranges,
+          forward = FALSE)) |> setNames(names(self$ranges))
+        exps <- self$get_exp(x_chg, check_neg = FALSE)
         if (any(exps <= 0)) {
           if (full)
             warning(paste("Some values of predicted variance are negative.",
