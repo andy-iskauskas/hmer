@@ -486,7 +486,7 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL,
     'rbind',
     purrr::map(
       wave_numbers,
-      ~data.frame(wave_points[[.+ifelse(zero_in, 1, 0)]][,output_names],
+      ~data.frame(wave_points[[.+ifelse(zero_in, 1, 0)]][,output_names, drop = FALSE],
                   wave = .)))
   sim_runs$run <- seq_along(sim_runs[,1])
   if (normalize) {
@@ -513,18 +513,34 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL,
   pal <- pal[seq_along(pal) %in% (wave_numbers+ifelse(zero_in, 1, 0))]
   obs <- data.frame(name = names(z), min = purrr::map_dbl(z, ~.[1]),
                     max = purrr::map_dbl(z, ~.[2]))
-  g <- ggplot(data = pivoted, aes(x = name, y = value)) +
-    geom_line(aes(group = run, colour = wave)) +
-    scale_colour_manual(values = pal) +
-    geom_point(data = obs, aes(x = name, y = (min+max)/2)) +
-    geom_errorbar(data = obs,
-                  aes(y = (min+max)/2, ymax = max, ymin = min),
-                  width = 0.1, linewidth = 1.25, colour = barcol) +
-    labs(title = paste0("Simulator evaluations at wave points",
-                        (if (normalize) ": normalised" else (
-                          if (logscale) ": log-scale" else "")))) +
-    theme_minimal() +
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  if(length(output_names) == 1) {
+      obs <- uncount(obs, length(unique(pivoted$wave))) %>%
+        mutate(wave = factor(0:(length(unique(pivoted$wave)) - 1)))
+      g <- ggplot(data = pivoted, aes(x = wave, y = value)) +
+        ggbeeswarm::geom_beeswarm(aes(colour = wave, group = wave)) +
+        scale_colour_manual(values = pal) +
+        geom_point(data = obs, aes(x = wave, y = (min+max)/2)) +
+        geom_errorbar(data = obs,
+                      aes(y = (min+max)/2, ymax = max, ymin = min),
+                      width = 0.1, linewidth = 1.25, colour = barcol) +
+        labs(title = paste0("Simulator evaluations (", output_names, ") at wave points",
+                            (if (normalize) ": normalised" else (
+                              if (logscale) ": log-scale" else "")))) +
+        theme_minimal()
+  } else {
+      g <- ggplot(data = pivoted, aes(x = name, y = value)) +
+        geom_line(aes(group = run, colour = wave)) +
+        scale_colour_manual(values = pal) +
+        geom_point(data = obs, aes(x = name, y = (min+max)/2)) +
+        geom_errorbar(data = obs,
+                      aes(y = (min+max)/2, ymax = max, ymin = min),
+                      width = 0.1, linewidth = 1.25, colour = barcol) +
+        labs(title = paste0("Simulator evaluations at wave points",
+                            (if (normalize) ": normalised" else (
+                              if (logscale) ": log-scale" else "")))) +
+        theme_minimal() +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  }
   if (normalize) g <- g + coord_cartesian(ylim = c(-3, 3))
   return(suppressWarnings(g))
 }
