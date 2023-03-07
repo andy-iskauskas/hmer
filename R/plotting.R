@@ -515,6 +515,7 @@ output_plot <- function(ems, targets, points = NULL, npoints = 1000) {
 #' @param maxpoints The limit on the number of points to be evaluated.
 #' @param imp_breaks If plotting nth maximum implausibility, defines the levels at
 #'                   which to draw contours.
+#' @param contour Logical determining whether to plot implausibility contours or not.
 #'
 #' @return A ggplot object
 #'
@@ -529,7 +530,8 @@ output_plot <- function(ems, targets, points = NULL, npoints = 1000) {
 #'  plot_lattice(SIREmulators$ems$nS, SIREmulators$targets)
 #' }
 plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE,
-                         cutoff = 3, maxpoints = 5e4, imp_breaks = NULL) {
+                         cutoff = 3, maxpoints = 5e4, imp_breaks = NULL, 
+                         contour = TRUE) {
   ems <- collect_emulators(ems)
   ranges <- if ("Emulator" %in% class(ems)) ems$ranges else ems[[1]]$ranges
   if (ppd^length(ranges) > maxpoints) {
@@ -619,7 +621,7 @@ plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE,
       which(names(ranges) == parameters[2])) {
       pt <- two_dim(point_grid, parameters)
       g <- ggplot(mapping = aes(x = pt[,1], y = pt[,2], z = pt[,3])) +
-        geom_contour_filled(breaks = imp_breaks, colour = 'black') +
+        geom_contour_filled(breaks = imp_breaks, colour = ifelse(contour, "black", NA)) +
         scale_fill_manual(values = cols, labels = imp_names,
                           name = "Min. I",
                           guide = guide_legend(reverse = TRUE), drop = FALSE) +

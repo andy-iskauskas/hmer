@@ -11,7 +11,8 @@ plot_lattice(
   cb = FALSE,
   cutoff = 3,
   maxpoints = 50000,
-  imp_breaks = NULL
+  imp_breaks = NULL,
+  contour = TRUE
 )
 }
 \arguments{
@@ -29,6 +30,8 @@ plot_lattice(
 
 \item{imp_breaks}{If plotting nth maximum implausibility, defines the levels at
 which to draw contours.}
+
+\item{contour}{Logical determining whether to plot implausibility contours or not.}
 }
 \value{
 A ggplot object
