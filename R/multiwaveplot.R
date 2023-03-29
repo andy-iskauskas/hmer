@@ -449,6 +449,7 @@ wave_dependencies <- function(waves, targets, output_names = names(targets),
 #' palette. If more waves are required, then an alternative palette should be selected.
 #'
 #' @import ggplot2
+#' @importFrom dplyr mutate
 #'
 #' @param wave_points The set of wave points, as a list of data.frames
 #' @param z The set of target values for each output

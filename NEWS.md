@@ -1,3 +1,25 @@
+# hmer 1.4.0
+
+## Bug fixes
+
+* Multiple fixes to deal with singletons: ensuring 1d examples work with `generate_new_runs`; single output systems behave appropriately under clustering, diagnostics, and implausibility for `bimodal_emulator_from_data`; modifications to `simulator_plot` for single output systems; bug-fix in `generate_new_runs` for user-provided single-element plausible sets.
+
+* Small fixes to guarantee compatibility with new functionality.
+
+* Fixed scoping issue with variance emulators where emulator would not get the correct `s_diag` function when initialised within a collection of emulators in `variance_emulator_from_data`
+
+## Enhancements
+
+* Beeswarm plots added as alternative to `simulator_plot` (credit to T.J. McKinley)
+
+* Custom multi-emulator implausibility now supported within `generate_new_runs`: multiple conditions can be supplied as part of the point-screening process via `accept_measure`. Structure of optional arguments for `generate_new_runs` has been modified (with backwards-compatibility for older code) - see help file for details.
+
+* Added check to `emulator_from_data` to handle mismatched input names and ranges
+
+## New Functionality
+
+* `Proto_emulator` introduced: the `hmer` framework of diagnostics, visualisation, and point proposal can be used with entirely custom objects.
+
 # hmer 1.2.0
 
 ## Bug fixes

@@ -1,7 +1,7 @@
 ---
 title: "Demonstrating the hmer Package"
 author: "Andrew Iskauskas"
-date: "2022-11-08"
+date: "2023-03-29"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Demonstrating the hmer Package}
@@ -199,7 +199,7 @@ Eventually, the aim of history matching is to propose new points which can enter
 ```r
 new_points <- generate_new_runs(wave1_emulators, 90, targets)
 #> Proposing from LHS...
-#> LHS has high yield - no other methods required.
+#> LHS has high yield; no other methods required.
 #> Proposing from LHS...
 #> Selecting final points using maximin criterion...
 plot(rbind(rbind(SIRSample$training, SIRSample$validation)[,names(input_ranges)], new_points), pch = 16, cex = 0.8, col = rep(c('black', 'blue'), each = 90))

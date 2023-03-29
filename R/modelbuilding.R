@@ -791,7 +791,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges,
     if (all(is_high_rep)) kurt_ave <- mean(collected_df_var[,paste0(i,'kurt')])
     else if (!any(is_high_rep)) kurt_ave <- 3
     else kurt_ave <- mean(collected_df_var[is_high_rep, paste0(i, 'kurt')])
-    # print(paste0(i, " kurtosis:", kurt_ave))
+    # if (verbose) print(paste0(i, " kurtosis:", kurt_ave))
     if (all(is_high_rep) || any(is_high_rep)) {
       var_df <- setNames(
         collected_df_var[is_high_rep, c(input_names, paste0(i, "var"))],

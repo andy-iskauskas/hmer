@@ -265,6 +265,7 @@ subset_emulators <- function(emulators, output_names) {
 #' @param cutoff The implausibility cutoff to use (if required)
 #' @param ordering The order in which to apply the relevant metrics
 #' @param sample_size The number of points to apply implausibility to (if required)
+#' @param ... Any additional arguments to pass recursively to collect_emulators
 #'
 #' @return A list of emulators with the ordered property described above.
 #'

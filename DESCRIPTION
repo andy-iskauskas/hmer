@@ -1,7 +1,7 @@
 Package: hmer
 Type: Package
 Title: History Matching and Emulation Package
-Version: 1.2.5
+Version: 1.4.0
 Authors@R: c(person("Andrew", "Iskauskas", email = "andrew.iskauskas@durham.ac.uk", comment = c(ORCID = "0000-0003-2825-3651"), role = c('aut', 'cre')),
   person("TJ", "McKinley", email = "t.mckinley@exeter.ac.uk", comment = c(ORCID = "0000-0002-9485-3236"), role = c('aut')))
 Maintainer: Andrew Iskauskas <andrew.iskauskas@durham.ac.uk>
@@ -27,6 +27,7 @@ Imports:
   purrr,
   stringr,
   tidyr,
+  dplyr,
   ggplot2,
   lhs,
   MASS,

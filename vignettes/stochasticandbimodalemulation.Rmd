@@ -1,7 +1,7 @@
 ---
 title: "Stochastic Emulation"
 author: "Andy Iskauskas"
-date: "2022-11-08"
+date: "2023-03-29"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Stochastic Emulation}
@@ -66,18 +66,18 @@ stochastic_em
 #> $variance$Y
 #> Parameters and ranges:  lambda: c(0, 0.08): mu: c(0.04, 0.13) 
 #> Specifications: 
-#> 	 Basis functions:  (Intercept); lambda; mu 
+#> 	 Basis functions:  (Intercept); lambda; mu; I(mu^2); lambda:mu 
 #> 	 Active variables lambda; mu 
-#> 	 Regression Surface Expectation:  114.3972; 110.3366; -89.7199 
-#> 	 Regression surface Variance (eigenvalues):  0; 0; 0 
+#> 	 Regression Surface Expectation:  89.0266; 109.4723; -90.1436; 54.1811; -82.455 
+#> 	 Regression surface Variance (eigenvalues):  0; 0; 0; 0; 0 
 #> Correlation Structure: 
 #> Bayes-adjusted emulator - prior specifications listed. 
-#> 	 Variance (Representative):  7457.208 
+#> 	 Variance (Representative):  6196.536 
 #> 	 Expectation:  0 
 #> 	 Correlation type: exp_sq 
 #> 	 Hyperparameters:  theta: 0.5654 
 #> 	 Nugget term: 0 
-#> Mixed covariance:  0 0 0 
+#> Mixed covariance:  0 0 0 0 0 
 #> 
 #> 
 #> $expectation
@@ -187,7 +187,7 @@ Finally, we briefly mention that point generation operates in the same manner as
 ```r
 new_points <- generate_new_runs(stochastic_em, 30, targets, resample = 0)
 #> Proposing from LHS...
-#> LHS has high yield - no other methods required.
+#> LHS has high yield; no other methods required.
 #> Selecting final points using maximin criterion...
 plot_wrap(new_points, ranges)
 ```
@@ -324,7 +324,7 @@ Finally, generating new points from bimodal emulators has an identical form to i
 ```r
 new_points <- generate_new_runs(bim_ems, 100, bim_targets, resample = 0)
 #> Proposing from LHS...
-#> LHS has high yield - no other methods required.
+#> LHS has high yield; no other methods required.
 #> Selecting final points using maximin criterion...
 plot_wrap(new_points, SIR_ranges)
 ```

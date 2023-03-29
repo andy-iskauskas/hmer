@@ -107,8 +107,9 @@ Emulator <- R6Class(
         return(unlist(purrr::map(s_df, ~self$get_exp(., include_c, c_data)),
                       use.names = FALSE))
       }
-      x <- x[, names(self$ranges)[names(self$ranges) %in% names(x)]]
-      x <- eval_funcs(scale_input, x, self$ranges)
+      x <- eval_funcs(scale_input,
+                     x[, names(self$ranges)[names(self$ranges) %in% names(x)]],
+                     self$ranges)
       if (!all(self$beta_sigma == 0) || is.null(self$model)) {
         g <- t(
           apply(
@@ -117,6 +118,7 @@ Emulator <- R6Class(
         else beta_part <- g %*% self$beta_mu
       }
       else {
+        if (is.null(names(x))) x <- setNames(x, names(self$ranges))
         beta_part <- predict(self$model, x)
       }
       x <- data.matrix(x)
@@ -801,16 +803,16 @@ Emulator <- R6Class(
         c(names(self$ranges), self$output_name))
       return(new_o_em$adjust(dat, self$output_name))
     },
-    set = function(name, replacement) {
-      if (is.null(self[[name]])) stop("No attribute to replace.")
-      s_env <- environment(self[[name]])$self
-      p_env <- environment(self[[name]])
-      unlockBinding(name, s_env)
-      self[[name]] <- replacement
-      environment(self[[name]]) <- p_env
-      lockBinding(name, s_env)
-      invisible(self)
-    },
+    # set = function(name, replacement) {
+    #   if (is.null(self[[name]])) stop("No attribute to replace.")
+    #   s_env <- environment(self[[name]])$self
+    #   p_env <- environment(self[[name]])
+    #   unlockBinding(name, s_env)
+    #   self[[name]] <- replacement
+    #   environment(self[[name]]) <- p_env
+    #   lockBinding(name, s_env)
+    #   invisible(self)
+    # },
     print = function(...) {
       cat("Parameters and ranges: ",
           paste(names(self$ranges),

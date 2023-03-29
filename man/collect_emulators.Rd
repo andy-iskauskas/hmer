@@ -23,6 +23,8 @@ collect_emulators(
 \item{ordering}{The order in which to apply the relevant metrics}
 
 \item{sample_size}{The number of points to apply implausibility to (if required)}
+
+\item{...}{Any additional arguments to pass recursively to collect_emulators}
 }
 \value{
 A list of emulators with the ordered property described above.
