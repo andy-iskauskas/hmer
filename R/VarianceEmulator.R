@@ -183,8 +183,7 @@ HierarchicalEmulator <- R6Class(
       else {
         xp <- eval_funcs(
           scale_input,
-          xp[, names(self$ranges)[names(self$ranges %in% names(x))]],
-          self$ranges)
+          xp[, names(self$ranges)[names(self$ranges) %in% names(xp)]], self$ranges)
         if (!all(self$beta_sigma == 0))
           g_xp <- apply(
             xp, 1,

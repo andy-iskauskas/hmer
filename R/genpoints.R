@@ -79,7 +79,7 @@ in_range <- function(data, ranges) {
 maximin_sample <- function(points, n, reps = 1000, nms) {
   c_measure <- op <- NULL
   opts <- purrr::map(1:reps, function(rep) {
-    tp <- points[sample(nrow(points), n),]
+    tp <- points[sample(nrow(points), n), , drop = FALSE]
     if (!"data.frame" %in% class(tp)) tp <- setNames(tp, nms)
     measure <- min(dist(tp))
     return(list(points = tp, value = measure))
@@ -380,6 +380,7 @@ generate_new_runs <- function(ems, n_points, z, method = "default", cutoff = 3,
       }
       points <- all_points
     }
+    if (is.null(nrow(points))) points <- data.frame(matrix(points, ncol = 1)) |> setNames(names(ems[[1]]$ranges))
     if (nrow(points) >= n_points && this_cutoff == cutoff) {
       if (verbose && meta_verbose) cat("Enough points generated from LHD - no need to apply other methods.\n") #nocov
       if (opts$seek > 0) {
