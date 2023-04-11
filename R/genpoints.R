@@ -432,31 +432,31 @@ generate_new_runs <- function(ems, n_points, z, method = "default", cutoff = 3,
         if (is.null(relev_ems$mode1)) {
           recent_imps <- do.call("cbind.data.frame",
                                  purrr::map(
-                                   recent_ems,
+                                   relev_ems,
                                    ~.$implausibility(plausible_set, z[[.$output_name]])
                                  ))
           recent_exps <- do.call("cbind.data.frame",
                                  purrr::map(
-                                   recent_ems, ~.$get_exp(plausible_set)
+                                   relev_ems, ~.$get_exp(plausible_set)
                                  ))
           preflight(cbind(plausible_set, recent_exps), z)
         }
         else {
           recent_imps1 <- do.call('cbind.data.frame',
                                   purrr::map(
-                                    recent_ems$mode1,
+                                    relev_ems$mode1,
                                     ~.$implausibility(plausible_set, z[[.$output_name]])
                                   ))
           recent_imps2 <- do.call('cbind.data.frame',
                                   purrr::map(
-                                    recent_ems$mode2,
+                                    relev_ems$mode2,
                                     ~.$implausibility(plausible_set, z[[.$output_name]])
                                   ))
           recent_imps <- pmin(recent_imps1, recent_imps2)
         }
         name <- value <- NULL
         plot_imps <- tidyr::pivot_longer(recent_imps, cols = everything())
-        plot_imps$name <- factor(plot_imps$name, levels = names(recent_ems))
+        plot_imps$name <- factor(plot_imps$name, levels = names(relev_ems))
         if (verbose) { #nocov start
           print(ggplot(data = plot_imps, aes(x = name, y = value)) +
                   geom_boxplot() +
