@@ -527,9 +527,9 @@ emulator_from_data <- function(input_data, output_names, ranges,
   if (emulator_type == "multistate")
     input_data_backup <- input_data
   if (is.data.frame(input_data)) {
-    unique_hash <- apply(unique(input_data[, input_names]), 1, hash)
+    unique_hash <- apply(unique(input_data[, input_names, drop = FALSE]), 1, hash)
     data_by_point <- purrr::map(unique_hash, function(x) {
-      input_data[apply(input_data[,names(ranges)], 1, hash) == x,]
+      input_data[apply(input_data[,names(ranges),drop = FALSE], 1, hash) == x,]
     })
     if (any(purrr::map_dbl(data_by_point, nrow) > 1) && emulator_type == "default") {
       if (FALSE) {
@@ -730,7 +730,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
       else
         specs <- purrr::map(seq_along(model_basis_funcs),
                             ~hyperparameter_estimate(
-                              data[[.]][,input_names],
+                              data[[.]][,input_names,drop=FALSE],
                               data[[.]][,length(data[[.]]),drop=FALSE],
                               models[[.]],
                               corr_name = corr_name,
