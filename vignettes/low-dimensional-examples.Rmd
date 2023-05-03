@@ -16,6 +16,7 @@ vignette: >
 library(hmer)
 library(lhs)
 library(ggplot2)
+#> RStudio Community is a great place to get help: https://community.rstudio.com/c/tidyverse
 set.seed(1)
 ```
 
@@ -119,8 +120,8 @@ The trained emulator, by virtue of having been provided the training points, 'kn
 
 ```r
 em1d$f$get_exp(data1d) - data1d$f
-#>  [1]  9.489353e-10  1.021405e-14  1.165734e-14  1.199041e-14 -4.773959e-15 -2.398082e-14
-#>  [7]  2.249573e-10 -3.541611e-14 -2.708944e-14 -1.454392e-14
+#>  [1]  9.489274e-10 -6.827872e-15 -2.142730e-14 -4.418688e-14 -5.717649e-14 -3.508305e-14  2.249818e-10
+#>  [8]  9.992007e-16  9.325873e-15 -2.220446e-16
 em1d$f$get_cov(data1d)
 #>  1  2  3  4  5  6  7  8  9 10 
 #>  0  0  0  0  0  0  0  0  0  0
