@@ -167,7 +167,7 @@ idemc_step <- function(ems, targets, points, point_imps, ladder, clusters,
 #' domain, or have interesting structure (particularly disconnected structure)
 #' that would potentially be overlooked by more standard point generation methods.
 #' The method is robust but computationally intensive, compared to normal methods,
-#' and should not be used as a default - see \code{\link{generate_new_runs}} for
+#' and should not be used as a default - see \code{\link{generate_new_design}} for
 #' less computationally expensive methods.
 #'
 #' The IDEMC method operates on an 'implausibility ladder', in the vein of common
@@ -226,7 +226,7 @@ idemc_step <- function(ems, targets, points, point_imps, ladder, clusters,
 #'
 #' @return Either a list of data.frames, one per rung, or a single data.frame of points.
 #'
-#' @seealso \code{\link{generate_new_runs}} for more standard point generation methods
+#' @seealso \code{\link{generate_new_design}} for more standard point generation methods
 #'
 #' @references
 #'     Vernon & Williamson (2013) <arXiv:1309.3520>

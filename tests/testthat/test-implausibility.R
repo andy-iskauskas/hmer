@@ -131,7 +131,9 @@ test_that("Fails if an emulator is without a target", {
 
 ## Variance Emulation
 
-var_em <- variance_emulator_from_data(BirthDeath$training, c('Y'), list(lambda = c(0, 0.08), mu = c(0.04, 0.13)))
+var_em <- emulator_from_data(BirthDeath$training, c('Y'),
+                             list(lambda = c(0, 0.08), mu = c(0.04, 0.13)),
+                             emulator_type = "variance", verbose = FALSE)
 
 test_that("Variance emulation implausibility basics", {
   var_target <- list(Y = c(90, 110))
@@ -178,7 +180,9 @@ bim_targets <- list(
   R25 = list(val = 276, sigma = 27.6),
   R50 = list(val = 579, sigma = 57.9)
 )
-bim_em <- bimodal_emulator_from_data(SIR_stochastic$training, names(bim_targets), SIREmulators$ems[[1]]$ranges)
+bim_em <- emulator_from_data(SIR_stochastic$training, names(bim_targets),
+                             SIREmulators$ems[[1]]$ranges, verbose = FALSE,
+                             emulator_type = "multistate")
 
 test_that("Bimodal emulation basics", {
   bim_points <- unique(SIR_stochastic$validation[,names(SIREmulators$ems[[1]]$ranges)])
@@ -201,7 +205,7 @@ test_that("Separated modes: same result", {
 ### Point proposal - makes more sense here since emulators are trained
 test_that("Bimodal point proposal", {
   skip_on_cran()
-  bim_points <- generate_new_runs(
+  bim_points <- generate_new_design(
     bim_em,
     100,
     bim_targets,

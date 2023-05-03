@@ -90,8 +90,8 @@ i4 <- nth_implausible(SIREmulators$ems, grid, SIREmulators$targets,
  cutoff = c(4, 2.5, 2))
 
 # Variance Emulators
-v_ems <- variance_emulator_from_data(BirthDeath$training, c('Y'),
- list(lambda = c(0, 0.08), mu = c(0.04, 0.13)))
+v_ems <- emulator_from_data(BirthDeath$training, c('Y'),
+ list(lambda = c(0, 0.08), mu = c(0.04, 0.13)), emulator_type = "variance")
 v_targs = list(expectation = list(Y = c(90, 110)), variance = list(Y = c(55, 95)))
 nth_implausible(v_ems, unique(BirthDeath$validation[,1:2]), v_targs)
 ## If there is a mismatch between emulators and targets, expectation is assumed

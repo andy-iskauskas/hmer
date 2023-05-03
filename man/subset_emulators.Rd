@@ -20,8 +20,8 @@ Takes a collection of bimodal or stochastic emulators and subsets by output name
 \details{
 It can be useful to consider only a subset of outputs. In the normal case, this can be
 easily achieved; however, when the emulators are in a nested structure such as that
-provided by variance_emulator_from_data or bimodal_emulator_from_data, it can be more
-involved. This function allows the easy selecting of emulators by name, returning a
+provided by emulator_from_data with emulator_type = 'variance' or 'bimodal', it can
+be more involved. This function allows the easy selecting of emulators by name, returning a
 subset of them in the same form as the original object.
 
 This function is compatible with `standard' emulators; that is, those in a simple

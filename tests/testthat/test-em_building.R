@@ -26,9 +26,9 @@ test_that("Emulator training: default", {
   expect_equal(
     matrix(ems[[2]]$get_cov(SIRSample$validation[1:3,], full = TRUE),
            dimnames = NULL, nrow = 3),
-    matrix(c(237.1851790, 0.9288659, 5.660917,
-             0.9288659, 234.3065391, 0.000001,
-             5.6609166, 0.000001, 216.613111), nrow = 3),
+    matrix(c(237.1851878, 0.9288313, 5.660972,
+             0.9288313, 234.3065222, 0.000001,
+             5.6609724, 0.000001, 216.613132), nrow = 3),
     tolerance = 1e-6
   )
 })
@@ -118,18 +118,12 @@ test_that("Emulator training: provided hyperparams", {
       aIR = c(0, 0.5),
       aSR = c(0, 0.05)
     ),
-    c_lengths = rep(0.75, 3),
-    ev = c(30, 20, 10),
+    specified_priors = list(hyper_p = rep(0.75, 3)),
     verbose = FALSE
   )
   expect_equal(
     ems_5[[1]]$corr$hyper_p$theta,
     0.75
-  )
-  expect_equal(
-    ems_5[[3]]$corr$nugget,
-    0.2587429,
-    tolerance = 1e-6
   )
 })
 
@@ -233,5 +227,20 @@ test_that("Full wave with all atomic targets", {
   expect_equal(
     nrow(fw$points),
     90
+  )
+})
+
+test_that("Desired emulators don't match data specifications", {
+  expect_warning(
+    emulator_from_data(BirthDeath$training, c('Y'),
+                       list(lambda = c(0, 0.08), mu = c(0.04, 0.13)),
+                       verbose = FALSE),
+    "emulator_type is default"
+  )
+  expect_warning(
+    emulator_from_data(SIRSample$training, names(SIREmulators$targets),
+                       list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05)),
+                       emulator_type = "variance", verbose = FALSE),
+    "emulator_type is not default"
   )
 })

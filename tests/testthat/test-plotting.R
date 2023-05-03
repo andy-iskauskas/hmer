@@ -79,11 +79,12 @@ test_that("Call from Emulator object", {
 
 test_that("Variance and Expectation plotting", {
   skip_on_cran()
-  v_ems <- variance_emulator_from_data(BirthDeath$training, c('Y'),
+  v_ems <- emulator_from_data(BirthDeath$training, c('Y'),
                                        list(
                                          lambda = c(0, 0.08),
                                          mu = c(0.04, 0.13)),
-                                       verbose = FALSE)
+                                       verbose = FALSE,
+                              emulator_type = "variance")
   g_v <- emulator_plot(v_ems, ppd = 10)
   expect_match(
     g_v$plots[[2]]$labels$title,

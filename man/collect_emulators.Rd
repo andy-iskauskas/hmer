@@ -33,7 +33,7 @@ A list of emulators with the ordered property described above.
 Manipulates lists (or lists of lists) of emulators into a useable form.
 }
 \details{
-Most often used as a pre-processing stage for \code{generate_new_runs} or
+Most often used as a pre-processing stage for \code{generate_new_design} or
 \code{nth_implausible}, this takes a list of emulators in a variety of forms
 coming from either multiple waves of history matching, hierarchical emulation
 or bimodal emulation, and arrange them in a form suitable for sequential analysis.

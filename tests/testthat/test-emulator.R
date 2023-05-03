@@ -71,11 +71,11 @@ test_that("Emulator with data", {
 })
 
 em <- emulator_from_data(SIRSample$training,
-                         c('nS'),
-                         list(aSI = c(0.1, 0.5),
+                         c('nI'),
+                         list(aSI = c(0.1, 0.8),
                               aIR = c(0, 0.5),
                               aSR = c(0, 0.05)),
-                         verbose = FALSE)$nS
+                         verbose = FALSE)$nI
 
 test_that("Trained emulator covariance", {
   expect_equal(
@@ -131,7 +131,7 @@ test_that("Modifying priors and functional sigma", {
   expect_equal(
     c(em_sigma$get_exp(SIRSample$validation[1:3,],
                      include_c = FALSE), use.names = FALSE),
-    c(528.2068, 700.0969, 372.5952),
+    c(85.11743, 59.98822, 338.93812),
     tolerance = 1e-4
   )
   em_sigma_2 <- em_sigma$mult_sigma(2)

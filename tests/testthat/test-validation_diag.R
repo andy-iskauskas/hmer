@@ -5,7 +5,7 @@ test_that("Diagnostic summary measures", {
       SIRSample$validation,
       verbose = FALSE
     ),
-    c(FALSE, TRUE)
+    c(TRUE, TRUE)
   )
 })
 
@@ -67,7 +67,7 @@ test_that("Validation diagnostics - validation set", {
   )
   expect_equal(
     nrow(v2),
-    6
+    8
   )
   expect_warning(
     v3 <- validation_diagnostics(
@@ -106,9 +106,9 @@ test_that("Validation diagnostics - no validation set", {
   )
 })
 
-v_em <- variance_emulator_from_data(BirthDeath$training, c('Y'),
+v_em <- emulator_from_data(BirthDeath$training, c('Y'),
                                     list(lambda = c(0, 0.08), mu = c(0.04, 0.13)),
-                                    verbose = FALSE)
+                                    verbose = FALSE, emulator_type = "variance")
 v_targs <- list(Y = c(90, 110))
 
 test_that("Variance emulator validation", {
@@ -130,13 +130,13 @@ test_that("Variance emulator validation", {
   )
 })
 
-bim_em <- bimodal_emulator_from_data(SIR_stochastic$training,
+bim_em <- emulator_from_data(SIR_stochastic$training,
                                      c('I10', 'I25', 'I50',
                                        'R10', 'R25', 'R50'),
                                      list(aSI = c(0.1, 0.8),
                                           aIR = c(0, 0.5),
                                           aSR = c(0, 0.05)),
-                                     verbose = FALSE)
+                                     verbose = FALSE, emulator_type = "multistate")
 bim_targets <- list(
   I10 = list(val = 35, sigma = 3.5),
   I25 = list(val = 147, sigma = 14.7),
@@ -167,7 +167,7 @@ test_that("Bimodal emulation validation", {
 })
 
 test_that("Individual errors", {
-  em <- SIREmulators$ems[[1]]
+  em <- SIREmulators$ems[[2]]
   i1 <- individual_errors(em, SIRSample$validation)
   i2 <- individual_errors(em, SIRSample$validation, "chol", "em")
   i3 <- individual_errors(em, SIRSample$validation, "eigen", plottype = "qq")

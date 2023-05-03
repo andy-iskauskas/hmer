@@ -128,9 +128,9 @@ test_that("Proto behaviour - validation", {
 })
 
 test_that("Proto behaviour - point generation", {
-  g1 <- generate_new_runs(vpe, 100, targets, verbose = FALSE)
+  g1 <- generate_new_design(vpe, 100, targets, verbose = FALSE)
   expect_equal(nrow(g1), 100)
-  g2 <- generate_new_runs(vpe, 100, targets,
+  g2 <- generate_new_design(vpe, 100, targets,
                           plausible_set = g1[1:20,],
                           method = c('line', 'importance'), verbose = FALSE)
   expect_equal(nrow(g2), 100)
@@ -139,7 +139,7 @@ test_that("Proto behaviour - point generation", {
     constraint <- apply(x, 1, function(y) y[[1]] < y[[2]])
     return(imps & constraint)
   }
-  g3 <- generate_new_runs(vpe, 100, targets, accept_measure = cimp, verbose = FALSE)
+  g3 <- generate_new_design(vpe, 100, targets, accept_measure = cimp, verbose = FALSE)
   expect_equal(nrow(g3), 100)
 })
 

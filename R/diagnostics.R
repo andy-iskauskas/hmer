@@ -873,6 +873,11 @@ individual_errors <- function(em, validation, errtype = "normal",
   outputs <- validation[,em$output_name]
   em_pred <- em$get_exp(points)
   em_cov <- em$get_cov(points, full = TRUE)
+  ## Ensure positive-definiteness
+  em_cov_struct <- eigen(em_cov)
+  em_cov_eval <- em_cov_struct$values
+  em_cov_eval[em_cov_eval < 0] <- 1e-6
+  em_cov <- em_cov_struct$vectors %*% diag(em_cov_eval, nrow = length(em_cov_eval)) %*% t(em_cov_struct$vectors)
   if (errtype == "normal")
     indiv_errors <- (outputs - em_pred)/sqrt(diag(em_cov))
   else {

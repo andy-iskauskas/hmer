@@ -12,9 +12,9 @@ custom_measure <- function(ems, x, z, cutoff, ...) {
   return(imps1 & imps2 & constraint)
 }
 
-test_that("Custom generation behaves", {
+test_that("Custom generation behaves - 1", {
   skip_on_cran()
-  points <- generate_new_runs(
+  points <- generate_new_design(
     ems, 100, targs, verbose = FALSE,
     opts = list(accept_measure = custom_measure)
   )
@@ -22,7 +22,9 @@ test_that("Custom generation behaves", {
     nrow(points),
     100
   )
-  bad_points <- generate_new_runs(
+})
+test_that("Custom generation behaves - 2", {
+  bad_points <- generate_new_design(
     ems, 200, bad_targs, verbose = FALSE,
     opts = list(accept_measure = custom_measure)
   )

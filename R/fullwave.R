@@ -124,8 +124,8 @@ preflight <- function(data, targets, coff = 0.95, verbose = interactive(), na.rm
 #' provided at this wave. Some point generation mechanisms terminate early if a point is ruled
 #' out by a single emulator, so the ordering ensures this happens earlier rather than later.
 #'
-#' 5) Generate the new points using the default method of \code{\link{generate_new_runs}}, using
-#' the normal procedure (for details, see the description for generate_new_runs). By default, it
+#' 5) Generate the new points using the default method of \code{\link{generate_new_design}}, using
+#' the normal procedure (for details, see the description for generate_new_design). By default, it
 #' generates the same number of points as it was provided to train and validate on.
 #'
 #' If the parameter \code{old_emulators} is provided, this should be a list of emulators used
@@ -144,7 +144,7 @@ preflight <- function(data, targets, coff = 0.95, verbose = interactive(), na.rm
 #' @param cutoff The implausibility cutoff for point generation and diagnostics.
 #' @param nth The level of maximum implausibility to consider.
 #' @param verbose Should progress be printed to console?
-#' @param n_points The number of points to generate from \code{\link{generate_new_runs}}.
+#' @param n_points The number of points to generate from \code{\link{generate_new_design}}.
 #' @param ... Any arguments to be passed to \code{\link{emulator_from_data}}.
 #'
 #' @return A list of two objects: \code{points} and \code{emulators}
@@ -226,7 +226,7 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL,
     working_ems <- ems
   targets <- targets[purrr::map_chr(working_ems, ~.$output_name)]
   if (verbose) cat("Generating new points...\n") #nocov
-  new_points <- generate_new_runs(working_ems, n_points, targets,
+  new_points <- generate_new_design(working_ems, n_points, targets,
                                   cutoff = cutoff, verbose = FALSE, nth = nth)
   if (nrow(new_points) == 0)
     stop("Could not generate points in non-implausible space.")

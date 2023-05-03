@@ -65,7 +65,7 @@ regions that are either extremely small relative to the initial parameter
 domain, or have interesting structure (particularly disconnected structure)
 that would potentially be overlooked by more standard point generation methods.
 The method is robust but computationally intensive, compared to normal methods,
-and should not be used as a default - see \code{\link{generate_new_runs}} for
+and should not be used as a default - see \code{\link{generate_new_design}} for
 less computationally expensive methods.
 
 The IDEMC method operates on an 'implausibility ladder', in the vein of common
@@ -114,5 +114,5 @@ all rungs to determine final clusters.
 Vernon & Williamson (2013) <arXiv:1309.3520>
 }
 \seealso{
-\code{\link{generate_new_runs}} for more standard point generation methods
+\code{\link{generate_new_design}} for more standard point generation methods
 }

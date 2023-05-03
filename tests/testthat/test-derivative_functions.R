@@ -1,5 +1,6 @@
 em <- emulator_from_data(SIRSample$training, c('nS', 'nI', 'nR'),
-                         list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05)))
+                         list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05)),
+                         verbose = FALSE)
 
 test_that("Obtaining derivative information", {
   only_exp <- get_deriv_info(

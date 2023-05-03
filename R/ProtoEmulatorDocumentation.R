@@ -116,6 +116,6 @@
 #'     emulator_plot(proto_ems)
 #'     emulator_plot(proto_ems, 'imp', targets = targets)
 #'     validation_diagnostics(proto_ems, targets, SIRSample$validation)
-#'     new_points <- generate_new_runs(proto_ems, 100, targets)
+#'     new_points <- generate_new_design(proto_ems, 100, targets)
 #'
 NULL

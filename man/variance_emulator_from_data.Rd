@@ -2,7 +2,7 @@
 % Please edit documentation in R/modelbuilding.R
 \name{variance_emulator_from_data}
 \alias{variance_emulator_from_data}
-\title{Variance Emulator Creation}
+\title{Variance Emulator Creation (Deprecated)}
 \usage{
 variance_emulator_from_data(
   input_data,
@@ -36,6 +36,9 @@ A list of lists: one for the variance emulators and one for the function emulato
 Trains hierarchical emulators to stochastic systems
 }
 \details{
+This function is deprecated in favour of using \code{\link{emulator_from_data}}
+with argument \code{emulator_type = "variance"}. See the associated help file.
+
 For stochastic systems, one may emulate the variance as well as the function itself.
 This is particularly true if one expects the variance to be very different in different
 areas of the parameter space (for example, in an epidemic model). This function performs
@@ -48,9 +51,11 @@ All other parameters passed to this function are equivalent to those in
 emulators are the Bayes Linear adjusted forms.
 }
 \examples{
+\donttest{
  # A simple example using the BirthDeath dataset
  v_ems <- variance_emulator_from_data(BirthDeath$training, c("Y"),
   list(lambda = c(0, 0.08), mu = c(0.04, 0.13)), c_lengths = c(0.75))
+}
 
 }
 \references{

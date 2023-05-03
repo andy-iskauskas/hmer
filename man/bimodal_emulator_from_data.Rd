@@ -36,6 +36,9 @@ A list \code{(mode1, mode2, prop)} of emulator lists and objects.
 Performs emulation of bimodal outputs and/or systems.
 }
 \details{
+This function is deprecated in favour of using \code{\link{emulator_from_data}}
+with argument \code{emulator_type = "multistate"}. See the associated help file.
+
 In many stochastic systems, particularly disease models, the outputs exhibit bimodality - a
 familiar example is where a disease either takes off or dies out. In these cases, it is not
 sensible to emulate the outputs based on all realisations, and instead we should emulate each

@@ -34,7 +34,7 @@ full_wave(
 
 \item{verbose}{Should progress be printed to console?}
 
-\item{n_points}{The number of points to generate from \code{\link{generate_new_runs}}.}
+\item{n_points}{The number of points to generate from \code{\link{generate_new_design}}.}
 
 \item{...}{Any arguments to be passed to \code{\link{emulator_from_data}}.}
 }
@@ -63,8 +63,8 @@ the emulators demonstrate misclassification errors (from \code{\link{classificat
 provided at this wave. Some point generation mechanisms terminate early if a point is ruled
 out by a single emulator, so the ordering ensures this happens earlier rather than later.
 
-5) Generate the new points using the default method of \code{\link{generate_new_runs}}, using
-the normal procedure (for details, see the description for generate_new_runs). By default, it
+5) Generate the new points using the default method of \code{\link{generate_new_design}}, using
+the normal procedure (for details, see the description for generate_new_design). By default, it
 generates the same number of points as it was provided to train and validate on.
 
 If the parameter \code{old_emulators} is provided, this should be a list of emulators used
