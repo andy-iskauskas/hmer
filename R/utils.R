@@ -66,9 +66,11 @@ name_to_function <- function(str, var_names) {
   str_power <- gsub("I\\((.*)\\^(\\d+)\\)", "\\1\\^\\2", str)
   str_times <- gsub(":", "*", str_power)
   str_par <- str_times
-  for (i in 1:length(var_names)) {
-    str_par <- gsub(var_names[i], paste0("x[[", i, "]]"), str_par)
+  var_names_ordered <- var_names[order(nchar(var_names), var_names,  decreasing = TRUE)]
+  for (i in seq_along(var_names_ordered)) {
+    str_par <- gsub(var_names_ordered[i], paste0("thisisabsolutelynotaparametername[[", which(var_names == var_names_ordered[i]), "]]\\1"), str_par)
   }
+  str_par <- gsub("thisisabsolutelynotaparametername", "x", str_par)
   return(eval(parse(text = paste('function(x) return(', str_par, ')', sep = ''))))
 }
 

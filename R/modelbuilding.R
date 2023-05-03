@@ -108,7 +108,7 @@ get_coefficient_model <- function(data, ranges, output_name, add = FALSE,
   }
   else
     upper_form <- u_form
-  if (!add & choose(length(ranges) + order, length(ranges)) > nrow(data)) {
+  if (!add && verbose && choose(length(ranges) + order, length(ranges)) > nrow(data)) {
     warning(paste("Maximum number of regression terms is greater than",
                   "the available degrees of freedom. Changing to add = TRUE."))
     add <- TRUE

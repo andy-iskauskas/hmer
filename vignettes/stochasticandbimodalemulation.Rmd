@@ -1,7 +1,7 @@
 ---
 title: "Stochastic Emulation"
 author: "Andy Iskauskas"
-date: "2023-03-29"
+date: "2023-05-03"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Stochastic Emulation}
@@ -13,10 +13,10 @@ vignette: >
 
 
 
-# Stochastic Systems, Bimodality, and Emulation
+# Stochastic Systems, Multistate Systems, and Emulation
 
 ## Caveat Emptor!
-The methods described here represent advanced usage of the package, and are under active development. The training of stochastic and/or bimodal emulators is not automatically instigated (for example, by `full_wave`) and as such requires user attention to ensure that results are sensible and that the approach is appropriate for the model under consideration. Each of these extensions to the deterministic emulation comes with an increased computational load, and for weakly stochastic or weakly bimodal systems a standard approach may be a more sensible route to history matching and emulation.
+The methods described here represent advanced usage of the package, and are under active development. The training of stochastic and/or multistate emulators is not automatically instigated (for example, by `full_wave`) and as such requires user attention to ensure that results are sensible and that the approach is appropriate for the model under consideration. Each of these extensions to the deterministic emulation comes with an increased computational load, and for weakly stochastic or weakly multistate systems a standard approach may be a more sensible route to history matching and emulation.
 
 ## Stochastic Emulation
 Frequently, disease models (as well as models in other fields) cannot be adequately represented by a deterministic system of differential equations or functions. An Individual-based Model (IBM), for example, relies on the behaviour of individuals in the model to accurately express the dynamics of the spread of a disease through a population, as well as the effect of any interventions. In such a model, multiple model evaluations at the same point in parameter space can give different values, and the spread of these repetitions can vary considerably across the input space. Even a simple model such as the first one we consider demonstrates this: if we consider the number of people in a population and have a high value for the birth rate, the result will have higher variability than running the model with a low birth rate.
@@ -50,34 +50,35 @@ targets = list(
 )
 ```
 
-We can train stochastic emulators to this data by passing the whole training dataset, with repetitions, to `variance_emulator_from_data`. This works outwardly in the same fashion as `emulator_from_data`, but the output has a different form. For details about how hierarchical emulators are constructed, see the section at the bottom of this document.
+We can train stochastic emulators to this data by passing the whole training dataset, with repetitions, to `emulator_from_data` with the argument `emulator_type = 'variance'`. This works outwardly in the same fashion as the vanilla `emulator_from_data`, but the output has a different form. For details about how hierarchical emulators are constructed, see the section at the bottom of this document.
 
 
 ```r
-stochastic_em <- variance_emulator_from_data(BirthDeath$training, names(targets), ranges)
+stochastic_em <- emulator_from_data(BirthDeath$training, names(targets), ranges, emulator_type = "variance")
+#> Multiple model runs per point detected. Splitting by input parameters...
 #> Separated dataset by unique points...
 #> Computed summary statistics...
-#> Completed variance emulators. Training mean emulators...
-#> Fitting regression surfaces...
-#> Building correlation structures...
-#> Creating emulators...
+#> Building variance emulator priors...
+#> Completed variance emulators...
+#> Creating prior (untrained) mean emulators...
+#> Training mean emulators...
 stochastic_em
 #> $variance
 #> $variance$Y
 #> Parameters and ranges:  lambda: c(0, 0.08): mu: c(0.04, 0.13) 
 #> Specifications: 
-#> 	 Basis functions:  (Intercept); lambda; mu; I(mu^2); lambda:mu 
+#> 	 Basis functions:  (Intercept); lambda; mu 
 #> 	 Active variables lambda; mu 
-#> 	 Regression Surface Expectation:  89.0266; 109.4723; -90.1436; 54.1811; -82.455 
-#> 	 Regression surface Variance (eigenvalues):  0; 0; 0; 0; 0 
+#> 	 Regression Surface Expectation:  114.3972; 110.3366; -89.7199 
+#> 	 Regression surface Variance (eigenvalues):  0; 0; 0 
 #> Correlation Structure: 
 #> Bayes-adjusted emulator - prior specifications listed. 
-#> 	 Variance (Representative):  6196.536 
+#> 	 Variance (Representative):  7457.208 
 #> 	 Expectation:  0 
 #> 	 Correlation type: exp_sq 
 #> 	 Hyperparameters:  theta: 0.5654 
 #> 	 Nugget term: 0 
-#> Mixed covariance:  0 0 0 0 0 
+#> Mixed covariance:  0 0 0 
 #> 
 #> 
 #> $expectation
@@ -181,11 +182,11 @@ var_em_fake_target <- validation_diagnostics(stochastic_em$variance, fake_var_ta
 
 ![plot of chunk validate-var-em](stoch-validate-var-em-1.png)
 
-Finally, we briefly mention that point generation operates in the same manner as before: in the usual absence of targets for the variance emulator we simply provide `generate_new_runs` with the emulators and the targets for the output.
+Finally, we briefly mention that point generation operates in the same manner as before: in the usual absence of targets for the variance emulator we simply provide `generate_new_design` with the emulators and the targets for the output.
 
 
 ```r
-new_points <- generate_new_runs(stochastic_em, 30, targets, resample = 0)
+new_points <- generate_new_design(stochastic_em, 30, targets, resample = 0)
 #> Proposing from LHS...
 #> LHS has high yield; no other methods required.
 #> Selecting final points using maximin criterion...
@@ -194,9 +195,9 @@ plot_wrap(new_points, ranges)
 
 ![plot of chunk propose-var-em](stoch-propose-var-em-1.png)
 
-## Bimodality
+## Multistate Behaviour
 
-The previous example displayed the stochastic behaviour we wished to consider, but the simple nature of the model meant that it was a limited demonstration of the issues that can be faced when dealing with stochastic models. One extremely common (and often problematic) feature of stochastic disease models is bimodality: dependent on starting conditions, one can perform multiple repetitions at a given input point and find two distinct classes of behaviour. The most common example of this is 'take off vs die out', where if the initial number of infected people is low the disease might infrequently find its way into the population, but blowing up on those rare circumstances it does. In such a situation, it does not make sense to try to emulate the output as an individual entity, as even at a single point there are two very different situations occuring. Instead, we provide a basic framework to handle bimodality.
+The previous example displayed the stochastic behaviour we wished to consider, but the simple nature of the model meant that it was a limited demonstration of the issues that can be faced when dealing with stochastic models. One extremely common (and often problematic) feature of stochastic disease models is bimodality: dependent on starting conditions, one can perform multiple repetitions at a given input point and find two distinct classes of behaviour. The most common example of this is 'take off vs die out', where if the initial number of infected people is low the disease might infrequently find its way into the population, but blowing up on those rare circumstances it does. In such a situation, it does not make sense to try to emulate the output as an individual entity, as even at a single point there are two very different situations occuring. Instead, we provide a basic framework to handle bimodality and multistate behaviour generally.
 
 We may revisit the 'deterministic' example touched upon before - the SIRS model. In the previous examples, we started the simulation with an adequate number of infected people to avoid bimodality: 5% of the population started out infected. Here we will instead start with 0.5% of the population infected. Even in a simple model such as this, we can still find bimodality.
 
@@ -209,7 +210,7 @@ for(j in 2:3) for(i in 1:100) lines(0:60, model_result[,j,i], col=(2:4)[j], lwd=
 legend('topleft', legend = c('Recovered', "Infected"), lty = 1, col = c(4, 3), inset = c(0.05, 0.05))
 ```
 
-![plot of chunk bimodal-demo](stoch-bimodal-demo-1.png)
+![plot of chunk multistate-demo](stoch-multistate-demo-1.png)
 
 We can clearly see in the R compartment that, even at a single point (the midpoint of the ranges previously considered), there are two distinct modes. One corresponds to the disease failing to take off, in which case both the Infected and Recovered compartments remain (close to) empty; the other is where the disease does take off and the Recovered compartment grows until the eventual die-down of the disease. It is clear that if we were to attempt to emulate the number of recovered people at $t=50$, say, even taking into account the stochasticity we would not emulate either mode - the likelihood is that the emulators would suggest a mid-range value with very large uncertainty, providing no predictive power.
 
@@ -234,24 +235,24 @@ bim_targets <- list(
 )
 ```
 
-The data has a similar form to that of the variance emulation discussed above, and a cursory glance would not be sufficient to decide whether bimodality is present. In principle, any data containing replicates can be treated as bimodal, but it is possible that the computational cost of emulating multiple modes (where they exist) are unnecessary where the data is in fact unimodal (or extremely close to unimodal). Judgement should be used as to whether this more involved approach to emulation is warranted.
+The data has a similar form to that of the variance emulation discussed above, and a cursory glance would not be sufficient to decide whether multistate behaviour is present. In principle, any data containing replicates can be treated as multistate, but it is possible that the computational cost of emulating multiple modes (where they exist) are unnecessary where the data is in fact unimodal (or extremely close to unimodal). Judgement should be used as to whether this more involved approach to emulation is warranted.
 
-In any event, if we feel that the model exhibits strong bimodality, we may use the (imaginatively titled) `bimodal_emulator_from_data`. The usage follows the standard behaviour of the `emulator_from_data` family.
+In any event, if we feel that the model exhibits strong multistate behaviour, we may use `emulator_from_data` with the argument `emulator_type = 'multistate'`. The usage follows the standard behaviour seen before.
 
 
 ```r
-bim_ems <- bimodal_emulator_from_data(training, names(bim_targets), SIR_ranges)
-#> Separated dataset by unique points.
-#> Training emulator to proportion in modes.
-#> Performing clustering to identify modes.
-#> No targets appear to be unimodal.
-#> Training to bimodal targets.
+bim_ems <- emulator_from_data(training, names(bim_targets), SIR_ranges, emulator_type = "multistate")
+#> Multiple model runs per point detected. Splitting by input parameters...
+#> Separated dataset by unique points...
+#> Training an emulator to proportion in each mode.
+#> No targets appear to be single-state.
+#> Training to multistate targets.
 #> Trained emulators. Collating.
 names(bim_ems)
 #> [1] "mode1" "mode2" "prop"
 ```
 
-The structure of the output is different again to the output of either of the previous emulator building functions. We obtain a list of three objects: `mode1`, `mode2`, and `prop`. Modes 1 and 2 represent the two modes identified and trained to, and inside each is a set of emulators to emulate both the mean surface and the variance surface (akin to the output of `variance_emulator_from_data`). The `prop` object is a single, deterministic, emulator that is trained to the proportion of repetitions that reside in each mode. This can be instructive when considering which points to propose at later waves: for example, given two points with implausibilities deemed to be $I=2.5$ and $I=2.75$ respectively, we may favour the latter point if our `prop` emulator suggests that a higher proportion of repetitions reside in the mode that we are interested in.
+The structure of the output is different again to the output of either of the previous emulator building functions. We obtain a list of three objects: `mode1`, `mode2`, and `prop`. Modes 1 and 2 represent the two modes identified and trained to, and inside each is a set of emulators to emulate both the mean surface and the variance surface (akin to the output of `emulator_from_data` when creating variance emulators). The `prop` object is a single, deterministic, emulator that is trained to the proportion of repetitions that reside in each mode. This can be instructive when considering which points to propose at later waves: for example, given two points with implausibilities deemed to be $I=2.5$ and $I=2.75$ respectively, we may favour the latter point if our `prop` emulator suggests that a higher proportion of repetitions reside in the mode that we are interested in.
 
 We can quickly see the difference in the modes by simply plotting the expectation of a time point within each mode:
 
@@ -260,13 +261,13 @@ We can quickly see the difference in the modes by simply plotting the expectatio
 emulator_plot(bim_ems$mode1$expectation$R50)
 ```
 
-![plot of chunk plot-bimodal](stoch-plot-bimodal-1.png)
+![plot of chunk plot-multistate](stoch-plot-multistate-1.png)
 
 ```r
 emulator_plot(bim_ems$mode2$expectation$R50)
 ```
 
-![plot of chunk plot-bimodal](stoch-plot-bimodal-2.png)
+![plot of chunk plot-multistate](stoch-plot-multistate-2.png)
 
 We can validate in the same fashion as always, using the validation set generated. The output bears strong similarity to previous plots, but for one subtlety.
 
@@ -275,11 +276,11 @@ We can validate in the same fashion as always, using the validation set generate
 bim_invalid <- validation_diagnostics(bim_ems, bim_targets, validation)
 ```
 
-![plot of chunk validate-bimodal](stoch-validate-bimodal-1.png)![plot of chunk validate-bimodal](stoch-validate-bimodal-2.png)
+![plot of chunk validate-multistate](stoch-validate-multistate-1.png)![plot of chunk validate-multistate](stoch-validate-multistate-2.png)
 
-Close inspection reveals that, despite providing $20$ validation points to the emulators, some of the plots have over $20$ distinguishable points in them. This is no accident: when validating we test against both modes of emulators, which results in an approximate doubling of points (it is only approximate as it is possible that one parameter set contributes solely to one mode, so the other mode would not need to be validated against that point). We can also see, particularly in the output for R50, the nature of the bimodality: in the comparison plot we can see a cluster of results near $0$, a gap between $200$ and $\sim400$, and then another set of results beyond that.
+Close inspection reveals that, despite providing $20$ validation points to the emulators, some of the plots have over $20$ distinguishable points in them. This is no accident: when validating we test against both modes of emulators, which results in an approximate doubling of points (it is only approximate as it is possible that one parameter set contributes solely to one mode, so the other mode would not need to be validated against that point). We can also see, particularly in the output for R50, the nature of the multistate behaviour: in the comparison plot we can see a cluster of results near $0$, a gap between $200$ and $\sim400$, and then another set of results beyond that.
 
-We can also consider implausibility for the emulators. The usual plotting functions (expectation, variance, standard deviation) work in the same manner as for non-bimodal emulators, with the caveat that one must specify which mode we wish to plot:
+We can also consider implausibility for the emulators. The usual plotting functions (expectation, variance, standard deviation) work in the same manner as for single-state emulators, with the caveat that one must specify which mode we wish to plot:
 
 
 ```r
@@ -301,7 +302,7 @@ The 'nimp' option to `emulator_plot` works slightly differently, due to how nth 
 emulator_plot(bim_ems, 'nimp', targets = bim_targets)
 ```
 
-![plot of chunk bimodal-imp](stoch-bimodal-imp-1.png)
+![plot of chunk multistate-imp](stoch-multistate-imp-1.png)
 
 By comparing with the individual nth-implausibility plots for each mode, we can see that regions of parameter space that would otherwise be dismissed are retained.
 
@@ -310,26 +311,26 @@ By comparing with the individual nth-implausibility plots for each mode, we can 
 emulator_plot(bim_ems$mode1, 'nimp', targets = bim_targets)
 ```
 
-![plot of chunk bimodal-indiv-imp](stoch-bimodal-indiv-imp-1.png)
+![plot of chunk multistate-indiv-imp](stoch-multistate-indiv-imp-1.png)
 
 ```r
 emulator_plot(bim_ems$mode2, 'nimp', targets = bim_targets)
 ```
 
-![plot of chunk bimodal-indiv-imp](stoch-bimodal-indiv-imp-2.png)
+![plot of chunk multistate-indiv-imp](stoch-multistate-indiv-imp-2.png)
 
-Finally, generating new points from bimodal emulators has an identical form to in any other circumstance, via the `generate_new_runs` function.
+Finally, generating new points from multistate emulators has an identical form to in any other circumstance, via the `generate_new_design` function.
 
 
 ```r
-new_points <- generate_new_runs(bim_ems, 100, bim_targets, resample = 0)
+new_points <- generate_new_design(bim_ems, 100, bim_targets, resample = 0)
 #> Proposing from LHS...
 #> LHS has high yield; no other methods required.
 #> Selecting final points using maximin criterion...
 plot_wrap(new_points, SIR_ranges)
 ```
 
-![plot of chunk propose-bimodal](stoch-propose-bimodal-1.png)
+![plot of chunk propose-multistate](stoch-propose-multistate-1.png)
 
 ## Appendix: Training Hierarchical Emulators
 

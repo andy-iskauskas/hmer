@@ -90,10 +90,10 @@ get_results <- function(params, nreps = 100, outs = c("I", "R"), times = seq(0, 
 }
 ```
 
-# Stochastic Systems, Bimodality, and Emulation
+# Stochastic Systems, Multistate Systems, and Emulation
 
 ## Caveat Emptor!
-The methods described here represent advanced usage of the package, and are under active development. The training of stochastic and/or bimodal emulators is not automatically instigated (for example, by `full_wave`) and as such requires user attention to ensure that results are sensible and that the approach is appropriate for the model under consideration. Each of these extensions to the deterministic emulation comes with an increased computational load, and for weakly stochastic or weakly bimodal systems a standard approach may be a more sensible route to history matching and emulation.
+The methods described here represent advanced usage of the package, and are under active development. The training of stochastic and/or multistate emulators is not automatically instigated (for example, by `full_wave`) and as such requires user attention to ensure that results are sensible and that the approach is appropriate for the model under consideration. Each of these extensions to the deterministic emulation comes with an increased computational load, and for weakly stochastic or weakly multistate systems a standard approach may be a more sensible route to history matching and emulation.
 
 ## Stochastic Emulation
 Frequently, disease models (as well as models in other fields) cannot be adequately represented by a deterministic system of differential equations or functions. An Individual-based Model (IBM), for example, relies on the behaviour of individuals in the model to accurately express the dynamics of the spread of a disease through a population, as well as the effect of any interventions. In such a model, multiple model evaluations at the same point in parameter space can give different values, and the spread of these repetitions can vary considerably across the input space. Even a simple model such as the first one we consider demonstrates this: if we consider the number of people in a population and have a high value for the birth rate, the result will have higher variability than running the model with a low birth rate.
@@ -123,10 +123,10 @@ targets = list(
 )
 ```
 
-We can train stochastic emulators to this data by passing the whole training dataset, with repetitions, to `variance_emulator_from_data`. This works outwardly in the same fashion as `emulator_from_data`, but the output has a different form. For details about how hierarchical emulators are constructed, see the section at the bottom of this document.
+We can train stochastic emulators to this data by passing the whole training dataset, with repetitions, to `emulator_from_data` with the argument `emulator_type = 'variance'`. This works outwardly in the same fashion as the vanilla `emulator_from_data`, but the output has a different form. For details about how hierarchical emulators are constructed, see the section at the bottom of this document.
 
 ```{r make-variance-em}
-stochastic_em <- variance_emulator_from_data(BirthDeath$training, names(targets), ranges)
+stochastic_em <- emulator_from_data(BirthDeath$training, names(targets), ranges, emulator_type = "variance")
 stochastic_em
 ```
 
@@ -181,20 +181,20 @@ fake_var_targ <- list(Y = c(30, 50))
 var_em_fake_target <- validation_diagnostics(stochastic_em$variance, fake_var_targ, BirthDeath$validation, plt = TRUE, row = 1)
 ```
 
-Finally, we briefly mention that point generation operates in the same manner as before: in the usual absence of targets for the variance emulator we simply provide `generate_new_runs` with the emulators and the targets for the output.
+Finally, we briefly mention that point generation operates in the same manner as before: in the usual absence of targets for the variance emulator we simply provide `generate_new_design` with the emulators and the targets for the output.
 
 ```{r propose-var-em, fig.height = 7, fig.width = 7}
-new_points <- generate_new_runs(stochastic_em, 30, targets, resample = 0)
+new_points <- generate_new_design(stochastic_em, 30, targets, resample = 0)
 plot_wrap(new_points, ranges)
 ```
 
-## Bimodality
+## Multistate Behaviour
 
-The previous example displayed the stochastic behaviour we wished to consider, but the simple nature of the model meant that it was a limited demonstration of the issues that can be faced when dealing with stochastic models. One extremely common (and often problematic) feature of stochastic disease models is bimodality: dependent on starting conditions, one can perform multiple repetitions at a given input point and find two distinct classes of behaviour. The most common example of this is 'take off vs die out', where if the initial number of infected people is low the disease might infrequently find its way into the population, but blowing up on those rare circumstances it does. In such a situation, it does not make sense to try to emulate the output as an individual entity, as even at a single point there are two very different situations occuring. Instead, we provide a basic framework to handle bimodality.
+The previous example displayed the stochastic behaviour we wished to consider, but the simple nature of the model meant that it was a limited demonstration of the issues that can be faced when dealing with stochastic models. One extremely common (and often problematic) feature of stochastic disease models is bimodality: dependent on starting conditions, one can perform multiple repetitions at a given input point and find two distinct classes of behaviour. The most common example of this is 'take off vs die out', where if the initial number of infected people is low the disease might infrequently find its way into the population, but blowing up on those rare circumstances it does. In such a situation, it does not make sense to try to emulate the output as an individual entity, as even at a single point there are two very different situations occuring. Instead, we provide a basic framework to handle bimodality and multistate behaviour generally.
 
 We may revisit the 'deterministic' example touched upon before - the SIRS model. In the previous examples, we started the simulation with an adequate number of infected people to avoid bimodality: 5% of the population started out infected. Here we will instead start with 0.5% of the population infected. Even in a simple model such as this, we can still find bimodality.
 
-```{r bimodal-demo, fig.height = 7, fig.width = 7}
+```{r multistate-demo, fig.height = 7, fig.width = 7}
 example_params <- c(0.45, 0.25, 0.025)
 model_result <- get_results(example_params, raw = TRUE)
 plot(0:60, ylim=c(0,600), ty="n")
@@ -206,7 +206,7 @@ We can clearly see in the R compartment that, even at a single point (the midpoi
 
 We will emulate six outputs - three from the Infected compartment, and three from the Recovered compartment. The times at which we observe these compartments will be $t=10, 25, 50$, which display varying levels of bimodality. The data we will use is pre-generated using the same code as was used to generate the above plot: we have $30$ points on which to train and $20$ to validate with; each point has had $100$ repetitions. We will also define some targets.
 
-```{r define-bimodal}
+```{r define-multistate}
 SIR_ranges <- list(
   aSI = c(0.1, 0.8),
   aIR = c(0, 0.5),
@@ -224,33 +224,33 @@ bim_targets <- list(
 )
 ```
 
-The data has a similar form to that of the variance emulation discussed above, and a cursory glance would not be sufficient to decide whether bimodality is present. In principle, any data containing replicates can be treated as bimodal, but it is possible that the computational cost of emulating multiple modes (where they exist) are unnecessary where the data is in fact unimodal (or extremely close to unimodal). Judgement should be used as to whether this more involved approach to emulation is warranted.
+The data has a similar form to that of the variance emulation discussed above, and a cursory glance would not be sufficient to decide whether multistate behaviour is present. In principle, any data containing replicates can be treated as multistate, but it is possible that the computational cost of emulating multiple modes (where they exist) are unnecessary where the data is in fact unimodal (or extremely close to unimodal). Judgement should be used as to whether this more involved approach to emulation is warranted.
 
-In any event, if we feel that the model exhibits strong bimodality, we may use the (imaginatively titled) `bimodal_emulator_from_data`. The usage follows the standard behaviour of the `emulator_from_data` family.
+In any event, if we feel that the model exhibits strong multistate behaviour, we may use `emulator_from_data` with the argument `emulator_type = 'multistate'`. The usage follows the standard behaviour seen before.
 
-```{r train-bimodal}
-bim_ems <- bimodal_emulator_from_data(training, names(bim_targets), SIR_ranges)
+```{r train-multistate}
+bim_ems <- emulator_from_data(training, names(bim_targets), SIR_ranges, emulator_type = "multistate")
 names(bim_ems)
 ```
 
-The structure of the output is different again to the output of either of the previous emulator building functions. We obtain a list of three objects: `mode1`, `mode2`, and `prop`. Modes 1 and 2 represent the two modes identified and trained to, and inside each is a set of emulators to emulate both the mean surface and the variance surface (akin to the output of `variance_emulator_from_data`). The `prop` object is a single, deterministic, emulator that is trained to the proportion of repetitions that reside in each mode. This can be instructive when considering which points to propose at later waves: for example, given two points with implausibilities deemed to be $I=2.5$ and $I=2.75$ respectively, we may favour the latter point if our `prop` emulator suggests that a higher proportion of repetitions reside in the mode that we are interested in.
+The structure of the output is different again to the output of either of the previous emulator building functions. We obtain a list of three objects: `mode1`, `mode2`, and `prop`. Modes 1 and 2 represent the two modes identified and trained to, and inside each is a set of emulators to emulate both the mean surface and the variance surface (akin to the output of `emulator_from_data` when creating variance emulators). The `prop` object is a single, deterministic, emulator that is trained to the proportion of repetitions that reside in each mode. This can be instructive when considering which points to propose at later waves: for example, given two points with implausibilities deemed to be $I=2.5$ and $I=2.75$ respectively, we may favour the latter point if our `prop` emulator suggests that a higher proportion of repetitions reside in the mode that we are interested in.
 
 We can quickly see the difference in the modes by simply plotting the expectation of a time point within each mode:
 
-```{r plot-bimodal, fig.width = 7, fig.height = 7}
+```{r plot-multistate, fig.width = 7, fig.height = 7}
 emulator_plot(bim_ems$mode1$expectation$R50)
 emulator_plot(bim_ems$mode2$expectation$R50)
 ```
 
 We can validate in the same fashion as always, using the validation set generated. The output bears strong similarity to previous plots, but for one subtlety.
 
-```{r validate-bimodal, fig.width = 7, fig.height = 7}
+```{r validate-multistate, fig.width = 7, fig.height = 7}
 bim_invalid <- validation_diagnostics(bim_ems, bim_targets, validation)
 ```
 
-Close inspection reveals that, despite providing $20$ validation points to the emulators, some of the plots have over $20$ distinguishable points in them. This is no accident: when validating we test against both modes of emulators, which results in an approximate doubling of points (it is only approximate as it is possible that one parameter set contributes solely to one mode, so the other mode would not need to be validated against that point). We can also see, particularly in the output for R50, the nature of the bimodality: in the comparison plot we can see a cluster of results near $0$, a gap between $200$ and $\sim400$, and then another set of results beyond that.
+Close inspection reveals that, despite providing $20$ validation points to the emulators, some of the plots have over $20$ distinguishable points in them. This is no accident: when validating we test against both modes of emulators, which results in an approximate doubling of points (it is only approximate as it is possible that one parameter set contributes solely to one mode, so the other mode would not need to be validated against that point). We can also see, particularly in the output for R50, the nature of the multistate behaviour: in the comparison plot we can see a cluster of results near $0$, a gap between $200$ and $\sim400$, and then another set of results beyond that.
 
-We can also consider implausibility for the emulators. The usual plotting functions (expectation, variance, standard deviation) work in the same manner as for non-bimodal emulators, with the caveat that one must specify which mode we wish to plot:
+We can also consider implausibility for the emulators. The usual plotting functions (expectation, variance, standard deviation) work in the same manner as for single-state emulators, with the caveat that one must specify which mode we wish to plot:
 
 ```{r plot-modes, fig.width = 7, fig.height = 7}
 emulator_plot(bim_ems$mode1)
@@ -259,21 +259,21 @@ emulator_plot(bim_ems$mode2)
 
 The 'nimp' option to `emulator_plot` works slightly differently, due to how nth implausibilities are calculated with multiple modes. Since we would regard a point as non-implausible for a given target if it is valid with respect to either mode, the `nth_implausible` function calculates mode-wise minimum implausibility for each output, then checks the nth maximum over this collection. Correspondingly, the 'nimp' option takes the full set of emulators.
 
-```{r bimodal-imp, fig.width = 7, fig.height = 7}
+```{r multistate-imp, fig.width = 7, fig.height = 7}
 emulator_plot(bim_ems, 'nimp', targets = bim_targets)
 ```
 
 By comparing with the individual nth-implausibility plots for each mode, we can see that regions of parameter space that would otherwise be dismissed are retained.
 
-```{r bimodal-indiv-imp, fig.width = 7, fig.height = 7}
+```{r multistate-indiv-imp, fig.width = 7, fig.height = 7}
 emulator_plot(bim_ems$mode1, 'nimp', targets = bim_targets)
 emulator_plot(bim_ems$mode2, 'nimp', targets = bim_targets)
 ```
 
-Finally, generating new points from bimodal emulators has an identical form to in any other circumstance, via the `generate_new_runs` function.
+Finally, generating new points from multistate emulators has an identical form to in any other circumstance, via the `generate_new_design` function.
 
-```{r propose-bimodal, fig.width = 7, fig.height = 7}
-new_points <- generate_new_runs(bim_ems, 100, bim_targets, resample = 0)
+```{r propose-multistate, fig.width = 7, fig.height = 7}
+new_points <- generate_new_design(bim_ems, 100, bim_targets, resample = 0)
 plot_wrap(new_points, SIR_ranges)
 ```
 

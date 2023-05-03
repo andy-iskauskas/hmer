@@ -1,7 +1,7 @@
 ---
 title: "Demonstrating the hmer Package"
 author: "Andrew Iskauskas"
-date: "2023-03-29"
+date: "2023-05-03"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Demonstrating the hmer Package}
@@ -44,22 +44,22 @@ An emulator is an R6 object, with the requisite print statement giving the core 
 wave1_emulators$nS
 #> Parameters and ranges:  aSI: c(0.1, 0.8): aIR: c(0, 0.5): aSR: c(0, 0.05) 
 #> Specifications: 
-#> 	 Basis functions:  (Intercept); aSI; aIR; aSI:aIR 
-#> 	 Active variables aSI; aIR 
-#> 	 Regression Surface Expectation:  572.2885; -412.1201; 249.8202; 113.7759 
-#> 	 Regression surface Variance (eigenvalues):  0; 0; 0; 0 
+#> 	 Basis functions:  (Intercept); aSI; aIR; aSR; aSI:aIR 
+#> 	 Active variables aSI; aIR; aSR 
+#> 	 Regression Surface Expectation:  572.7462; -408.1982; 249.347; 31.8351; 108.0246 
+#> 	 Regression surface Variance (eigenvalues):  0; 0; 0; 0; 0 
 #> Correlation Structure: 
 #> Bayes-adjusted emulator - prior specifications listed. 
-#> 	 Variance (Representative):  6472.576 
+#> 	 Variance (Representative):  5474.225 
 #> 	 Expectation:  0 
 #> 	 Correlation type: exp_sq 
 #> 	 Hyperparameters:  theta: 0.9033 
-#> 	 Nugget term: 0.05 
-#> Mixed covariance:  0 0 0 0
+#> 	 Nugget term: 0 
+#> Mixed covariance:  0 0 0 0 0
 wave1_emulators$nS$corr
 #>  Correlation type: exp_sq 
 #>  Hyperparameters:  theta: 0.9033 
-#>  Nugget term: 0.05
+#>  Nugget term: 0
 ```
 
 The default training process assumes the following:
@@ -73,7 +73,8 @@ Any of these default behaviours can be modified; for instance, manually setting 
 
 
 ```r
-custom_emulators <- emulator_from_data(SIRSample$training, output_names, input_ranges, c_lengths = c(0.6, 0.7, 0.85))
+custom_emulators <- emulator_from_data(SIRSample$training, output_names, input_ranges,
+specified_priors = list(hyper_p = c(0.6, 0.7, 0.85)))
 #> Fitting regression surfaces...
 #> Building correlation structures...
 #> Creating emulators...
@@ -174,7 +175,7 @@ plot_lattice(wave1_emulators, targets)
 #> `geom_smooth()` using method = 'loess' and formula = 'y ~ x'
 #> Warning: Removed 27 rows containing missing values (`geom_smooth()`).
 #> `geom_smooth()` using method = 'loess' and formula = 'y ~ x'
-#> Warning: Removed 25 rows containing missing values (`geom_smooth()`).
+#> Warning: Removed 26 rows containing missing values (`geom_smooth()`).
 #> `geom_smooth()` using method = 'loess' and formula = 'y ~ x'
 ```
 
@@ -193,11 +194,11 @@ space_removed(wave1_emulators, targets, ppd = 15) + geom_vline(xintercept = 3, l
 
 We see, for instance, that choosing a cutoff of 3 (roughly corresponding to a 3-sigma deviation from the target value) is sufficient to rule out over 95% of the space - coupled with the fact that our diagnostics were so healthy suggests that this is a very reasonable first cut. This is heuristic based on the number of points we provide to the function: the `ppd` (points-per-dimension) argument determines the size of the grid we evaluate over. Here we have considered $15^3=3375$ points - if we wanted to examine the space removed in greater depth we could increase the value of this argument. A similar argument exists for `plot_lattice`.
 
-Eventually, the aim of history matching is to propose new points which can enter into the model, the results of which can train new emulators, repeating the cycle; the `generate_new_runs` function does just that. There are multiple options that can be passed to this function: the default behaviour should be adequate for most situations, with the consideration of the cutoff value mentioned above. Information about the progress of the point proposal can be suppressed by setting the argument `verbose = FALSE` - by default it will be `TRUE` if we are stepping through this by hand, but not if we run this at arm's length (for example on a cluster).
+Eventually, the aim of history matching is to propose new points which can enter into the model, the results of which can train new emulators, repeating the cycle; the `generate_new_design` function does just that. There are multiple options that can be passed to this function: the default behaviour should be adequate for most situations, with the consideration of the cutoff value mentioned above. Information about the progress of the point proposal can be suppressed by setting the argument `verbose = FALSE` - by default it will be `TRUE` if we are stepping through this by hand, but not if we run this at arm's length (for example on a cluster).
 
 
 ```r
-new_points <- generate_new_runs(wave1_emulators, 90, targets)
+new_points <- generate_new_design(wave1_emulators, 90, targets)
 #> Proposing from LHS...
 #> LHS has high yield; no other methods required.
 #> Proposing from LHS...

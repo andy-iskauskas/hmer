@@ -14,7 +14,7 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
   fig.path = "lowdim-"
-  )
+)
 ```
 
 ```{r setup}
@@ -132,10 +132,10 @@ This means of defining targets, while common in real-life observations where we 
 target1d_alt <- list(f = c(-0.1, 0.1))
 ```
 
-The `generate_new_runs` function is used to propose new points. There are a multitude of different methods that can be used to propose the new points: in this particular one-dimensional case, it makes sense to take the most basic approach. This is to generate a large number of space-filling points, reject those that the emulator rules out as implausible, and select the subset of the remaining points that has the maximal minimum distance between them (so as to cover as much of the non-implausible space as possible).
+The `generate_new_design` function is used to propose new points. There are a multitude of different methods that can be used to propose the new points: in this particular one-dimensional case, it makes sense to take the most basic approach. This is to generate a large number of space-filling points, reject those that the emulator rules out as implausible, and select the subset of the remaining points that has the maximal minimum distance between them (so as to cover as much of the non-implausible space as possible).
 
 ```{r gen-1d-points-first}
-new_points1d <- generate_new_runs(em1d, 10, target1d, method = 'lhs')
+new_points1d <- generate_new_design(em1d, 10, target1d, method = 'lhs')
 ```
 
 The necessary parameters here are the (list of) emulators, the number of points (here, 10), and the target(s).
@@ -194,7 +194,7 @@ legend('topleft', inset = c(0.05, 0.05), legend = c("Function value", "Emulated 
 This plot underlines the importance of using all waves of emulation. The first wave was trained over most of the space, and so gives a moderately confident estimate of the function on the interval $[0, 0.5]$. The second wave emulator is trained only on regions that are of interest at this point, and so is less confident than the first wave emulator in parts of parameter space. However, we still have the emulator from the first wave, which contains all the information of the previous training runs by design. In this wave of history matching, therefore, we use both the first- and second-wave emulator to propose points.
 
 ```{r gen-1d-points-2, fig.width = 7, fig.height = 7}
-new_new_points1d <- generate_new_runs(c(em1d_2, em1d), 10, z = target1d, method = 'lhs')
+new_new_points1d <- generate_new_design(c(em1d_2, em1d), 10, z = target1d, method = 'lhs')
 
 plot(data = plot1d_2, f ~ x, ylim = c(min(plot1d_2[,-1]), max(plot1d_2[,-1])),
      type = 'l', main = "Emulator of a Simple 1-dimensional Function: Wave 2", xlab = "Parameter value", ylab = "Function value")
@@ -317,16 +317,16 @@ Here $\mathbb{E}[f(x)]$ is the emulator expectation at the point, $\text{Var}[f(
 
 Of course, we want proposed points to be acceptable to matching both $f_1$ and $f_2$. The second plot gives maximum implausibility, which is exactly as it sounds: the largest implausibility across all outputs at a point. We can see that the $f_1$ emulator drives much of the space reduction in the lower-right and upper-left quadrant of the region, while the $f_2$ emulator drives space reduction in the lower-left and (to some extent) upper-right. This maximum implausibility is equivalent to the determination made by the one-dimensional emulator, where in that case the non-implausible region was easy to see graphically.
 
-We can now generate new points for a second wave of emulation. We again make a slight modification to the normal behaviour of the `generate_new_runs` function. By default it will use a space-filling argument before using those points to draw lines to the boundaries of the non-implausible space - the points on the boundary are included in the proposal. From this augmented set, we perform importance sampling to try to fill out the space. To further ensure that the non-implausible space is filled out, we usually thin the proposed points and re-propose using the boundary search and importance sampling. This 'resampling' step can be repeated as many times as one desires (at a computational cost) and is useful in large-dimensional spaces; here we set `resample = 0` for efficiency's sake.
+We can now generate new points for a second wave of emulation. We again make a slight modification to the normal behaviour of the `generate_new_design` function. By default it will use a space-filling argument before using those points to draw lines to the boundaries of the non-implausible space - the points on the boundary are included in the proposal. From this augmented set, we perform importance sampling to try to fill out the space. To further ensure that the non-implausible space is filled out, we usually thin the proposed points and re-propose using the boundary search and importance sampling. This 'resampling' step can be repeated as many times as one desires (at a computational cost) and is useful in large-dimensional spaces; here we set `resample = 0` for efficiency's sake.
 
 ```{r gen-2d-points-first, fig.width = 7, fig.height = 7}
-new_points2d <- generate_new_runs(ems2d, 40, targets2d, resample = 0)
+new_points2d <- generate_new_design(ems2d, 40, targets2d, resample = 0)
 new_data2d <- data.frame(x = new_points2d$x, y = new_points2d$y,
                          f1 = apply(new_points2d, 1, func1), f2 = apply(new_points2d, 1, func2))
 plot_wrap(new_data2d[,1:2], ranges2d)
 ```
 
-With these new points, we want to train a new set of emulators. We generated 40 points from `generate_new_runs` so as to split them into a training set and a validation set once more:
+With these new points, we want to train a new set of emulators. We generated 40 points from `generate_new_design` so as to split them into a training set and a validation set once more:
 
 ```{r next-2d-points}
 sample2d <- sample(40, 20)
@@ -363,7 +363,7 @@ emulator_plot(ems2d_2, 'imp', targets = targets2d)
 Finally, we propose points from a combination of this wave and the previous wave.
 
 ```{r gen-2d-points-2, fig.width = 7, fig.height = 7}
-new_new_points2d <- generate_new_runs(c(ems2d_2, ems2d), 40, targets2d, resample = 0)
+new_new_points2d <- generate_new_design(c(ems2d_2, ems2d), 40, targets2d, resample = 0)
 plot_wrap(new_new_points2d, ranges2d)
 ```
 
@@ -388,7 +388,7 @@ wave_points(all_waves, names(ranges2d))
 wave_values(all_waves, targets2d, l_wid = 0.8)
 ```
 
-We can see that, as the colour gets darker (representing later waves), the proposed points settle into the bounds of the targets. In fact, in this example, we cna start to consider whether further waves are necessary - the points proposed at the end of the first wave were predominantly suitable for representing the non-implausible region. We can consider this by looking at the emulator uncertainty in the second wave compared to the observation uncertainty.
+We can see that, as the colour gets darker (representing later waves), the proposed points settle into the bounds of the targets. In fact, in this example, we can start to consider whether further waves are necessary - the points proposed at the end of the first wave were predominantly suitable for representing the non-implausible region. We can consider this by looking at the emulator uncertainty in the second wave compared to the observation uncertainty.
 
 ```{r uncertainty-compare}
 c(ems2d_2$f1$u_sigma, ems2d_2$f2$u_sigma)

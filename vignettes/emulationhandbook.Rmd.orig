@@ -83,21 +83,27 @@ bad_design <- data.frame(aSI = runif(30, 0.6, 0.8),
 
 bad_results <- get_res(bad_design)
 bad_emulators <- emulator_from_data(bad_results, c('nS', 'nI', 'nR'),
-                                    ranges = list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05)))
+                                    ranges = list(aSI = c(0.6, 0.8), aIR = c(0, 0.1), aSR = c(0, 0.05)))
 ```
 
-In a circumstance such as this, we may find that the emulator diagnostics are 'fine', albeit with high values of implausibility in the misclassification diagnostics (the middle column). However, attempts to generate runs will fail to find points within a respectable implausibility threshold (prompting additional output from `generate_new_runs`), and an aid to identification will be returned: namely, a set of box plots of the implausibilities for each output as well as a printed check on the training outputs to see if there is a consistent over- or under-estimation of one or more targets.
+In a circumstance such as this, we may find that the emulator diagnostics are 'fine', albeit with high values of implausibility in the misclassification diagnostics (the middle column). However, attempts to generate runs will fail to find points within a respectable implausibility threshold (prompting additional output from `generate_new_design`), and an aid to identification will be returned: namely, a set of box plots of the implausibilities for each output as well as a printed check on the training outputs to see if there is a consistent over- or under-estimation of one or more targets. Note that we have vastly increased the targets, and increased the initial number of points proposed, just to get to this point!
 
 ```{r bad-design-diagnostic, fig.height = 7, fig.width = 7}
 bad_design_v <- data.frame(aSI = runif(30, 0.6, 0.8),
                          aIR = runif(30, 0, 0.1),
                          aSR = runif(30, 0, 0.05))
 bad_validation <- get_res(bad_design_v)
-invalid <- validation_diagnostics(bad_emulators, SIREmulators$targets, bad_validation)
+bad_targets <- list(
+ nS = c(150, 700),
+ nI = list(val = 169, sigma = 50),
+ nR = c(160, 250)
+)
+invalid <- validation_diagnostics(bad_emulators, bad_targets, bad_validation)
 ```
 
 ```{r bad_design_generation}
-try_generate <- generate_new_runs(bad_emulators, 100, SIREmulators$targets, verbose = TRUE)
+try_generate <- generate_new_design(bad_emulators, 100, bad_targets, verbose = TRUE,
+ opts = list(points.factor = 100))
 ```
 
 If we encounter this problem, it is worth returning to our initial design and considering whether including additional training points would be appropriate or whether our initial design was poorly specified.
@@ -136,10 +142,10 @@ The emulators are most powerful when they act as interpolators over the region o
 
 As an example, we consider the dataset provided in `problem_data`; this consists of training data from a model consisting of 21 inputs and 19 outputs. Along with this are the defined targets and ranges, as well as an 'extra' set of points which includes the best found fit for the model using hand-fitting. It will be important to note that, aside from outputs 13, 14, 16, and 17, all outputs are proportions or ratios (taking values within $[0,1]$). The central feature of this model is that acceptable matches lie in a 'trench' at in a small corner of the space, for which many of the inputs are at, or close to, their minimum values.
 
-We try to train a set of emulators to this dataset in the normal fashion. The one change is that we use the `targets` argument of `emulator_from_data` in order to gain an insight into the structure of the data.
+We try to train a set of emulators to this dataset in the normal fashion. The one change is that we use the `targets` argument of `emulator_from_data` in order to gain an insight into the structure of the data. Here we only focus on a couple of outputs for convenience.
 
 ```{r train-emulators-problem}
-problem_ems <- emulator_from_data(problem_data$data, names(problem_data$targets), problem_data$ranges, targets = problem_data$targets, more_verbose = FALSE)
+problem_ems <- emulator_from_data(problem_data$data, names(problem_data$targets)[7:9], problem_data$ranges, targets = problem_data$targets, more_verbose = FALSE)
 ```
 
 There are a few things of interest here, but we will focus on the first few printed statements. They indicate that some of the outputs to match to are consistently over-estimated - this in and of itself is not guaranteed to be a problem, but it always warrants further study. We can look at the behaviour of one of the identified outputs from the model perspective using a simple plot command.
@@ -153,7 +159,7 @@ abline(h = problem_data$targets[[7]], lty = 2)
 As suggested, we may also use `behaviour_plot` to look at the emulator predictions. This can replicate the above behaviour if given the points and no emulators, but we want to look at the emulator behaviour here.
 
 ```{r behaviour-plot, fig.width = 7, fig.height = 7}
-behaviour_plot(ems = list(problem_ems[[7]]), targets = problem_data$targets)
+behaviour_plot(ems = list(problem_ems[[1]]), targets = problem_data$targets)
 ```
 
 We can see that, for some inputs we begin to see an indication of the 'trench' behaviour to the left-hand side of the input values. However, it does not truly see the steep drop-off and it is nowhere near the target, predicting a range of output7 of approximately $[0.7, 1]$.
@@ -196,7 +202,7 @@ abline(h = log(problem_data$targets[[7]]/(1-problem_data$targets[[7]])), lty = 2
 This transformation has pulled the original data and the 'corner' data closer together, but more importantly it has helped to distinguish what appeared to be very similar behaviour of the original data. Training an emulator to this transformed data stands a better chance of giving us a sensible result, with an appropriate estimation of the uncertainty. Indeed, we can see this by comparing an emulator trained to the original data and one trained to the transformed data. The slice we choose is along the two parameters that are identically 0 in the 'best fit' point, with all other parameters set to their 'best fit' values.
 
 ```{r problem-imp, fig.height = 7, fig.width = 7}
-plot(problem_ems[[7]], plot_type = 'imp', params = c('input9', 'input15'), fixed_vals = problem_data$extra[1,(1:21)[-c(9, 15)]], targets = problem_data$targets)
+plot(problem_ems[[1]], plot_type = 'imp', params = c('input9', 'input15'), fixed_vals = problem_data$extra[1,(1:21)[-c(9, 15)]], targets = problem_data$targets)
 ```
 ```{r transformed-imp, fig.height = 7, fig.width = 7}
 new_emulator <- emulator_from_data(logit_data_first, c('output7'), problem_data$ranges)
@@ -245,11 +251,11 @@ plot(new_emulator$output7, plot_type = 'sd', params = c('input1', 'input8'),
 Now, let's do the same with inputs 2 and 3:
 
 ```{r output-active-2, fig.height = 7, fig.width = 7}
-plot(new_emulator$output7, params = c('input2', 'input3'),
-              fixed_vals = problem_data$data[1,(1:21)[-c(2, 3)]]) +
+plot(new_emulator$output7, params = c('input18', 'input20'),
+              fixed_vals = problem_data$data[1,(1:21)[-c(18, 20)]]) +
   geom_point(x = problem_data$data[1,2], y = problem_data$data[1,3])
-plot(new_emulator$output7, plot_type = 'sd', params = c('input2', 'input3'),
-              fixed_vals = problem_data$data[1,(1:21)[-c(2,3)]]) +
+plot(new_emulator$output7, plot_type = 'sd', params = c('input18', 'input20'),
+              fixed_vals = problem_data$data[1,(1:21)[-c(18,20)]]) +
   geom_point(x = problem_data$data[1,2], y = problem_data$data[1,3])
 ```
 
@@ -266,10 +272,10 @@ But if a training point is included in the slice (as we did above), shouldn't we
 ```{r dirac-delta, fig.height = 5, fig.width = 5}
 dm <- matrix(0, ncol = length(problem_data$ranges), nrow = 1000)
 for (i in 1:length(problem_data$ranges)) dm[,i] <- rep(problem_data$data[1,i], 1000)
-dm[,2] <- sort(c(problem_data$data[1,2], seq(problem_data$ranges[[2]][1], problem_data$ranges[[2]][2], length.out = 999)))
+dm[,18] <- sort(c(problem_data$data[1,18], seq(problem_data$ranges[[18]][1], problem_data$ranges[[18]][2], length.out = 999)))
 data1d <- setNames(data.frame(dm), names(problem_data$ranges))
 vars <- new_emulator$output7$get_cov(data1d)
-plot(x = data1d$input2, y = vars, type = 'l', xlab = "input2", ylab = 'Variance')
+plot(x = data1d$input18, y = vars, type = 'l', xlab = "input18", ylab = 'Variance')
 ```
 
 Such 'constant' plots should not be a concern - they represent the actual behaviour of the emulator on the slice in question.
@@ -296,11 +302,11 @@ The major advantage of emulation is that predictions at unseen points can be per
 
 Something to bear in mind in this circumstance is that the comparisons made are sensible. If we wish to generate $100$ points, the point generation stage will typically test between $2000$ and $10000$ points depending on the shape and size of the non-implausible region. One should therefore compare performance of the model not against the time taken to run $100$ simulations but that required to run $2000$ simulations.
 
-One thing that can be helpful to speed the process, or at least utilise model run time efficiently, is to have point generation produce far more points than are required for emulator training. This can be done in tandem with the `to_file` argument to `generate_new_runs` so that proposed points are periodically saved outside of the current R session. Once a sufficient number of points have been proposed for the purposes of training, the model runs can be started while the emulators continue to propose points.
+One thing that can be helpful to speed the process, or at least utilise model run time efficiently, is to have point generation produce far more points than are required for emulator training. This can be done in tandem with the `to_file` argument to `generate_new_design` so that proposed points are periodically saved outside of the current R session. Once a sufficient number of points have been proposed for the purposes of training, the model runs can be started while the emulators continue to propose points.
 
 While counter-intuitive, this can be advantageous at later waves. If we have a large collection of points proposed at wave $n$, then we can check the validity of those points at wave $n+1$ simply by checking their implausibility with respect to **only the new emulators**. This removes the need for the point proposal to generate a large space-filling design only to reject most of it, and for many models the space reduction is modest (certainly rarely reducing the space to less than $<1\%$ of its previous size) over adjacent waves, allowing us to immediately produce a new design for the next wave.
 
-This approach can be achieved by using the `plausible_set` argument in `generate_new_runs`: if a plausible set is provided then it will be used as a starting point for generation of more points using the line sampling and slice/importance sampling methodology. The process of creating more points at the wave will be faster than it would be if it had to explore the current non-implausible space with no prior information.
+This approach can be achieved by using the `plausible_set` argument in `generate_new_design`: if a plausible set is provided then it will be used as a starting point for generation of more points using the line sampling and slice/importance sampling methodology. The process of creating more points at the wave will be faster than it would be if it had to explore the current non-implausible space with no prior information.
 
 ### Small Spaces and Disconnected Regions {#small-spaces}
 
@@ -310,24 +316,24 @@ The default methods for exploring parameter space are relatively robust in gener
 
 - Disconnected regions: in general, the vanilla methods have no preference for connected non-implausible regions and, if we have points in each of the disconnected 'blobs', then a space-filling design will be produced. However, this becomes more difficult if the relative sizes of the blobs is large. For instance, if we have two regions where the second region is far smaller than the first, it may be the case that we do not succeed in seeding points in the second region. In this case it is extremely unlikely that we will be able to represent the smaller region in our final design.
 
-A variety of options are available to deal with this. As mentioned, the automatic relaxation of implausibility during point generation will handle the majority of these cases, but in the more egregious cases we may wish to change how we identify points. For very small regions, we can consider derivative emulation and perform 'emulated gradient descent' on our least-worst points; the function `directional_proposal` allows for us to try to find directions in parameter space that will improve the output values. For disconnected regions with a severe size differential, we may use IDEMC point generation using the `idemc` function: this uses a similar implausibility relaxation approach but extends this with an evolutionary algorithm to fill out the regions at each level, and is much more robust when dealing with disconnected regions. IDEMC can also be used in the event where we suspect we have a very small non-implausible space - the reason it is not used by default is that it is computationally far more intensive than the methods used in `generate_new_runs`. Whether or not it will be advantageous to use these advanced methods is in the hands of the user, and our beliefs about the structure of the non-implausible space (if indeed it exists).
+A variety of options are available to deal with this. As mentioned, the automatic relaxation of implausibility during point generation will handle the majority of these cases, but in the more egregious cases we may wish to change how we identify points. For very small regions, we can consider derivative emulation and perform 'emulated gradient descent' on our least-worst points; the function `directional_proposal` allows for us to try to find directions in parameter space that will improve the output values. For disconnected regions with a severe size differential, we may use IDEMC point generation using the `idemc` function: this uses a similar implausibility relaxation approach but extends this with an evolutionary algorithm to fill out the regions at each level, and is much more robust when dealing with disconnected regions. IDEMC can also be used in the event where we suspect we have a very small non-implausible space - the reason it is not used by default is that it is computationally far more intensive than the methods used in `generate_new_design`. Whether or not it will be advantageous to use these advanced methods is in the hands of the user, and our beliefs about the structure of the non-implausible space (if indeed it exists).
 
 ### The Resample and Oversample Argument {#resampling-consideration}
 
-By its nature, the selection of points in `generate_new_runs` is random. The default behaviour for generating new points is as follows:
+By its nature, the selection of points in `generate_new_design` is random. The default behaviour for generating new points is as follows:
 
 - Generate a large, random, Latin hypercube and reject implausible points;
 - Take semi-random pairs of the remaining points and sample along the line connecting them to find boundaries of the non-implausible space;
 - Use the generated points as a prior for a mixture distribution to employ importance sampling;
 - Apply a maximin argument to find the subset of points that is most 'space-filling'.
 
-Each of these steps employs an element of randomness, and running `generate_new_runs` multiple times will generate different representatives of the non-implausible space. In general, the scheme for proposing points will give consistent non-implausible regions over multiple iterations, and the points therein suitable for training new emulators (or, at later stages, defining a uniform span of the non-implausible region). However, in situations where the structure of the non-implausible region is non-trivial and where we ask for comparatively few points, the stochastic nature of the procedure can omit useful points. This often comes from the 'large' Latin hypercube design, where it can be difficult to fully represent the non-implausible space and hence make it harder for later stages to cover those parts of parameter space.
+Each of these steps employs an element of randomness, and running `generate_new_design` multiple times will generate different representatives of the non-implausible space. In general, the scheme for proposing points will give consistent non-implausible regions over multiple iterations, and the points therein suitable for training new emulators (or, at later stages, defining a uniform span of the non-implausible region). However, in situations where the structure of the non-implausible region is non-trivial and where we ask for comparatively few points, the stochastic nature of the procedure can omit useful points. This often comes from the 'large' Latin hypercube design, where it can be difficult to fully represent the non-implausible space and hence make it harder for later stages to cover those parts of parameter space.
 
 The success of the proposal stage should be judged by expert elicitation, often with recourse to the `plot_wrap` function to determine whether the proposal looks sensible. If we suspect that the aforementioned difficulty is arising, and do not wish to resort to more intensive strategies such as IDEMC, then we can try two things.
 
-If we suspect that there are small parts of parameter space being missed, then we can demand that the Latin hypercube generates more points before rejecting. The argument `points.factor` can be passed to the `generate_new_runs` function call, which determines what multiple of the required points we test. For instance, a call of the form
+If we suspect that there are small parts of parameter space being missed, then we can demand that the Latin hypercube generates more points before rejecting. The argument `points.factor` can be passed to the `generate_new_design` function call, which determines what multiple of the required points we test. For instance, a call of the form
 
-`generate_new_runs(ems, 100, targets, points.factor = 60)`
+`generate_new_design(ems, 100, targets, points.factor = 60)`
 
 will create a Latin hypercube of $100\times60 = 6000$ points to check implausibility against. The higher the value of `points.factor`, the more likely we are to find a representative set of points in the complex non-implausible region. Of course, the higher the value of `points.factor`, the more emulator evaluations are required, and the longer the proposal takes.
 
