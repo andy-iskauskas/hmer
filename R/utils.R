@@ -68,9 +68,9 @@ name_to_function <- function(str, var_names) {
   str_par <- str_times
   var_names_ordered <- var_names[order(nchar(var_names), var_names,  decreasing = TRUE)]
   for (i in seq_along(var_names_ordered)) {
-    str_par <- gsub(var_names_ordered[i], paste0("££££[[", which(var_names == var_names_ordered[i]), "]]\\1"), str_par)
+    str_par <- gsub(var_names_ordered[i], paste0("\u00a3\u00a3\u00a3\u00a3[[", which(var_names == var_names_ordered[i]), "]]\\1"), str_par)
   }
-  str_par <- gsub("££££", "x", str_par)
+  str_par <- gsub("\u00a3\u00a3\u00a3\u00a3", "x", str_par)
   return(eval(parse(text = paste('function(x) return(', str_par, ')', sep = ''))))
 }
 

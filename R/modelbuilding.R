@@ -6,7 +6,7 @@ convertRanges <- function(object) {
         length(row.names(object)[row.names(object) != ""]) == nrow(object))
       return(setNames(
         purrr::map(seq_len(nrow(object)),
-                   ~c(object[.,1], object[.,2], use.names = FALSE)
+                   ~c(min(object[.,]), max(object[.,]), use.names = FALSE)
         ),
         row.names(object)
       ))
@@ -18,7 +18,8 @@ convertRanges <- function(object) {
   }
   if (is.list(object) && !"data.frame" %in% class(object)) {
     if (length(names(object)) == length(object) &&
-        all(purrr::map_dbl(object, length) == 2)) return(object)
+        all(purrr::map_dbl(object, length) == 2))
+      return(purrr::map(object, sort))
     else {
       warning(paste("List of ranges is misspecified,",
                     "(either not all named, or not all have maximum and minimum value)."))
@@ -29,7 +30,7 @@ convertRanges <- function(object) {
     if (length(object) == 2 &&
         !any(purrr::map_lgl(seq_len(nrow(object)), ~row.names(object)[.]==.)))
       return(purrr::map(seq_len(nrow(object)),
-                        ~c(object[.,1], object[.,2])) |>
+                        ~c(min(object[.,]), max(object[.,]))) |>
                setNames(row.names(object)))
     else {
       warning(paste("Data.frame of ranges is misspecified",
@@ -520,6 +521,9 @@ emulator_from_data <- function(input_data, output_names, ranges,
     ranges <- convertRanges(ranges)
   }
   if (is.null(ranges)) stop("Ranges either not specified, or misspecified.")
+  if (any(grepl("\u00a3", names(ranges)))) {
+    stop("Character \u00a3 not permitted in input names - please rename.")
+  }
   if (is.null(emulator_type) || !is.character(emulator_type))
     emulator_type <- "default"
   if (!emulator_type %in% c("default", "variance", "covariance", "multistate"))
