@@ -260,6 +260,8 @@ generate_new_design <- function(ems, n_points, z, method = "default", cutoff = 3
       error = function(e) {warning("Cannot open directory provided in to_file; output will not be saved to an external file"); opts$to_file <- NA}
     )
   } #nocov end
+  if (is.null(list(...)[["cutoff_info"]])) min_cutoff <- cutoff
+  else min_cutoff <- list(...)[["cutoff_info"]][1]
   ems <- collect_emulators(ems, z, cutoff, ...)
   ranges <- getRanges(ems)
   if (is.na(opts$nth)) {
@@ -404,21 +406,49 @@ generate_new_design <- function(ems, n_points, z, method = "default", cutoff = 3
       is_asymptoting <- (optimal_cut > cutoff && (optimal_cut - sort(point_imps)[1] < opts$cutoff_tolerance))
     }
     else {
-      cutoff_sequence <- seq(cutoff, 10, by = 0.1)
+      if (!is.null(list(...)[["cutoff_info"]])) {
+        c_details <- list(...)[["cutoff_info"]]
+        cutoff_sequence <- c(cutoff, seq(mean(c(cutoff, c_details[1])), c_details[2], by = diff(c_details)/20+(c_details[1]-cutoff)/40))
+      }
+      else
+        cutoff_sequence <- seq(cutoff, 20, by = 0.05)
       points_accept <- c(0)
       optimal_cut <- cutoff
-      for (i in cutoff_sequence) {
+      if (!verbose || !requireNamespace("progressr", quietly = TRUE)) {
         required_points <- min(max(1, nrow(plausible_set)-1, floor(0.8*nrow(plausible_set))), 5*length(ranges))
-        c_bools <- opts$accept_measure(ems, plausible_set, z, cutoff = i, n = opts$nth)
-        points_accept <- c(points_accept, sum(c_bools))
-        if (sum(c_bools) >= required_points) {
-          optimal_cut <- i
-          break
+        which_match <- rep(FALSE, nrow(plausible_set))
+        for (i in cutoff_sequence) {
+          c_bools <- opts$accept_measure(ems, plausible_set[!which_match,], z, cutoff = i, n = opts$nth)
+          which_match[!which_match] <- c_bools
+          points_accept <- c(points_accept, sum(which_match))
+          if (sum(which_match) >= required_points) {
+            optimal_cut <- i
+            break
+          }
         }
       }
-      is_asymptoting <- (optimal_cut > cutoff && points_accept[length(points_accept)-1] < 0.05*points_accept[length(points_accept)])
+      else {
+        progressr::with_progress({
+          prog <- progressr::progressor(steps = length(cutoff_sequence))
+          required_points <- min(max(1, nrow(plausible_set)-1, floor(0.8*nrow(plausible_set))), 5*length(ranges))
+          which_match <- rep(FALSE, nrow(plausible_set))
+          for (i in seq_along(cutoff_sequence)) {
+            c_bools <- opts$accept_measure(ems, plausible_set[!which_match,], z, cutoff = cutoff_sequence[i], n = opts$nth)
+            which_match[!which_match] <- c_bools
+            points_accept <- c(points_accept, sum(which_match))
+            if (sum(which_match) >= required_points) {
+              optimal_cut <- cutoff_sequence[i]
+              break
+            }
+            prog(message = sprintf("Implausibility ladder check step %g", i))
+          }
+        })
+      }
+      min_cutoff <- cutoff_sequence[which(points_accept != 0)[1]-1]
+      is_asymptoting <- (optimal_cut > cutoff &&
+                           (points_accept[length(points_accept)-1] == 0) || points_accept[length(points_accept)] >= n_points)
     }
-    if (is_asymptoting) {
+    if (is_asymptoting && optimal_cut-cutoff > opts$cutoff_tolerance) {
       if (is.character(opts$accept_measure) && opts$accept_measure == "default") {
         if (verbose) cat("Point proposal seems to be asymptoting around cutoff", #nocov
                          round(optimal_cut, 3), "- terminating.\n") #nocov
@@ -549,7 +579,7 @@ generate_new_design <- function(ems, n_points, z, method = "default", cutoff = 3
     new_opts$resample <- 0
     points <- generate_new_design(ems, n_points, z, which_methods[!which_methods %in% c('lhs')],
                          cutoff = cutoff, plausible_set = points, verbose = verbose,
-                         opts = new_opts)
+                         opts = new_opts, cutoff_info = c(min_cutoff, this_cutoff))
   }
   else if (this_cutoff != cutoff) {
     if (verbose) #nocov start
