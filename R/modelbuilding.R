@@ -279,7 +279,7 @@ hyperparameter_estimate <- function(inputs, outputs, model, corr_name = "exp_sq"
                                             ~seq(.[[1]], .[[2]], length.out = nsteps)))
     }
     grid_liks <- apply(grid_search, 1, function(x) {
-      if (is.null(delta)) return(func_to_opt(c(x, 0)))
+      if (is.null(delta)) return(func_to_opt(c(x, 0.01)))
       else return(func_to_opt(c(x, delta)))
     })
     dists <- diag(Inf, nrow(inputs)) +
@@ -887,12 +887,12 @@ emulator_from_data <- function(input_data, output_names, ranges,
                                       specified_priors = specified_priors, order = order, beta.var = beta.var,
                                       corr_name = corr_name, adjusted = adjusted, discrepancies = discrepancies,
                                       na.rm = na.rm, check.ranges = check.ranges, targets = targets, has.hierarchy = TRUE,
-                                      covariance_opts = covariance_opts, ...)
+                                      covariance_opts = covariance_opts, more_verbose = FALSE, ...)
       mode2_ems <- emulator_from_data(mode2_dats, names(mode2_dats), ranges, verbose = FALSE, emulator_type = "variance",
                                       specified_priors = specified_priors, order = order, beta.var = beta.var,
                                       corr_name = corr_name, adjusted = adjusted, discrepancies = discrepancies,
                                       na.rm = na.rm, check.ranges = check.ranges, targets = targets, has.hierarchy = TRUE,
-                                      covariance_opts = covariance_opts, ...)
+                                      covariance_opts = covariance_opts, more_verbose = FALSE, ...)
       if (verbose) cat("Trained emulators. Collating.\n") #nocov
       m1exps <- m2exps <- m1vars <- m2vars <- list()
       for (i in output_names) {
@@ -1154,7 +1154,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
     else rho_mat <- covariance_opts$rho
     if (is.null(covariance_opts$theta)) theta_val <- get_mpc_theta_est(recomb_input_data, output_names, variance_emulators, rho_mat)
     else theta_val <- covariance_opts$theta
-    if (theta_val == 0) theta_val <- 1
+    if (theta_val == 0 || is.nan(theta_val)) theta_val <- 1
     trained_cov_ems <- purrr::map(1:length(init_cov_ems), function(i) {
       indices <- as.numeric(which(cov_out_names == init_cov_ems[[i]]$output_name, arr.ind = TRUE))
       kurts <- kurt_aves[indices]
