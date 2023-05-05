@@ -4,24 +4,29 @@ EmulatedMatrix <- R6::R6Class(
     mat = NULL,
     theta_t = NULL,
     rho = NULL,
-    initialize = function(em_mat, thet, rho_mat) {
+    logmatrix = FALSE,
+    initialize = function(em_mat, thet, rho_mat, logged) {
       self$mat <- em_mat
       self$theta_t <- thet
       self$rho <- rho_mat
+      self$logmatrix <- logged
     },
     get_matrix = function() return(self$mat),
     get_exp = function(x, check_positive = TRUE) {
       t_out <- array(t(sapply(seq_along(self$mat), function(i) {
         if (!"Emulator" %in% class(self$mat[[i]])) output <- rep(NA, nrow(x))
-        else if (self$mat[[i]]$output_name == "zero_emulator") output <- rep(0, nrow(x))
-        else if (check_positive) output <- self$mat[[i]]$get_exp(x, check_neg = FALSE)
+        else if (self$mat[[i]]$output_name == "zero_emulator") {
+          if (self$logmatrix) output <- rep(-Inf, nrow(x))
+          output <- rep(0, nrow(x))
+        }
+        else if (check_positive && !self$logmatrix) output <- self$mat[[i]]$get_exp(x, check_neg = FALSE)
         else output <- self$mat[[i]]$get_exp(x)
       })), c(dim(self$mat), nrow(x)))
       t_out[is.na(t_out)] <- 0
       for (i in 1:nrow(x)) {
         t_out[,,i] <- t_out[,,i] + t(t_out[,,i]) - diag(diag(t_out[,,i]))
       }
-      if (check_positive) {
+      if (check_positive && !self$logmatrix) {
         t_out <- array(apply(t_out, 3, function(mat) {
           es <- eigen(mat)
           eve <- es$vectors
@@ -30,12 +35,23 @@ EmulatedMatrix <- R6::R6Class(
           eve %*% diag(eva) %*% t(eve)
         }), dim = c(dim(self$mat), nrow(x)))
       }
+      if (self$logmatrix) {
+        t_out <- array(apply(t_out, 3, function(mat) {
+          es <- eigen(mat)
+          eve <- es$vectors
+          eva <- es$values
+          eva <- exp(eva)
+          eve %*% diag(eva) %*% t(eve)
+        }), dim = c(dim(self$mat), nrow(x)))
+      }
       return(t_out)
     },
     get_cov = function(x, check_positive = TRUE) {
       t_out <- array(t(sapply(seq_along(self$mat), function(i) {
         if (!"Emulator" %in% class(self$mat[[i]])) output <- rep(NA, nrow(x))
-        else if (self$mat[[i]]$output_name == "zero_emulator") output <- rep(0, nrow(x))
+        else if (self$mat[[i]]$output_name == "zero_emulator") {
+          output <- rep(0, nrow(x))
+        }
         else if (check_positive) output <- self$mat[[i]]$get_cov(x, check_neg = FALSE)
         else output <- self$mat[[i]]$get_cov(x)
       })), c(dim(self$mat), nrow(x)))
@@ -84,6 +100,7 @@ EmulatedMatrix <- R6::R6Class(
       cat(paste("theta_t:", round(self$theta_t, 3), "\n"))
       cat("Correlation matrix rho:\n")
       print(round(self$rho, 3))
+      if (self$logmatrix) cat("(Log-covariance emulators)")
       invisible(self)
     }
   )

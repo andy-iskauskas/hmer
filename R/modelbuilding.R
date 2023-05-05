@@ -978,6 +978,13 @@ emulator_from_data <- function(input_data, output_names, ranges,
       kurt_relev <- purrr::map_dbl(seq_along(kurts), function(y) {
         if (!is.nan(kurts[y]) && (vofv/diag(covs)^2)[y] <= 1) kurts[y] else NA
       })
+      if (!is.null(covariance_opts$logged) && covariance_opts$logged) {
+        c_est <- eigen(covs)
+        c_vals <- c_est$values
+        c_vals[c_vals <= 0] <- 1e-8
+        c_vals <- log(c_vals)
+        covs <- c_est$vectors %*% diag(c_vals) %*% t(c_est$vectors)
+      }
       return(
         list(
           point = as.numeric(x[1,input_names], use.names = FALSE),
@@ -1172,7 +1179,10 @@ emulator_from_data <- function(input_data, output_names, ranges,
       cat("Training mean emulators...\n")
   }
   trained_mean_ems <- purrr::map(output_names, function(m_name) {
-    mean_emulators[[m_name]]$s_diag <- function(x, n) trained_var_ems[[m_name]]$get_exp(x)/n
+    if (!is.null(covariance_opts$logged) && covariance_opts$logged)
+      mean_emulators[[m_name]]$s_diag <- function(x, n) exp(trained_var_ems[[m_name]]$get_exp(x))/n
+    else
+      mean_emulators[[m_name]]$s_diag <- function(x, n) trained_var_ems[[m_name]]$get_exp(x)/n
     if (emulator_type == "covariance")
       mean_emulators[[m_name]]$samples <- collected_df_kurt$n
     else
@@ -1180,7 +1190,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
     return(mean_emulators[[m_name]]$adjust(collected_df_mean[,c(input_names, m_name)], m_name))
   }) |> setNames(output_names)
   if (emulator_type == "covariance")
-    return(list(variance = EmulatedMatrix$new(trained_cov_mat, theta_val, rho_mat),
+    return(list(variance = EmulatedMatrix$new(trained_cov_mat, theta_val, rho_mat, logged = (!is.null(covariance_opts$logged) && covariance_opts$logged)),
                 expectation = trained_mean_ems))
   return(list(variance = trained_var_ems, expectation = trained_mean_ems))
 }
