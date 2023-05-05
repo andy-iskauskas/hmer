@@ -1154,7 +1154,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
     else rho_mat <- covariance_opts$rho
     if (is.null(covariance_opts$theta)) theta_val <- get_mpc_theta_est(recomb_input_data, output_names, variance_emulators, rho_mat)
     else theta_val <- covariance_opts$theta
-    if (theta_val == 0 || is.nan(theta_val)) theta_val <- 1
+    if (theta_val == 0) theta_val <- 1
     trained_cov_ems <- purrr::map(1:length(init_cov_ems), function(i) {
       indices <- as.numeric(which(cov_out_names == init_cov_ems[[i]]$output_name, arr.ind = TRUE))
       kurts <- kurt_aves[indices]
