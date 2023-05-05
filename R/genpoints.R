@@ -591,6 +591,10 @@ generate_new_design <- function(ems, n_points, z, method = "default", cutoff = 3
     cutoff <- points$cutoff
     points <- points$points
   }
+  else {
+    if (verbose) print(paste("Not sure why we're here, but cutoff is now going to be", this_cutoff))
+    cutoff <- this_cutoff
+  }
   if (!is.na(opts$to_file)) write.csv(points, file = opts$to_file, row.names = FALSE)
   if (length(intersect(which_methods, c("importance", "line", "slice"))) > 0 && opts$resample > 0) {
     for (nsamp in 1:opts$resample) {
