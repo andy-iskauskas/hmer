@@ -820,7 +820,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
   ## Multistate emulation goes here, so that if it isn't multistate we can go to variance emulation
   if (emulator_type == "multistate") {
     proportion <- purrr::map_dbl(param_sets, function(x) {
-      p_clust <- fanny(suppressWarnings(daisy(x[,output_names, drop = FALSE])), k = 2)$clustering
+      p_clust <- suppressWarnings(fanny(suppressWarnings(daisy(x[,output_names, drop = FALSE])), k = 2)$clustering)
       return(sum(p_clust == 1)/length(p_clust))
     })
     unique_points <- unique(input_data_backup[,names(ranges)])
@@ -828,8 +828,8 @@ emulator_from_data <- function(input_data, output_names, ranges,
     has_bimodality <- do.call('rbind.data.frame', purrr::map(param_sets, function(x) {
       purrr::map_lgl(output_names, function(y) {
         if (length(unique(x[,y])) == 1) return(FALSE)
-        clust1 <- fanny(suppressWarnings(daisy(x[,y,drop=FALSE])), k = 1)
-        clust2 <- fanny(suppressWarnings(daisy(x[,y,drop=FALSE])), k = 2)
+        clust1 <- suppressWarnings(fanny(suppressWarnings(daisy(x[,y,drop=FALSE])), k = 1))
+        clust2 <- suppressWarnings(fanny(suppressWarnings(daisy(x[,y,drop=FALSE])), k = 2))
         if (clust1$objective[["objective"]] < clust2$objective[["objective"]]) return(FALSE)
         return(TRUE)
       })
@@ -923,6 +923,27 @@ emulator_from_data <- function(input_data, output_names, ranges,
     emulator_type <- "variance"
   }
   if (emulator_type == "variance") {
+    ## This is a bit of a cludge to deal with bimodal emulators where
+    ## one parameter doesn't contribute to an output
+    data_by_point <- purrr::map(data_by_point, function(dat) {
+      dat_out_name <- names(dat)[length(names(dat))]
+      unique_points_in_dat <- purrr::map_chr(dat, function(subdat) {
+        apply(subdat[,names(ranges)], 1, hash)[1]
+      })
+      which_missing <- which(!unique_uids %in% unique_points_in_dat)
+      if (length(which_missing) == 0) return(dat)
+      purrr::map(seq_along(unique_uids), function(i) {
+        if (!i %in% which_missing) return(dat[[which(unique_points_in_dat == unique_uids[i])]])
+        else {
+          ## This ALMOST works. But I think it's having downstream effects.
+          fake_df <- data.frame(matrix(
+            c(rep(0, length(ranges)), NA, rep(0, length(ranges)), NA),
+            nrow = 2, byrow = TRUE
+          )) |> setNames(c(names(ranges), dat_out_name))
+          return(fake_df)
+        }
+      })
+    })
     collected_stats <- purrr::map(data_by_point, function(dat) {
       lapply(dat, function(x) {
         n_points <- nrow(x)
@@ -931,7 +952,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
         sigsq <- var(out_vals, na.rm = TRUE)
         kurt <- kurtosis(out_vals, na.rm = TRUE)
         vofv <- sigsq^2 * (kurt - 1 + 2/(n_points-1))/n_points
-        kurt_rel <- ifelse(!is.nan(kurt) && (vofv/sigsq^2) <= 1, kurt, NA)
+        kurt_rel <- ifelse(!is.nan(kurt) && !is.na(kurt) && (vofv/sigsq^2) <= 1, kurt, NA)
         return(list(
           point = as.numeric(x[1,input_names], use.names = FALSE),
           mean = mu,
@@ -1065,11 +1086,13 @@ emulator_from_data <- function(input_data, output_names, ranges,
     }
     variance_emulators[[v_name]]$s_diag <- var_mod
     variance_emulators[[v_name]]$em_type <- "variance"
+    valid_cov_indices <- which(!is.na(collected_df_var[,v_name]))
     if (emulator_type == "covariance")
       variance_emulators[[v_name]]$samples <- collected_df_kurt$n
     else
-      variance_emulators[[v_name]]$samples <- collected_df_kurt[,paste0(v_name, "_n")]
-    return(variance_emulators[[v_name]]$adjust(collected_df_var[,c(input_names, v_name)], v_name))
+      variance_emulators[[v_name]]$samples <- collected_df_kurt[valid_cov_indices,paste0(v_name, "_n")]
+    adjust_df <- collected_df_var[valid_cov_indices ,c(input_names, v_name)]
+    return(variance_emulators[[v_name]]$adjust(adjust_df, v_name))
   }) |> setNames(output_names)
   if (verbose && emulator_type != "covariance") cat("Completed variance emulators...\n") #nocov
   if (verbose) cat("Creating prior (untrained) mean emulators...\n") #nocov
@@ -1183,11 +1206,13 @@ emulator_from_data <- function(input_data, output_names, ranges,
       mean_emulators[[m_name]]$s_diag <- function(x, n) exp(trained_var_ems[[m_name]]$get_exp(x))/n
     else
       mean_emulators[[m_name]]$s_diag <- function(x, n) trained_var_ems[[m_name]]$get_exp(x)/n
+    valid_mean_indices <- which(!is.nan(collected_df_mean[,m_name]))
     if (emulator_type == "covariance")
       mean_emulators[[m_name]]$samples <- collected_df_kurt$n
     else
-      mean_emulators[[m_name]]$samples <- collected_df_kurt[,paste0(m_name, "_n")]
-    return(mean_emulators[[m_name]]$adjust(collected_df_mean[,c(input_names, m_name)], m_name))
+      mean_emulators[[m_name]]$samples <- collected_df_kurt[valid_mean_indices, paste0(m_name, "_n")]
+    valid_mean <- collected_df_mean[valid_mean_indices, c(input_names, m_name)]
+    return(mean_emulators[[m_name]]$adjust(valid_mean, m_name))
   }) |> setNames(output_names)
   if (emulator_type == "covariance")
     return(list(variance = EmulatedMatrix$new(trained_cov_mat, theta_val, rho_mat, logged = (!is.null(covariance_opts$logged) && covariance_opts$logged)),
@@ -1427,7 +1452,7 @@ bimodal_emulator_from_data <- function(data, output_names, ranges,
   })
   if(verbose) cat("Separated dataset by unique points.\n") #nocov
   proportion <- purrr::map_dbl(param_sets, function(x) {
-    p_clust <- fanny(suppressWarnings(daisy(x[, output_names, drop = FALSE])), k = 2)$clustering
+    p_clust <- suppressWarnings(fanny(suppressWarnings(daisy(x[, output_names, drop = FALSE])), k = 2)$clustering)
     return(sum(p_clust == 1)/length(p_clust))
   })
   prop_df <- setNames(
@@ -1440,8 +1465,8 @@ bimodal_emulator_from_data <- function(data, output_names, ranges,
   has_bimodality <- do.call('rbind.data.frame', purrr::map(param_sets, function(x) {
     purrr::map_lgl(output_names, function(y) {
       if (length(unique(x[,y])) == 1) return(FALSE)
-      clust1 <- fanny(suppressWarnings(daisy(x[,y, drop = FALSE])), k = 1)
-      clust2 <- fanny(suppressWarnings(daisy(x[,y, drop = FALSE])), k = 2)
+      clust1 <- suppressWarnings(fanny(suppressWarnings(daisy(x[,y, drop = FALSE])), k = 1))
+      clust2 <- suppressWarnings(fanny(suppressWarnings(daisy(x[,y, drop = FALSE])), k = 2))
       if (clust1$objective[["objective"]] < clust2$objective[["objective"]]) return(FALSE)
       return(TRUE)
     })
@@ -1472,7 +1497,7 @@ bimodal_emulator_from_data <- function(data, output_names, ranges,
         c2_data[[length(c2_data)+1]] <- param_sets[[i]]
       }
       else {
-        this_clust <- fanny(suppressWarnings(daisy(param_sets[[i]][,x, drop = FALSE])), k = 2)$clustering
+        this_clust <- suppressWarnings(fanny(suppressWarnings(daisy(param_sets[[i]][,x, drop = FALSE])), k = 2)$clustering)
         c1_data[[length(c1_data)+1]] <- param_sets[[i]][this_clust == 1,]
         c2_data[[length(c2_data)+1]] <- param_sets[[i]][this_clust == 2,]
       }
