@@ -190,7 +190,7 @@ hyperparameter_estimate <- function(inputs, outputs, model, corr_name = "exp_sq"
   av <- purrr::map_lgl(seq_along(names(inputs)), function(x) {
     point_vec <- c(rep(0, x-1), 1, rep(0, length(names(inputs))-x))
     if ("lm" %in% class(model))
-      func_vals <- model.matrix(formula(model$terms),
+      func_vals <- model.matrix(model$terms,
                                 setNames(data.frame(matrix(c(point_vec, 0), nrow = 1)), c(names(inputs), names(outputs))))
     else
       func_vals <- purrr::map_dbl(model, purrr::exec, point_vec)
