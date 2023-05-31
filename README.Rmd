@@ -50,7 +50,7 @@ ems <- emulator_from_data(input_data = SIRSample$training,
 ## Perform diagnostics on the emulators
 validation <- validation_diagnostics(ems, SIREmulators$targets, SIRSample$validation, plt = FALSE)
 ## Propose new points from the emulators
-new_points <- generate_new_runs(ems, 50, SIREmulators$targets)
+new_points <- generate_new_design(ems, 50, SIREmulators$targets)
 ```
 
 ## Learning Emulation and History Matching

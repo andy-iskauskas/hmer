@@ -1,3 +1,27 @@
+# hmer 1.5.0
+
+## Major changes
+
+* Change to nomenclature: all `xx_emulator_from_data` functions are now a single function; `variance_emulator_from_data` and `bimodal_emulator_from_data` are now called using `emulator_from_data` with argument `emulator_type = 'variance'` and `emulator_type = 'multistate'` respectively. To avoid confusion about the output of the function, `generate_new_runs` has been renamed to `generate_new_design`. Older functions have been deprecated and will be removed in a subsequent version.
+
+## Bug fixes
+
+* Changes to `generate_new_design` to avoid implausibility asymptoting in edge cases.
+
+* Explicit checks included to ensure that ordering of parameter ranges matches with data.frames provided for training
+
+* Fixes to ensure that 1d systems behave as expected.
+
+* Fix to avoid singular correlation matrices in some situations where `corr_type = 'exp_sq'`.
+
+* Fixes for edge-case multistate emulator training problems, and for situations where `model.matrix` behaviour fails (due to `deparse` truncation issues in core R functions).
+
+## Enhancements
+
+* Modifications to emulator design via `emulator_from_data`: in particular hyperparameter estimation has been made more robust; emulator regression surfaces now support cubic terms; variance and multistate emulators now more robust to different numbers of repetitions at different input sites.
+
+* Covariance emulation introduced (via `emulator_from_data(..., emulator_type = 'covariance')`), allowing a full covariance matrix to be robustly emulated. Results are presented using a prototype emulator matrix `EmulatedMatrix` to efficiently make predictions, including checks to ensure that predicted matrices are semi-positive definite. In the future, covariance matrices will be supported in implausibility measures and point proposals.
+
 # hmer 1.4.0
 
 ## Bug fixes

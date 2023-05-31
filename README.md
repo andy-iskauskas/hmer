@@ -58,7 +58,7 @@ ems <- emulator_from_data(input_data = SIRSample$training,
 ## Perform diagnostics on the emulators
 validation <- validation_diagnostics(ems, SIREmulators$targets, SIRSample$validation, plt = FALSE)
 ## Propose new points from the emulators
-new_points <- generate_new_runs(ems, 50, SIREmulators$targets)
+new_points <- generate_new_design(ems, 50, SIREmulators$targets)
 ```
 
 ## Learning Emulation and History Matching
@@ -74,17 +74,17 @@ browseVignettes("hmer")
 vignette("low-dimensional-examples", package = 'hmer')
 ```
 
--   Low-dimensional examples `low-dimensional-examples` introduces the
-    basics of emulation and history matching and how to use `hmer` in
-    some low-dimensional toy models;
+- Low-dimensional examples `low-dimensional-examples` introduces the
+  basics of emulation and history matching and how to use `hmer` in some
+  low-dimensional toy models;
 
--   Demonstration `demonstrating-the-hmer-package` serves as a broad
-    overview of most of the functions in the package;
+- Demonstration `demonstrating-the-hmer-package` serves as a broad
+  overview of most of the functions in the package;
 
--   Stochastic and Bimodal Emulation `stochasticandbimodalemulation`
-    introduces the basics of dealing with stochastic systems, and
-    identifying bimodality;
+- Stochastic and Bimodal Emulation `stochasticandbimodalemulation`
+  introduces the basics of dealing with stochastic systems, and
+  identifying bimodality;
 
--   The “Emulation Handbook” `emulationhandbook` details some common
-    problems and considerations that occur when using the framework, and
-    serves as a broad FAQ for problems encountered.
+- The “Emulation Handbook” `emulationhandbook` details some common
+  problems and considerations that occur when using the framework, and
+  serves as a broad FAQ for problems encountered.
