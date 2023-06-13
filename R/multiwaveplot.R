@@ -36,11 +36,12 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5,
                           (length(waves)-ifelse(zero_in, 1, 0)), ...) {
   wave <- NULL
   out_list <- list()
-  for (i in ifelse(zero_in, 0, 1):(length(waves)-ifelse(zero_in, 1, 0))) {
-    if (i %in% wave_numbers)
-      out_list[[i+1]] <- setNames(
-        cbind(waves[[i+1]][,input_names],
-              rep(i, nrow(waves[[i+1]]))), c(input_names, 'wave'))
+  wave_names <- wave_numbers
+  if(zero_in) wave_numbers <- wave_numbers + 1
+  for (i in 1:length(wave_numbers)) {
+      out_list[[i]] <- setNames(
+        cbind(waves[[wave_numbers[i]]][,input_names],
+              rep(wave_names[i], nrow(waves[[wave_numbers[i]]]))), c(input_names, 'wave'))
   }
   total_data <- do.call('rbind', out_list)
   total_data$wave <- factor(total_data$wave)
@@ -51,7 +52,7 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5,
     return(g)
   }
   pal <- viridis::viridis(max(length(waves), max(wave_numbers)),
-                          option = "D", direction = -1)[wave_numbers+1]
+                          option = "D", direction = -1)[wave_numbers]
   g <- ggpairs(total_data, columns = seq_along(input_names), aes(colour = wave),
           lower = list(continuous = plotfun),
           upper = 'blank',
