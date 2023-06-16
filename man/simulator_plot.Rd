@@ -12,6 +12,7 @@ simulator_plot(
   wave_numbers = seq(ifelse(zero_in, 0, 1), length(wave_points) - ifelse(zero_in, 1, 0)),
   normalize = FALSE,
   logscale = FALSE,
+  byhit = FALSE,
   barcol = "#444444",
   ...
 )
@@ -31,6 +32,8 @@ simulator_plot(
 
 \item{logscale}{If true, targets are log-scaled before plotting.}
 
+\item{byhit}{Should runs be grouped by number of targets hit, rather than wave?}
+
 \item{barcol}{The colour of the target error bars/bounds}
 
 \item{...}{Optional parameters (not to be used directly)}
@@ -46,11 +49,20 @@ The values plotted are the outputs from the simulator; the points passed to it a
 points suggested by that wave of emulators. By default, wave 0 is included. A colour
 scheme is chosen outright for all invocations of this function: it is a 10-colour
 palette. If more waves are required, then an alternative palette should be selected.
+
+The output can be plotted in a number of ways: raw; with outputs transformed to log scale;
+or with targets normalised so that target bounds are all [-1, 1]. These two options may
+be helpful in visualising behaviour when outputs have vastly different scales, but one
+still wishes to see them all in the same plot: these options can be toggled by setting
+\code{logscale = TRUE} or \code{normalize = TRUE} respectively. The data can be grouped in
+two ways, either colouring by wave of emulation (default) or by the number of targets hit;
+the latter option is enabled by setting \code{byhit = TRUE}.
 }
 \examples{
  simulator_plot(SIRMultiWaveData, SIREmulators$targets)
  simulator_plot(SIRMultiWaveData[2:4], SIREmulators$targets,
   zero_in = FALSE, wave_numbers = c(1,3))
+ simulator_plot(SIRMultiWaveData, SIREmulators$targets, byhit = TRUE)
 
 }
 \seealso{

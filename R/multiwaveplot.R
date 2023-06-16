@@ -448,6 +448,14 @@ wave_dependencies <- function(waves, targets, output_names = names(targets),
 #' scheme is chosen outright for all invocations of this function: it is a 10-colour
 #' palette. If more waves are required, then an alternative palette should be selected.
 #'
+#' The output can be plotted in a number of ways: raw; with outputs transformed to log scale;
+#' or with targets normalised so that target bounds are all [-1, 1]. These two options may
+#' be helpful in visualising behaviour when outputs have vastly different scales, but one
+#' still wishes to see them all in the same plot: these options can be toggled by setting
+#' \code{logscale = TRUE} or \code{normalize = TRUE} respectively. The data can be grouped in
+#' two ways, either colouring by wave of emulation (default) or by the number of targets hit;
+#' the latter option is enabled by setting \code{byhit = TRUE}.
+#'
 #' @import ggplot2
 #' @importFrom dplyr mutate
 #'
@@ -458,6 +466,7 @@ wave_dependencies <- function(waves, targets, output_names = names(targets),
 #' @param wave_numbers Which waves to plot. If not supplied, all waves are plotted.
 #' @param normalize If true, plotting is done with rescaled target bounds.
 #' @param logscale If true, targets are log-scaled before plotting.
+#' @param byhit Should runs be grouped by number of targets hit, rather than wave?
 #' @param barcol The colour of the target error bars/bounds
 #' @param ... Optional parameters (not to be used directly)
 #'
@@ -470,25 +479,46 @@ wave_dependencies <- function(waves, targets, output_names = names(targets),
 #'  simulator_plot(SIRMultiWaveData, SIREmulators$targets)
 #'  simulator_plot(SIRMultiWaveData[2:4], SIREmulators$targets,
 #'   zero_in = FALSE, wave_numbers = c(1,3))
+#'  simulator_plot(SIRMultiWaveData, SIREmulators$targets, byhit = TRUE)
 #'
 simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL,
                            wave_numbers = seq(
                              ifelse(zero_in, 0, 1),
                              length(wave_points)-ifelse(zero_in, 1, 0)),
-                           normalize = FALSE, logscale = FALSE,
+                           normalize = FALSE, logscale = FALSE, byhit = FALSE,
                            barcol = "#444444", ...) {
+  if (normalize && logscale) {
+    warning("Both normalize and logscale = TRUE; defaulting to logscale.")
+    normalize <- FALSE
+  }
   for (i in seq_along(z)) {
     if (!is.atomic(z[[i]]))
       z[[i]] <- c(z[[i]]$val - 3*z[[i]]$sigma, z[[i]]$val + 3*z[[i]]$sigma)
   }
   name <- value <- run <- wave <- val <- sigma <- NULL
   output_names <- names(z)
+  target_hits <- function(result, targets, sum_func = "sum") {
+    hits <- purrr::map_lgl(names(targets), function(t) {
+        return(result[t] <= targets[[t]][2] && result[t] >= targets[[t]][1])
+    })
+    sum_function <- get(sum_func)
+    return(sum_function(hits))
+  }
   sim_runs <- do.call(
     'rbind',
     purrr::map(
       wave_numbers,
       ~data.frame(wave_points[[.+ifelse(zero_in, 1, 0)]][,output_names, drop = FALSE],
                   wave = .)))
+  if (byhit) {
+    t_hits <- apply(sim_runs, 1, target_hits, z)
+    waves_by_hits <- purrr::map(0:length(z), ~sim_runs[t_hits == .,])
+    w_numbers <- (0:length(z))[purrr::map_lgl(waves_by_hits, ~nrow(.) > 0)]
+    return(simulator_plot(waves_by_hits, z, zero_in = TRUE, palette = palette,
+                          wave_numbers = w_numbers, normalize = normalize,
+                          logscale = logscale, byhit = FALSE, barcol = barcol,
+                          change_legend = TRUE, ...))
+  }
   sim_runs$run <- seq_along(sim_runs[,1])
   if (normalize) {
     for (i in names(z)) {
@@ -514,12 +544,17 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL,
   pal <- pal[seq_along(pal) %in% (wave_numbers+ifelse(zero_in, 1, 0))]
   obs <- data.frame(name = names(z), min = purrr::map_dbl(z, ~.[1]),
                     max = purrr::map_dbl(z, ~.[2]))
+  optionals <- list(...)
+  if (!is.null(optionals[['change_legend']]) && optionals[['change_legend']])
+    legend_title = "# Hits"
+  else
+    legend_title = "Wave"
   if(length(output_names) == 1) {
       obs <- uncount(obs, length(unique(pivoted$wave))) %>%
         mutate(wave = factor(0:(length(unique(pivoted$wave)) - 1)))
       g <- ggplot(data = pivoted, aes(x = wave, y = value)) +
         ggbeeswarm::geom_beeswarm(aes(colour = wave, group = wave)) +
-        scale_colour_manual(values = pal) +
+        scale_colour_manual(values = pal, name = legend_title) +
         geom_point(data = obs, aes(x = wave, y = (min+max)/2)) +
         geom_errorbar(data = obs,
                       aes(y = (min+max)/2, ymax = max, ymin = min),
@@ -531,7 +566,7 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL,
   } else {
       g <- ggplot(data = pivoted, aes(x = name, y = value)) +
         geom_line(aes(group = run, colour = wave)) +
-        scale_colour_manual(values = pal) +
+        scale_colour_manual(values = pal, name = legend_title) +
         geom_point(data = obs, aes(x = name, y = (min+max)/2)) +
         geom_errorbar(data = obs,
                       aes(y = (min+max)/2, ymax = max, ymin = min),

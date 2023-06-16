@@ -384,14 +384,16 @@ effect_strength <- function(ems, plt = interactive(), line.plot = FALSE,
         geom_tile(colour = 'black') +
         scale_fill_gradient2(low = 'red', mid = 'white', high = 'blue',
                              midpoint = 0, name = "Strength") +
-        labs(title = "Linear Effect Strength", x = "Parameter", y = "Output")
+        labs(title = "Linear Effect Strength", x = "Parameter", y = "Output") +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
       print(g)
       if (quadratic) {
         g <- ggplot(data = quad.mat, aes(x = Var2, y = Var1, fill = value)) +
           geom_tile(colour = 'black') +
           scale_fill_gradient2(low = 'red', mid = 'white', high = 'blue',
                                midpoint = 0, name = "Strength") +
-          labs(title = "Quadratic Effect Strength", x = "Parameter", y = "Output")
+          labs(title = "Quadratic Effect Strength", x = "Parameter", y = "Output") +
+          theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
         print(g)
       }
     }

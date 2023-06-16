@@ -516,6 +516,8 @@ output_plot <- function(ems, targets, points = NULL, npoints = 1000) {
 #' @param imp_breaks If plotting nth maximum implausibility, defines the levels at
 #'                   which to draw contours.
 #' @param contour Logical determining whether to plot implausibility contours or not.
+#' @param ranges Parameter ranges. If not supplied, defaults to emulator ranges.
+#' @param raster_imp Should the implausibility plots be rasterised?
 #'
 #' @return A ggplot object
 #'
@@ -530,10 +532,11 @@ output_plot <- function(ems, targets, points = NULL, npoints = 1000) {
 #'  plot_lattice(SIREmulators$ems$nS, SIREmulators$targets)
 #' }
 plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE,
-                         cutoff = 3, maxpoints = 5e4, imp_breaks = NULL, 
-                         contour = TRUE) {
+                         cutoff = 3, maxpoints = 5e4, imp_breaks = NULL,
+                         contour = TRUE, ranges = NULL, raster_imp = FALSE) {
   ems <- collect_emulators(ems)
-  ranges <- if ("Emulator" %in% class(ems)) ems$ranges else ems[[1]]$ranges
+  if (is.null(ranges))
+    ranges <- if ("Emulator" %in% class(ems)) ems$ranges else ems[[1]]$ranges
   if (ppd^length(ranges) > maxpoints) {
     point_grid <- setNames(
       data.frame(
@@ -592,6 +595,7 @@ plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE,
                     c(parameters, if(op) "op" else "imp")))
   }
   cols <- if(cb) colourblind else redgreen
+  colscont <- if(cb) colourblindcont else redgreencont
   if (is.null(imp_breaks)) {
     imp_breaks <- c(0, 0.3, 0.7, 1, 1.3, 1.7, 2, 2.3, 2.7,
                     3, 3.5, 4, 4.5, 5, 6, 7, 8, 10, 15, Inf)
@@ -620,12 +624,18 @@ plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE,
       names(ranges) == parameters[1]) >
       which(names(ranges) == parameters[2])) {
       pt <- two_dim(point_grid, parameters)
-      g <- ggplot(mapping = aes(x = pt[,1], y = pt[,2], z = pt[,3])) +
-        geom_contour_filled(breaks = imp_breaks, colour = ifelse(contour, "black", NA)) +
+      g <- ggplot(mapping = aes(x = pt[,1], y = pt[,2]))
+      if (!raster_imp)
+        g <- g + geom_contour_filled(aes(z = pt[,3]), breaks = imp_breaks, colour = ifelse(contour, "black", NA)) +
         scale_fill_manual(values = cols, labels = imp_names,
                           name = "Min. I",
-                          guide = guide_legend(reverse = TRUE), drop = FALSE) +
-        scale_y_continuous(expand = c(0,0))
+                          guide = guide_legend(reverse = TRUE), drop = FALSE)
+      else
+        g <- g + geom_raster(aes(fill = pt[,3]), interpolate = TRUE) +
+        scale_fill_gradient2(low = colscont$low, mid = colscont$mid, high = colscont$high,
+                             midpoint = 3, breaks = imp_breaks, labels = imp_names, name = "Min. I",
+                             guide = guide_legend(reverse = TRUE))
+      g <- g + scale_y_continuous(expand = c(0,0))
     }
     else {
       pt <- two_dim(point_grid, parameters, TRUE)

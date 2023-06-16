@@ -12,7 +12,9 @@ plot_lattice(
   cutoff = 3,
   maxpoints = 50000,
   imp_breaks = NULL,
-  contour = TRUE
+  contour = TRUE,
+  ranges = NULL,
+  raster_imp = FALSE
 )
 }
 \arguments{
@@ -32,6 +34,10 @@ plot_lattice(
 which to draw contours.}
 
 \item{contour}{Logical determining whether to plot implausibility contours or not.}
+
+\item{ranges}{Parameter ranges. If not supplied, defaults to emulator ranges.}
+
+\item{raster_imp}{Should the implausibility plots be rasterised?}
 }
 \value{
 A ggplot object

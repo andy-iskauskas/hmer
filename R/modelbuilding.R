@@ -1149,6 +1149,8 @@ emulator_from_data <- function(input_data, output_names, ranges,
     if (is.null(covariance_opts$matrix))
       covariance_opts$matrix <- matrix(TRUE, nrow = length(variance_emulators), ncol = length(variance_emulators))
     which_outputs <- cov_out_names[upper.tri(cov_out_names) & covariance_opts$matrix]
+    ## For debugging, uncomment
+    ## print(which_outputs)
     init_cov_ems <- emulator_from_data(collected_df_cov, which_outputs, ranges, input_names = input_names,
                                        emulator_type = "default", specified_priors = specified_priors$covariance,
                                        order = max(1, order - 1), beta.var = beta.var, corr_name = corr_name,
