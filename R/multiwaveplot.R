@@ -129,6 +129,12 @@ wave_values <- function(waves, targets, output_names = names(targets),
                           (length(waves)-ifelse(zero_in, 0, 1)),
                         which_wave = ifelse(zero_in, 0, 1),
                         upper_scale = 1, ...) {
+  waves <- tryCatch(
+    purrr::map(waves, data.frame),
+    error = function(e) {
+      stop(paste("Cannot convert wave objects to data.frame:", e))
+    }
+  )
   if (!is.null(ems)) ems <- collect_emulators(ems)
   if (!which_wave %in% wave_numbers) {
     which_wave <- wave_numbers[which.min(abs(wave_numbers - which_wave))]
@@ -386,6 +392,12 @@ wave_dependencies <- function(waves, targets, output_names = names(targets),
                               zero_in = TRUE,
                               wave_numbers = ifelse(zero_in, 0, 1):
                                 (length(waves)-ifelse(zero_in, 1, 0)), ...) {
+  waves <- tryCatch(
+    purrr::map(waves, data.frame),
+    error = function(e) {
+      stop(paste("Cannot convert wave objects to data.frame:", e))
+    }
+  )
   input_names <- input_names
   for (i in seq_along(targets)) {
     if (!is.atomic(targets[[i]]))
@@ -488,6 +500,12 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL,
                              length(wave_points)-ifelse(zero_in, 1, 0)),
                            normalize = FALSE, logscale = FALSE, byhit = FALSE,
                            barcol = "#444444", ...) {
+  wave_points <- tryCatch(
+    purrr::map(wave_points, data.frame),
+    error = function(e) {
+      stop(paste("Cannot convert wave objects to data.frame:", e))
+    }
+  )
   if (normalize && logscale) {
     warning("Both normalize and logscale = TRUE; defaulting to logscale.")
     normalize <- FALSE
@@ -568,7 +586,7 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL,
       g <- ggplot(data = pivoted, aes(x = name, y = value)) +
         geom_line(aes(group = run, colour = wave)) +
         scale_colour_manual(values = pal, name = legend_title) +
-        geom_point(data = obs, aes(x = name, y = (min+max)/2)) +
+        geom_point(data = obs, aes(x = name, y = (min+max)/2), colour = barcol) +
         geom_errorbar(data = obs,
                       aes(y = (min+max)/2, ymax = max, ymin = min),
                       width = 0.1, linewidth = 1.25, colour = barcol) +
@@ -668,5 +686,168 @@ diagnostic_wrap <- function(waves, targets, output_names = names(targets),
     }
     return(NULL)
   } #nocov end
+  return(g)
+}
+
+#' Output Hit Summary
+#'
+#' Provides a summary of numbers of points that hit n outputs
+#'
+#' Given a collection of wave points and the targets used in history matching,
+#' it might be informative to consider the proportion of points whose model
+#' output matches a given number of targets. This function provides by-wave
+#' information about how many parameter sets are matches to 0,1,2,...,n outputs.
+#'
+#' The results of the analysis can be presented as a \code{data.frame} object
+#' where each row is a wave and each column a number of outputs; if \code{plt = TRUE}
+#' the results are instead presented visually, as a grid coloured by proportion of
+#' total points (if \code{grid.plot = TRUE}, the default) or as a series of discrete
+#' density lines, one per wave. The \code{as.per} argument determines whether the
+#' output values are raw or if they are calculated percentages of the total number
+#' of parameter sets for a given wave.
+#'
+#' When the data arise from a stochastic model, and therefore parameter sets have
+#' multiple realisations, there are multiple ways to analyze the data (determined
+#' by \code{measure}). The options are "mean" to compare the means of realisations
+#' to the outputs; "real" to compare all individual realisations; and "stoch" to
+#' consider an output matched to if the mean lies within 3 standard deviations of
+#' the output, where the standard deviation is calculated over the realisations.
+#'
+#' @param waves The collection of waves, as a list of data.frames
+#' @param targets The output targets
+#' @param input_names The names of the input parameters
+#' @param measure If stochastic, the measure to use to compare (see description)
+#' @param plt If TRUE, results are plotted; else a data.frame is returned
+#' @param as.per Should the data be percentages, or raw numbers?
+#' @param grid.plot If \code{plt = TRUE}, determines the type of plot.
+#'
+#' @return Either a data.frame of results or a ggplot object plot
+#'
+#' @family visualisation tools
+#' @export
+#'
+#' @examples
+#'  # Default Usage
+#'  hit_by_wave(SIRMultiWaveData, SIREmulators$targets, c('aSI', 'aIR', 'aSR'))
+#'  # Plotting - line plot or raw figures
+#'  hit_by_wave(SIRMultiWaveData, SIREmulators$targets, c('aSI', 'aIR', 'aSR'),
+#'   plt = TRUE, as.per = FALSE, grid.plot = FALSE)
+hit_by_wave <- function(waves, targets, input_names, measure = "mean",
+                        plt = FALSE, as.per = TRUE, grid.plot = TRUE) {
+  wave <- name <- value <- value_unsc <- NULL
+  target_hits <- function(result, targets, sum_func = "sum") {
+    hits <- purrr::map_lgl(names(targets), function(t) {
+      if (is.atomic(targets[[t]]))
+        return(result[t] <= targets[[t]][2] && result[t] >= targets[[t]][1])
+      result[t] <= targets[[t]]$val + 3*targets[[t]]$sigma && result[t] >= targets[[t]]$val - 3*targets[[t]]$sigma
+    })
+    sum_function <- get(sum_func)
+    return(sum_function(hits))
+  }
+  target_overlaps <- function(means, sds, reps, targets, sum_func = "sum", sd = 3) {
+    check_overlap <- function(int1, int2) {
+      if (int1[2] >= int2[1] && int1[2] <= int2[1]) return(TRUE)
+      if (int1[1] <= int2[2] && int1[1] >= int2[1]) return(TRUE)
+      if (int2[2] >= int1[1] && int2[2] <= int1[1]) return(TRUE)
+      if (int2[1] <= int1[2] && int2[1] >= int1[1]) return(TRUE)
+      return(FALSE)
+    }
+    intervals <- purrr::map(names(targets), ~as.numeric(c(means[.] - sd/sqrt(reps)*sds[.], means[.] + sd/sqrt(reps)*sds[.]))) |> setNames(names(targets))
+    hits <- purrr::map_lgl(names(targets), function(t) {
+      if (!is.atomic(targets[[t]]))
+        targ_int <- c(targets[[t]]$val - 3*targets[[t]]$sigma, targets[[t]]$val + 3*targets[[t]]$sigma)
+      else
+        targ_int <- targets[[t]]
+      return(check_overlap(targ_int, intervals[[t]]))
+    })
+    sum_function <- get(sum_func)
+    return(sum_function(hits))
+  }
+  waves <- purrr::map(waves, ~.[,c(input_names, names(targets))])
+  wave_uids <- purrr::map(waves, function(w) {
+    apply(w[,input_names], 1, rlang::hash)
+  })
+  duplicated <- FALSE
+  if (any(purrr::map_lgl(wave_uids, ~length(unique(.)) != length(.)))) duplicated <- TRUE
+  if (duplicated == TRUE && measure != "real") {
+    waves_grouped <- purrr::map(waves, ~. |> dplyr::group_by(across(all_of(input_names))))
+    wave_means <- purrr::map(waves_grouped, ~. |> dplyr::summarise(.groups = "keep", across(everything(), mean)))
+    if (measure == "stoch") {
+      wave_reps <- purrr::map(waves_grouped, ~purrr::map_dbl(dplyr::group_rows(.), length))
+      wave_sds <- purrr::map(waves_grouped, ~. |> dplyr::summarise(.groups = "keep", across(everything(), sd)))
+    }
+    else {
+      wave_reps <- NULL
+      wave_sds <- NULL
+    }
+    if (is.null(wave_reps)) {
+      hit_data <- purrr::map(wave_means, function(w) {
+        apply(w, 1, target_hits, targets)
+      })
+    }
+    else {
+      hit_data <- purrr::map(seq_along(wave_means), function(i) {
+        purrr::map_dbl(seq_len(nrow(wave_means[[i]])), function(j) {
+          target_overlaps(wave_means[[i]][j,], wave_sds[[i]][j,], wave_reps[[i]][j], targets)
+        })
+      })
+    }
+  }
+  else {
+    hit_data <- purrr::map(waves, function(w) {
+      apply(w, 1, target_hits, targets)
+    })
+  }
+  hit_data_df <- do.call('rbind.data.frame',
+                         purrr::map(hit_data, function(h) purrr::map_dbl(0:length(targets), ~sum(h == .)))
+  ) |> setNames(0:length(targets))
+  if (as.per) hit_data_df <- sweep(hit_data_df, 1, apply(hit_data_df, 1, sum), "/")
+  if (!plt) {
+    row.names(hit_data_df) <- 0:(length(waves)-1)
+    if (as.per) return(signif(hit_data_df, 2)*100)
+    return(hit_data_df)
+  }
+  hit_data_df$wave <- seq_len(nrow(hit_data_df))-1
+  plot.mat <- tidyr::pivot_longer(hit_data_df, cols = !wave)
+  plot.mat$wave <- factor(plot.mat$wave, levels = rev(seq_along(hit_data_df)-1))
+  plot.mat$name <- factor(plot.mat$name, levels = 0:length(targets))
+  if (!as.per) {
+    hit_data_df_max <- max(purrr::map_dbl(hit_data, length))
+    hit_data_df_scale <- data.frame(t(apply(hit_data_df[,!names(hit_data_df) == 'wave'], 1, function(x) ceiling(x*hit_data_df_max/sum(x))))) |>
+      setNames(0:length(targets))
+    hit_data_df_scale$wave <- hit_data_df$wave
+    scale_additional <- tidyr::pivot_longer(hit_data_df_scale, cols = !wave)
+    holdout <- plot.mat$value
+    plot.mat$value <- scale_additional$value
+    plot.mat$value_unsc <- holdout
+  }
+  labr <- function(b) {
+    if (as.per) as.numeric(b)*100
+    else as.numeric(b)
+  }
+  if (duplicated) {
+    if (measure == "mean") subtit <- "Mean of realisations"
+    else if (measure == "real") subtit <- "Realisations"
+    else if (measure == "stoch") subtit <- "Means with Stochasticity"
+    else subtit <- ""
+  }
+  else subtit <- ""
+  if (grid.plot)
+    g <- ggplot(data = plot.mat, aes(x = name, y = wave)) +
+    geom_tile(aes(fill = value)) +
+    geom_text(data = subset(plot.mat, value != 0), aes(label = if (as.per) signif(value, 2)*100 else value_unsc), size = 2.5) +
+    scale_fill_gradientn(
+      colours = c("white", "yellow", "#77FF00", "green"),
+      values = c(0, 1e-8, 0.2, 1),
+      breaks = signif(seq(0, 1, length.out = 20), 2),
+      name = ifelse(as.per, "%", "#"), labels = as_labeller(labr))
+  else
+    g <- ggplot(data = plot.mat, aes(x = name, y = value, group = wave, colour = wave)) +
+    geom_line() +
+    viridis::scale_colour_viridis(discrete = TRUE, name = "Wave")
+  g <- g + theme_minimal() +
+    labs(title = paste(ifelse(as.per, "Percentage", "Number"), "of Points Hitting # Outputs, by Wave"),
+         subtitle = subtit, x = "# Outputs", y = ifelse(grid.plot, "Wave", ifelse(as.per, "Percentage", "Number")))
+  if (grid.plot) g <- g + theme(legend.position = 'none')
   return(g)
 }

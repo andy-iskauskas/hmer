@@ -108,8 +108,8 @@ EmulatedMatrix <- R6::R6Class(
 
 partition_by_output <- function(data, out_names, by_time = TRUE, return_label = FALSE) {
   input_names <- names(data)[!names(data) %in% out_names]
-  out_times <- as.numeric(sub("\\.*[^\\d](\\d+)$", "\\1", out_names))
-  out_labels <- sub("(\\.*[^\\d])\\d+$", "\\1", out_names)
+  out_times <- as.numeric(sub(".*[^\\d](\\d+)$", "\\1", out_names, perl = TRUE))
+  out_labels <- sub("(.*[^\\d])\\d+$", "\\1", out_names, perl = TRUE)
   if (by_time) {
     unique_times <- unique(out_times)
     if (return_label)
@@ -141,8 +141,8 @@ partition_by_output <- function(data, out_names, by_time = TRUE, return_label = 
 #'
 #' @keywords internal
 #' @noRd
-get_mpc_rho_est <- function(data, out_names) {
-  part_data <- partition_by_output(data, out_names)
+get_mpc_rho_est <- function(data, out_names, ...) {
+  part_data <- partition_by_output(data, out_names, ...)
   part_covs <- purrr::map(part_data, function(dat) {
     g_by_point <- dat |> group_by(across(all_of(names(data)[!names(data) %in% out_names])))
     vars <- do.call('rbind.data.frame', purrr::map(dplyr::group_rows(g_by_point), function(gp) {
@@ -151,9 +151,19 @@ get_mpc_rho_est <- function(data, out_names) {
     vars <- setNames(vars, names(dat)[names(dat) %in% out_names])
     return(cor(vars))
   })
-  rho_mat <- Reduce("+", part_covs)/length(part_covs)
-  rownames(rho_mat) <- colnames(rho_mat) <- unique(sub("(\\.*[^\\d])\\d+$", "\\1", out_names))
-  return(rho_mat)
+  rho_mat_lengths <- unique(purrr::map_dbl(part_covs, nrow))
+  rho_mat_subset <- purrr::map(seq_len(max(rho_mat_lengths)), function(l) {
+    part_covs[purrr::map_lgl(part_covs, ~nrow(.) == l)]
+  })
+  rho_mat_subset <- rho_mat_subset[length(rho_mat_subset) > 0]
+  rho_mat <- purrr::map(rho_mat_subset, ~Reduce("+", .)/length(.))
+  out_mat <- rho_mat[[1]]
+  for (i in 2:length(rho_mat)) {
+    out_mat <- rbind(cbind(out_mat, matrix(0, nrow = nrow(out_mat), ncol = ncol(rho_mat[[i]]))),
+                     cbind(matrix(0, nrow = nrow(rho_mat[[i]]), ncol = ncol(out_mat)), rho_mat[[i]]))
+  }
+  rownames(out_mat) <- colnames(out_mat) <- unique(sub("(.*[^\\d])\\d+$", "\\1", out_names, perl = TRUE))
+  return(out_mat)
 }
 # Estimate theta-time value
 get_mpc_theta_est <- function(data, out_names, ems, rho = NULL) {
@@ -176,7 +186,7 @@ get_mpc_theta_est <- function(data, out_names, ems, rho = NULL) {
         nm2 <- out_names[j]
         group1 <- which(purrr::map_lgl(part_indices, ~nm1 %in% .))
         group2 <- which(purrr::map_lgl(part_indices, ~nm2 %in% .))
-        times <- as.numeric(sub("\\.*[^\\d](\\d+)$", "\\1", c(nm1, nm2)))
+        times <- as.numeric(sub(".*[^\\d](\\d+)$", "\\1", c(nm1, nm2), perl = TRUE))
         rho_val <- rho[group1, group2]
         theta_ests <- suppressWarnings(c(theta_ests, sqrt(-diff(times)^2/log(all_cors[i,j]/(rho_val*em_preds[k,i]*em_preds[k,j])))))
       }

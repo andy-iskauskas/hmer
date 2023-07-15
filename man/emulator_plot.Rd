@@ -86,6 +86,7 @@ Other visualisation tools:
 \code{\link{behaviour_plot}()},
 \code{\link{diagnostic_wrap}()},
 \code{\link{effect_strength}()},
+\code{\link{hit_by_wave}()},
 \code{\link{output_plot}()},
 \code{\link{plot_actives}()},
 \code{\link{plot_lattice}()},

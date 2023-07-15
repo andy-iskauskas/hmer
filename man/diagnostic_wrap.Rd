@@ -67,6 +67,7 @@ Other visualisation tools:
 \code{\link{behaviour_plot}()},
 \code{\link{effect_strength}()},
 \code{\link{emulator_plot}()},
+\code{\link{hit_by_wave}()},
 \code{\link{output_plot}()},
 \code{\link{plot_actives}()},
 \code{\link{plot_lattice}()},

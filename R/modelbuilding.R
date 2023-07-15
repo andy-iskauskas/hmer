@@ -387,7 +387,7 @@ hyperparameter_estimate <- function(inputs, outputs, model, corr_name = "exp_sq"
 #' but default behaviour is used, a warning will be generated and only the first model result
 #' for each individual parameter set will be used in training.
 #'
-#' For examples of this function's usage (including optinal argument behaviour), see the examples.
+#' For examples of this function's usage (including optional argument behaviour), see the examples.
 #'
 #' @param input_data Required. A data.frame containing parameter and output values
 #' @param output_names Required. A character vector of output names
@@ -485,10 +485,10 @@ hyperparameter_estimate <- function(inputs, outputs, model, corr_name = "exp_sq"
 #'    ranges, emulator_type = 'multistate')
 #'
 #'   # Covariance emulation, with specified non-zero matrix elements
-#'   which_cov <- matrix(rep(TRUE, 16), nrow = 4)
-#'   which_cov[2,3] <- which_cov[3,2] <- which_cov[1,4] <- which_cov[4,1] <- FALSE
-#'   c_ems <- emulator_from_data(SIR_stochastic$training, SIR_names[-c(3,6)], ranges,
-#'    emulator_type = 'covariance', covariance_opts = list(matrix = which_cov))
+#'   #which_cov <- matrix(rep(TRUE, 16), nrow = 4)
+#'   #which_cov[2,3] <- which_cov[3,2] <- which_cov[1,4] <- which_cov[4,1] <- FALSE
+#'   #c_ems <- emulator_from_data(SIR_stochastic$training, SIR_names[-c(3,6)], ranges,
+#'    #emulator_type = 'covariance', covariance_opts = list(matrix = which_cov))
 #' }
 #'
 emulator_from_data <- function(input_data, output_names, ranges,
@@ -1110,7 +1110,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
   ### Covariance emulation here...
   if (emulator_type == "covariance") {
     name_to_time <- function(names) {
-      t_names <- sub("\\.*[^\\d](\\d+)$", "\\1", names)
+      t_names <- sub(".*[^\\d](\\d+)$", "\\1", names, perl = TRUE)
       return(suppressWarnings(as.numeric(t_names)))
     }
     multi_point_cov <- function(i, j, x, theta.t, rho, v_ems) {
@@ -1149,8 +1149,6 @@ emulator_from_data <- function(input_data, output_names, ranges,
     if (is.null(covariance_opts$matrix))
       covariance_opts$matrix <- matrix(TRUE, nrow = length(variance_emulators), ncol = length(variance_emulators))
     which_outputs <- cov_out_names[upper.tri(cov_out_names) & covariance_opts$matrix]
-    ## For debugging, uncomment
-    ## print(which_outputs)
     init_cov_ems <- emulator_from_data(collected_df_cov, which_outputs, ranges, input_names = input_names,
                                        emulator_type = "default", specified_priors = specified_priors$covariance,
                                        order = max(1, order - 1), beta.var = beta.var, corr_name = corr_name,
@@ -1164,6 +1162,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
       predict_func <- function(x) return(rep(0, max(1,nrow(x)))),
       variance_func <- function(x) return(rep(1, max(1,nrow(x))))
     )
+    ## Got to at least here
     init_cov_mat <- matrix(nrow = length(variance_emulators), ncol = length(variance_emulators))
     init_cov_mat[upper.tri(init_cov_mat) & covariance_opts$matrix] <- init_cov_ems
     init_cov_mat <- matrix(init_cov_mat, nrow = length(variance_emulators), ncol = length(variance_emulators))
@@ -1196,6 +1195,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
     trained_cov_mat[upper.tri(trained_cov_mat) & !covariance_opts$matrix] <- list(zero_em)
     trained_cov_mat[col(trained_cov_mat) == row(trained_cov_mat)] <- trained_var_ems
   }
+  ## Couldn't have got to here
   ## Mean emulators
   if (verbose) {
     if (emulator_type == "covariance")

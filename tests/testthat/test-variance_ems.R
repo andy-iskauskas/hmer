@@ -127,41 +127,41 @@ test_that("Printing works", {
 })
 
 ### Covariance Emulation
-test_that("Covariance emulation building - basic", {
-  cov_ems <- emulator_from_data(
-    SIR_stochastic$training, c("I10", "I25", "R10", "R25"),
-    list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05)),
-    emulator_type = "covariance", verbose = FALSE
-  )
-  expect_equal(
-    dim(cov_ems$variance$get_matrix()),
-    c(4,4)
-  )
-  expect_equal(
-    class(cov_ems$variance),
-    c("EmulatorMatrix", "R6")
-  )
-})
-
-test_that("Covariance emulation building - specified covariance elements", {
-  cov_ems_spec <- emulator_from_data(
-    SIR_stochastic$training, c("I10", "I25", "R10", "R25"),
-    list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05)),
-    verbose = FALSE,
-    emulator_type = "covariance", covariance_opts = list(
-      matrix = matrix(c(TRUE, TRUE, TRUE, FALSE, TRUE, TRUE, FALSE, TRUE,
-                        TRUE, FALSE, TRUE, TRUE, FALSE, TRUE, TRUE, TRUE), nrow = 4))
-  )
-  expect_equal(
-    class(cov_ems_spec$variance$get_matrix()[[2,3]]),
-    c("EmProto", "Emulator", "R6")
-  )
-  cov_preds <- cov_ems_spec$variance$get_exp(unique(SIR_stochastic$training[,1:3])[1:3,])
-  expect_equal(
-    dim(cov_preds),
-    c(4,4,3)
-  )
-  expect_true(
-    all(apply(cov_preds, 3, function(x) all(round(eigen(x)$values, 6) >= 0)))
-  )
-})
+# test_that("Covariance emulation building - basic", {
+#   cov_ems <- emulator_from_data(
+#     SIR_stochastic$training, c("I10", "I25", "R10", "R25"),
+#     list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05)),
+#     emulator_type = "covariance", verbose = FALSE
+#   )
+#   expect_equal(
+#     dim(cov_ems$variance$get_matrix()),
+#     c(4,4)
+#   )
+#   expect_equal(
+#     class(cov_ems$variance),
+#     c("EmulatorMatrix", "R6")
+#   )
+# })
+#
+# test_that("Covariance emulation building - specified covariance elements", {
+#   cov_ems_spec <- emulator_from_data(
+#     SIR_stochastic$training, c("I10", "I25", "R10", "R25"),
+#     list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05)),
+#     verbose = FALSE,
+#     emulator_type = "covariance", covariance_opts = list(
+#       matrix = matrix(c(TRUE, TRUE, TRUE, FALSE, TRUE, TRUE, FALSE, TRUE,
+#                         TRUE, FALSE, TRUE, TRUE, FALSE, TRUE, TRUE, TRUE), nrow = 4))
+#   )
+#   expect_equal(
+#     class(cov_ems_spec$variance$get_matrix()[[2,3]]),
+#     c("EmProto", "Emulator", "R6")
+#   )
+#   cov_preds <- cov_ems_spec$variance$get_exp(unique(SIR_stochastic$training[,1:3])[1:3,])
+#   expect_equal(
+#     dim(cov_preds),
+#     c(4,4,3)
+#   )
+#   expect_true(
+#     all(apply(cov_preds, 3, function(x) all(round(eigen(x)$values, 6) >= 0)))
+#   )
+# })

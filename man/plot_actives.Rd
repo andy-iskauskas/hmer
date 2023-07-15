@@ -41,6 +41,7 @@ Other visualisation tools:
 \code{\link{diagnostic_wrap}()},
 \code{\link{effect_strength}()},
 \code{\link{emulator_plot}()},
+\code{\link{hit_by_wave}()},
 \code{\link{output_plot}()},
 \code{\link{plot_lattice}()},
 \code{\link{plot_wrap}()},
