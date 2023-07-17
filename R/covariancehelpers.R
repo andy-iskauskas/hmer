@@ -155,12 +155,14 @@ get_mpc_rho_est <- function(data, out_names, ...) {
   rho_mat_subset <- purrr::map(seq_len(max(rho_mat_lengths)), function(l) {
     part_covs[purrr::map_lgl(part_covs, ~nrow(.) == l)]
   })
-  rho_mat_subset <- rho_mat_subset[length(rho_mat_subset) > 0]
+  rho_mat_subset <- rho_mat_subset[purrr::map_lgl(rho_mat_subset, ~length(.) > 0)]
   rho_mat <- purrr::map(rho_mat_subset, ~Reduce("+", .)/length(.))
   out_mat <- rho_mat[[1]]
-  for (i in 2:length(rho_mat)) {
-    out_mat <- rbind(cbind(out_mat, matrix(0, nrow = nrow(out_mat), ncol = ncol(rho_mat[[i]]))),
-                     cbind(matrix(0, nrow = nrow(rho_mat[[i]]), ncol = ncol(out_mat)), rho_mat[[i]]))
+  if (length(rho_mat) > 1) {
+    for (i in 2:length(rho_mat)) {
+      out_mat <- rbind(cbind(out_mat, matrix(0, nrow = nrow(out_mat), ncol = ncol(rho_mat[[i]]))),
+                       cbind(matrix(0, nrow = nrow(rho_mat[[i]]), ncol = ncol(out_mat)), rho_mat[[i]]))
+    }
   }
   rownames(out_mat) <- colnames(out_mat) <- unique(sub("(.*[^\\d])\\d+$", "\\1", out_names, perl = TRUE))
   return(out_mat)

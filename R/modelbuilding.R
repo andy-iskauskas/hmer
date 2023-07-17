@@ -485,10 +485,10 @@ hyperparameter_estimate <- function(inputs, outputs, model, corr_name = "exp_sq"
 #'    ranges, emulator_type = 'multistate')
 #'
 #'   # Covariance emulation, with specified non-zero matrix elements
-#'   #which_cov <- matrix(rep(TRUE, 16), nrow = 4)
-#'   #which_cov[2,3] <- which_cov[3,2] <- which_cov[1,4] <- which_cov[4,1] <- FALSE
-#'   #c_ems <- emulator_from_data(SIR_stochastic$training, SIR_names[-c(3,6)], ranges,
-#'    #emulator_type = 'covariance', covariance_opts = list(matrix = which_cov))
+#'   which_cov <- matrix(rep(TRUE, 16), nrow = 4)
+#'   which_cov[2,3] <- which_cov[3,2] <- which_cov[1,4] <- which_cov[4,1] <- FALSE
+#'   c_ems <- emulator_from_data(SIR_stochastic$training, SIR_names[-c(3,6)], ranges,
+#'    emulator_type = 'covariance', covariance_opts = list(matrix = which_cov))
 #' }
 #'
 emulator_from_data <- function(input_data, output_names, ranges,
