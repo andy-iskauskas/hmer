@@ -1007,3 +1007,251 @@ standard_errors <- function(emulator, targets = NULL, validation = NULL,
   analyze_diagnostic(get_diagnostic(emulator, targets, validation, 'se'),
                      emulator$output_name, targets, plt)
 }
+
+#' Binomial Comparison Diagnostic Test
+#'
+#' Checks whether the number of failed points at different sds agrees with expectation.
+#'
+#' We do not expect every validation point to be perfectly accurately classified.
+#' For a given number of standard deviations, Pukelsheim's rule gives an expectation
+#' of the proportion of points lying outside the predictive bounds; we compute the
+#' observed number of such points for each emulator at a collection of sigma values
+#' and ensure that the error rate is aligned with these bounds, up to uncertainty
+#' induced by the size of the validation set.
+#'
+#' @param ems The emulators in question
+#' @param validation A list of validation points of size equal to \code{length(ems)}
+#' @param n The multiples of sigma to test at
+#' @param df.out Whether to return a single diagnostic TRUE/FALSE, or a detailed data.frame
+#'
+#' @return Either a boolean, or a data.frame thereof.
+#'
+#' @noRd
+#' @keywords internal
+binomial_diagnostic_test <- function(ems, validation, n = 2:4, df.out = FALSE) {
+  flagged <- rep(FALSE, length(ems))
+  N <- purrr::map_dbl(validation, nrow)
+  Xn <- purrr::map_dbl(n, ~4/(9*.^2))
+  diag_check <- purrr::map(seq_along(ems), function(i) {
+    diag_percents <- purrr::map_dbl(n, ~nrow(comparison_diag(ems[[i]], targets = NULL, validation = validation[[i]], sd = ., plt = FALSE)))
+    bounds <- purrr::map(Xn, ~c(max(0, N[[i]]*. - 3*sqrt(N[[i]]*.*(1-.))), min(N[[i]], N[[i]]*. + 3*sqrt(N*.*(1-.)))))
+    purrr::map_lgl(seq_along(diag_percents), ~diag_percents[.] >= bounds[[.]][1] && diag_percents[.] <= bounds[[.]][2])
+  })
+  collect_df <- do.call('cbind.data.frame', diag_check) |> setNames(purrr::map_chr(ems, "output_name"))
+  if (df.out) return(collect_df)
+  return(all(apply(collect_df, 2, all)))
+}
+#' All-emulator Mitigated Diagnostics
+#'
+#' Check for flagged points conditioned on overall point suitability
+#'
+#' A failing point may not be considered problematic if, ultimately, other emulators
+#' would justifiability rule this point out as implausible. For each point that fails
+#' diagnostics for one or more emulators, we compute the nth-maximum implausibility at
+#' that point with respect to the remaining emulators. If the point would not be ruled
+#' out as implausible by the residual emulators, we consider this point to have failed
+#' diagnostics; else we dismiss it as unimportant.
+#'
+#' @param ems The list of emulators to consider
+#' @param targets The output targets
+#' @param validation A list of validation sets of same size as \code{length(ems)}
+#' @param test Either 'cd' (comparison) or 'ce' (classification) diagnostics
+#'
+#' @return Either a data.frame or list thereof containing failed points.
+#'
+#' @noRd
+#' @keywords internal
+points_of_concern <- function(ems, targets, validation, test = 'cd') {
+  if (test == 'cd')
+    invalid_pts_by_em <- purrr::map(seq_along(ems), ~comparison_diag(ems[[.]], targets, validation[[.]], plt = FALSE))
+  else
+    invalid_pts_by_em <- purrr::map(seq_along(ems), ~classification_diag(ems[[.]], targets, validation[[.]], plt = FALSE))
+  all_fail_pts <- do.call('rbind.data.frame', invalid_pts_by_em)
+  if (nrow(all_fail_pts) == 0)
+    return(all_fail_pts)
+  all_uids <- apply(all_fail_pts[,names(ems[[1]]$ranges)], 1, rlang::hash)
+  all_fail_pts <- all_fail_pts[which(!duplicated(all_uids)),]
+  uids <- all_uids[which(!duplicated(all_uids))]
+  uids_by_em <- purrr::map(invalid_pts_by_em, function(df) apply(df[,names(ems[[1]]$ranges)], 1, rlang::hash))
+  pt_em_corr <- purrr::map(uids, function(u) {
+    which(purrr::map_lgl(uids_by_em, ~u %in% .))
+  })
+  points_dfs <- purrr::map(unique(pt_em_corr), function(upec) {
+    logicals <- purrr::map_lgl(pt_em_corr, function(pec) {
+      if (length(pec) != length(upec)) return(FALSE)
+      return(all(pec == upec))
+    })
+    all_fail_pts[which(logicals),]
+  })
+  points_dfs_em_idents <- unique(pt_em_corr)
+  actual_points <- purrr::map(seq_along(points_dfs), function(i) {
+    if (length(points_dfs_em_idents[[i]]) == length(ems)) return(points_dfs[[i]])
+    points_dfs[[i]][nth_implausible(ems[-points_dfs_em_idents[[i]]], points_dfs[[i]], targets, n = 1) < 3,]
+  })
+  actual_point_df <- do.call('rbind.data.frame', actual_points)
+  if (nrow(actual_point_df) == 0) return(actual_point_df)
+  validation_collect <- do.call('rbind.data.frame', validation)
+  full_points <- do.call('rbind.data.frame', purrr::map(apply(actual_point_df[,names(ems[[1]]$ranges)], 1, rlang::hash), function(h) {
+    validation_collect[which(apply(validation_collect[,names(ems[[1]]$ranges)], 1, rlang::hash) == h)[1],]
+  }))
+  return(full_points)
+}
+#' Structured Error Checking
+#'
+#' Check for relationships between flagged points and position in input/output space
+#'
+#' We would expect any points that flag diagnostic checks to be spread across the space;
+#' if we instead have a cluster of failed points in one part of space we may think that
+#' there is a problem with the regression surface of an emulator. Points that have
+#' been flagged by diagnostics are collected for each emulator, and a linear model is
+#' fitted to the categorical pass/fail property of the points against either the
+#' point's output value or position in input space. If the model suggests a strong
+#' relationship between the pass/failure and the position in space, this is flagged.
+#' The adjusted R-squared of the linear model is considered a proxy for 'strong
+#' relationship'.
+#'
+#' @param ems The emulators to test
+#' @param validation A list of validation points, with size equal to \code{length(ems)}
+#' @param compare_output Whether to compare against output value or input position
+#' @param threshhold What level of fit do we consider problematic?
+#'
+#' @return A vector of booleans, one for each emulator.
+#'
+#' @noRd
+#' @keywords internal
+structured_error_check <- function(ems, validation, compare_output = TRUE, threshhold = 0.8) {
+  for (i in seq_along(validation))
+    row.names(validation[[i]]) <- 1:nrow(validation[[i]])
+  failed_points <- purrr::map(seq_along(ems), ~comparison_diag(ems[[.]], targets = NULL, validation = validation[[.]], plt = FALSE))
+  em_fail_indices <- purrr::map(seq_along(failed_points), ~row.names(validation[[.]]) %in% row.names(failed_points[[.]]))
+  if (compare_output) {
+    em_preds <- purrr::map(seq_along(ems), ~ems[[.]]$get_exp(validation[[.]]))
+    fail_dfs <- purrr::map(seq_along(em_preds), ~cbind.data.frame(em_preds[[.]], em_fail_indices[[.]]) |> setNames(c('pred', 'fail')))
+    fail_lms <- purrr::map(fail_dfs, ~lm(data = ., fail ~ pred))
+  }
+  else {
+    fail_dfs <- purrr::map(seq_along(em_fail_indices), ~cbind.data.frame(validation[[.]], em_fail_indices[[.]]) |> setNames(c(names(validation[[.]]), "fail")))
+    fail_lms <- purrr::map(fail_dfs, ~lm(data = ., as.formula(paste0("fail ~ ", paste0(names(ems[[1]]$ranges), collapse = "+")))))
+  }
+  purrr::map_lgl(fail_lms, ~summary(.)$adj.r.squared > threshhold)
+}
+
+
+#' Automated Diagnostics and Modifications
+#'
+#' Perform a set of diagnostics on emulators, changing them if needed.
+#'
+#' There are a number of different characteristics that emulators might possess
+#' that give rise to diagnostic flags. This function collects together some of those
+#' whose resulting modifications can be automated. The tests, and consequences, are
+#' as follows.
+#'
+#' \describe{
+#'  \item{Structured Input Space}{Looks for errors with dependence on input parameters. If
+#'   found, the emulator's correlation length is reduced (to a minimum of 1/3);}
+#'  \item{Structured Output Space}{Looks for errors with dependence on output value. If
+#'   found, the training and validation data is resampled and emulators are retrained,
+#'   to try to incorporate/remove high leverage points;}
+#'  \item{Misclassification}{Checks agreement between emulator and simulator implausibility
+#'   classification. If they do not match, emulator uncertainty is inflated;}
+#'  \item{Comparison}{Checks that the emulator predictions agree with the simulator
+#'   predictions at the validation points, allowing for expected margin of error.}
+#' }
+#'
+#' If the automated modifications are not sufficient to remove problems, then
+#' offending emulators are removed from the set under consideration. Emulators in
+#' this category should be carefully considered and their outputs analyzed: they may
+#' require manual determination of the regression surface or additional training
+#' points in the neightbourhood of the problematic inputs.
+#'
+#' @param ems The emulators to consider
+#' @param targets The output targets to compare implausibility against
+#' @param validation The set of validation points (either a single data.frame or one per emulator)
+#' @param verbose Whether messages should be printed while running
+#'
+#' @return A collection of modified emulators, potentially a subset of the original collection
+#'
+#' @export
+#'
+#' @examples
+#'  new_ems <- diagnostic_pass(SIREmulators$ems, SIREmulators$targets, SIRSample$validation)
+diagnostic_pass <- function(ems, targets, validation, verbose = interactive()) {
+  original_outputs <- purrr::map_chr(ems, "output_name")
+  if ("data.frame" %in% class(validation)) validation_per_em <- purrr::map(ems, ~validation)
+  if (verbose) cat("Checking for structured errors in input space..\n")
+  input_structured <- structured_error_check(ems, validation_per_em, FALSE)
+  if (any(input_structured) && verbose)
+    cat("Structured input errors detected. Reducing correlation length.\n")
+  while(any(input_structured & purrr::map_dbl(ems, ~.$corr$hyper_p$theta > 1/3))) {
+    ems <- purrr::map(seq_along(ems), function(i) {
+      if (input_structured[i]) {
+        hyper_p_spec <- ems[[i]]$corr$hyper_p
+        hyper_p_spec$theta <- hyper_p_spec$theta * 0.9
+        if (hyper_p_spec$theta < 1/3) hyper_p_spec$theta <- 1/3
+        return(ems[[i]]$set_hyperparams(hyper_p_spec))
+      }
+      input_structured <- structured_error_check(ems, validation_per_em)
+    })
+  }
+  if (any(input_structured)) {
+    ems <- subset_emulators(ems, purrr::map_chr(ems, "output_name")[!input_structured])
+  }
+  if (verbose) cat("Checking for structured errors in output space..\n")
+  output_structured <- structured_error_check(ems, validation_per_em)
+  if (any(output_structured) && verbose)
+    cat("Structured output errors detected. Resampling training and validation points.\n")
+  structure_fix_attempts <- 0
+  while(any(output_structured) && structure_fix_attempts < 5) {
+    structure_fix_attempts <- structure_fix_attempts + 1
+    ems <- purrr::map(seq_along(ems), function(i) {
+      if (output_structured[i]) {
+        old_training <- cbind.data.frame(eval_funcs(scale_input, ems[[i]]$in_data, ems[[i]]$ranges, FALSE), ems[[i]]$out_data) |>
+          setNames(c(names(ems[[i]]$ranges), ems[[i]]$output_name))
+        all_data <- rbind.data.frame(validation, old_training)
+        new_sample <- sample(nrow(all_data), nrow(old_training))
+        new_train <- all_data[new_sample,]
+        validation_per_em[[i]] <- all_data[-new_sample,]
+        return(emulator_from_data(new_train, ems[[i]]$output_name, ems[[i]]$ranges))
+      }
+    })
+    output_structured <- structured_error_check(ems, validation_per_em)
+  }
+  if (any(output_structured))
+    ems <- subset_emulators(ems, purrr::map_chr(ems, "output_name")[!output_structured])
+  if (verbose) cat("Checking for problematic implausibility misclassifications..\n")
+  classified_wrong <- points_of_concern(ems, targets, validation_per_em, test = 'ce')
+  if (nrow(classified_wrong) > 0 && verbose)
+    cat("Classification diagnostic failures. Inflating relevant emulator uncertainties.\n")
+  while (nrow(classified_wrong) > 0) {
+    number_per_em <- purrr::map_dbl(ems, ~nrow(classification_diag(., targets[[.$output_name]], classified_wrong, plt = FALSE)))
+    ems <- purrr::map(seq_along(ems), function(i) {
+      if (number_per_em[i] == 0) return(ems[[i]])
+      return(ems[[i]]$mult_sigma(1.1))
+    }) |> setNames(purrr::map_chr(ems, "output_name"))
+    classified_wrong <- points_of_concern(ems, targets, validation_per_em, test = 'ce')
+  }
+  if (verbose) cat("Checking for issues in comparison diagnostics..\n")
+  comparison_wrong <- points_of_concern(ems, targets, validation_per_em, test = 'cd')
+  if (nrow(comparison_wrong) > 0) {
+    if (verbose) cat("Comparison diagnostic issues. Inflating relevant emulator uncertainties..\n")
+    while(nrow(comparison_wrong) > 0) {
+      number_per_em <- purrr::map_dbl(ems, ~nrow(comparison_diag(., targets = NULL, validation = comparison_wrong, plt = FALSE)))
+      ems <- purrr::map(seq_along(ems), function(i) {
+        if (number_per_em[i] == 0) return(ems[[i]])
+        return(ems[[i]]$mult_sigma(1.1))
+      }) |> setNames(purrr::map_chr(ems, "output_name"))
+      comparison_wrong <- points_of_concern(ems, targets, validation_per_em, test = 'cd')
+    }
+    binomial_problems <- binomial_diagnostic_test(ems, validation_per_em, df.out = TRUE)
+    if (any(apply(binomial_problems, 2, any))) {
+      if (verbose) cat("Problems with scaling detected. Removing problematic emulators.\n")
+      ems <- subset_emulators(ems, purrr::map_chr(ems, "output_name")[!apply(binomial_problems, 2, any)])
+    }
+  }
+  if (length(original_outputs) != length(ems))
+    if (verbose) {
+      cat("Some emulators did not pass diagnostics: ", paste0(original_outputs[!original_outputs %in% purrr::map_chr(ems, "output_name")], collapse = "; "), ".\n")
+      cat("Investigate these outputs carefully and consider adding in additional training points near problematic regions of space.\n")
+    }
+  return(ems)
+}

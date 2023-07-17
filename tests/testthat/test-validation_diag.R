@@ -237,3 +237,21 @@ test_that("Alias functions", {
     0
   )
 })
+
+test_that("Automated Diagnostics - all pass", {
+  new_ems <- diagnostic_pass(SIREmulators$ems,
+                             SIREmulators$targets,
+                             SIRSample$validation)
+  expect_equal(new_ems[[1]]$beta, SIREmulators$ems[[1]]$beta)
+  expect_equal(new_ems[[2]]$beta, SIREmulators$ems[[2]]$beta)
+  expect_equal(new_ems[[3]]$beta, SIREmulators$ems[[3]]$beta)
+})
+
+test_that("Automated Diagnostics - modify sigma", {
+  smaller_sigma_ems <- purrr::map(SIREmulators$ems,
+                                  ~.$mult_sigma(0.2))
+  new_ems <- diagnostic_pass(smaller_sigma_ems,
+                             SIREmulators$targets,
+                             SIRSample$validation)
+  expect_true(all(purrr::map_dbl(smaller_sigma_ems, "u_sigma") <= purrr::map_dbl(new_ems, "u_sigma")))
+})
