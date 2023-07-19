@@ -255,3 +255,28 @@ test_that("Automated Diagnostics - modify sigma", {
                              SIRSample$validation)
   expect_true(all(purrr::map_dbl(smaller_sigma_ems, "u_sigma") <= purrr::map_dbl(new_ems, "u_sigma")))
 })
+
+all_pts <- do.call('rbind.data.frame', SIRSample)
+all_pts_by_input <- all_pts[order(all_pts$aSI),]
+new_ems_by_input <- emulator_from_data(
+  all_pts_by_input[1:30,],
+  names(SIREmulators$targets),
+  SIREmulators$ems[[1]]$ranges
+)
+all_pts_by_output <- all_pts[order(all_pts$nR, decreasing = TRUE),]
+new_ems_by_output <- emulator_from_data(
+  all_pts_by_output[1:30,],
+  names(SIREmulators$targets),
+  SIREmulators$ems[[1]]$ranges
+)
+
+test_that("Automated Diagnostics: trained only on subset of input", {
+  fixed_input_ems <- diagnostic_pass(new_ems_by_input, SIREmulators$targets, all_pts_by_input[31:90,], threshhold = 0.3)
+  expect_equal(length(fixed_input_ems), 1)
+  expect_equal(nrow(validation_diagnostics(fixed_input_ems, SIREmulators$targets, all_pts_by_input[31:90,], plt = FALSE)), 0)
+})
+
+test_that("Automated Diagnostics: trained only on subset of output", {
+  fixed_output_ems <- diagnostic_pass(new_ems_by_output, SIREmulators$targets, all_pts_by_output[31:90,], threshhold = 0.25)
+  expect_equal(length(fixed_output_ems), 0)
+})

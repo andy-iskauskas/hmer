@@ -4,7 +4,7 @@
 \alias{diagnostic_pass}
 \title{Automated Diagnostics and Modifications}
 \usage{
-diagnostic_pass(ems, targets, validation, verbose = interactive())
+diagnostic_pass(ems, targets, validation, verbose = interactive(), ...)
 }
 \arguments{
 \item{ems}{The emulators to consider}
@@ -14,6 +14,8 @@ diagnostic_pass(ems, targets, validation, verbose = interactive())
 \item{validation}{The set of validation points (either a single data.frame or one per emulator)}
 
 \item{verbose}{Whether messages should be printed while running}
+
+\item{...}{Other arguments to pass to helper functions}
 }
 \value{
 A collection of modified emulators, potentially a subset of the original collection

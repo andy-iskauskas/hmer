@@ -1028,7 +1028,7 @@ standard_errors <- function(emulator, targets = NULL, validation = NULL,
 #'
 #' @noRd
 #' @keywords internal
-binomial_diagnostic_test <- function(ems, validation, n = 2:4, df.out = FALSE) {
+binomial_diagnostic_test <- function(ems, validation, n = 2:4, df.out = FALSE, ...) {
   flagged <- rep(FALSE, length(ems))
   N <- purrr::map_dbl(validation, nrow)
   Xn <- purrr::map_dbl(n, ~4/(9*.^2))
@@ -1061,7 +1061,7 @@ binomial_diagnostic_test <- function(ems, validation, n = 2:4, df.out = FALSE) {
 #'
 #' @noRd
 #' @keywords internal
-points_of_concern <- function(ems, targets, validation, test = 'cd') {
+points_of_concern <- function(ems, targets, validation, test = 'cd', ...) {
   if (test == 'cd')
     invalid_pts_by_em <- purrr::map(seq_along(ems), ~comparison_diag(ems[[.]], targets, validation[[.]], plt = FALSE))
   else
@@ -1119,7 +1119,7 @@ points_of_concern <- function(ems, targets, validation, test = 'cd') {
 #'
 #' @noRd
 #' @keywords internal
-structured_error_check <- function(ems, validation, compare_output = TRUE, threshhold = 0.8) {
+structured_error_check <- function(ems, validation, compare_output = TRUE, threshhold = 0.3, ...) {
   for (i in seq_along(validation))
     row.names(validation[[i]]) <- 1:nrow(validation[[i]])
   failed_points <- purrr::map(seq_along(ems), ~comparison_diag(ems[[.]], targets = NULL, validation = validation[[.]], plt = FALSE))
@@ -1133,7 +1133,7 @@ structured_error_check <- function(ems, validation, compare_output = TRUE, thres
     fail_dfs <- purrr::map(seq_along(em_fail_indices), ~cbind.data.frame(validation[[.]], em_fail_indices[[.]]) |> setNames(c(names(validation[[.]]), "fail")))
     fail_lms <- purrr::map(fail_dfs, ~lm(data = ., as.formula(paste0("fail ~ ", paste0(names(ems[[1]]$ranges), collapse = "+")))))
   }
-  purrr::map_lgl(fail_lms, ~summary(.)$adj.r.squared > threshhold)
+  purrr::map_lgl(fail_lms, ~!is.nan(summary(.)$adj.r.squared) && summary(.)$adj.r.squared > threshhold)
 }
 
 
@@ -1168,6 +1168,7 @@ structured_error_check <- function(ems, validation, compare_output = TRUE, thres
 #' @param targets The output targets to compare implausibility against
 #' @param validation The set of validation points (either a single data.frame or one per emulator)
 #' @param verbose Whether messages should be printed while running
+#' @param ... Other arguments to pass to helper functions
 #'
 #' @return A collection of modified emulators, potentially a subset of the original collection
 #'
@@ -1175,14 +1176,14 @@ structured_error_check <- function(ems, validation, compare_output = TRUE, thres
 #'
 #' @examples
 #'  new_ems <- diagnostic_pass(SIREmulators$ems, SIREmulators$targets, SIRSample$validation)
-diagnostic_pass <- function(ems, targets, validation, verbose = interactive()) {
+diagnostic_pass <- function(ems, targets, validation, verbose = interactive(), ...) {
   original_outputs <- purrr::map_chr(ems, "output_name")
   if ("data.frame" %in% class(validation)) validation_per_em <- purrr::map(ems, ~validation)
-  if (verbose) cat("Checking for structured errors in input space..\n")
-  input_structured <- structured_error_check(ems, validation_per_em, FALSE)
+  if (verbose) cat("Checking for structured errors in input space..\n") #nocov
+  input_structured <- structured_error_check(ems, validation_per_em, FALSE, ...)
   if (any(input_structured) && verbose)
-    cat("Structured input errors detected. Reducing correlation length.\n")
-  while(any(input_structured & purrr::map_dbl(ems, ~.$corr$hyper_p$theta > 1/3))) {
+    cat("Structured input errors detected. Reducing correlation length.\n") #nocov
+  while(any(input_structured & purrr::map_lgl(ems, ~.$corr$hyper_p$theta > 1/3))) {
     ems <- purrr::map(seq_along(ems), function(i) {
       if (input_structured[i]) {
         hyper_p_spec <- ems[[i]]$corr$hyper_p
@@ -1190,16 +1191,21 @@ diagnostic_pass <- function(ems, targets, validation, verbose = interactive()) {
         if (hyper_p_spec$theta < 1/3) hyper_p_spec$theta <- 1/3
         return(ems[[i]]$set_hyperparams(hyper_p_spec))
       }
-      input_structured <- structured_error_check(ems, validation_per_em)
-    })
+      else return(ems[[i]])
+    }) |> setNames(purrr::map_chr(ems, "output_name"))
+    input_structured <- structured_error_check(ems, validation_per_em, ...)
   }
   if (any(input_structured)) {
     ems <- subset_emulators(ems, purrr::map_chr(ems, "output_name")[!input_structured])
   }
-  if (verbose) cat("Checking for structured errors in output space..\n")
-  output_structured <- structured_error_check(ems, validation_per_em)
+  if (length(ems) == 0) {
+    if (verbose) cat("No emulators deemed suitable.\n") #nocov
+    return(ems)
+  }
+  if (verbose) cat("Checking for structured errors in output space..\n") #nocov
+  output_structured <- structured_error_check(ems, validation_per_em, ...)
   if (any(output_structured) && verbose)
-    cat("Structured output errors detected. Resampling training and validation points.\n")
+    cat("Structured output errors detected. Resampling training and validation points.\n") #nocov
   structure_fix_attempts <- 0
   while(any(output_structured) && structure_fix_attempts < 5) {
     structure_fix_attempts <- structure_fix_attempts + 1
@@ -1213,45 +1219,54 @@ diagnostic_pass <- function(ems, targets, validation, verbose = interactive()) {
         validation_per_em[[i]] <- all_data[-new_sample,]
         return(emulator_from_data(new_train, ems[[i]]$output_name, ems[[i]]$ranges))
       }
-    })
-    output_structured <- structured_error_check(ems, validation_per_em)
+      else return(ems[[i]])
+    }) |> setNames(purrr::map_chr(ems, "output_name"))
+    output_structured <- structured_error_check(ems, validation_per_em, ...)
   }
   if (any(output_structured))
     ems <- subset_emulators(ems, purrr::map_chr(ems, "output_name")[!output_structured])
-  if (verbose) cat("Checking for problematic implausibility misclassifications..\n")
-  classified_wrong <- points_of_concern(ems, targets, validation_per_em, test = 'ce')
+  if (length(ems) == 0) {
+    if (verbose) cat("No emulators deemed suitable.\n") #nocov
+    return(ems)
+  }
+  if (verbose) cat("Checking for problematic implausibility misclassifications..\n") #nocov
+  classified_wrong <- points_of_concern(ems, targets, validation_per_em, test = 'ce', ...)
   if (nrow(classified_wrong) > 0 && verbose)
-    cat("Classification diagnostic failures. Inflating relevant emulator uncertainties.\n")
+    cat("Classification diagnostic failures. Inflating relevant emulator uncertainties.\n") #nocov
   while (nrow(classified_wrong) > 0) {
-    number_per_em <- purrr::map_dbl(ems, ~nrow(classification_diag(., targets[[.$output_name]], classified_wrong, plt = FALSE)))
+    number_per_em <- purrr::map_dbl(ems, ~nrow(classification_diag(., targets, classified_wrong, plt = FALSE)))
     ems <- purrr::map(seq_along(ems), function(i) {
       if (number_per_em[i] == 0) return(ems[[i]])
       return(ems[[i]]$mult_sigma(1.1))
     }) |> setNames(purrr::map_chr(ems, "output_name"))
-    classified_wrong <- points_of_concern(ems, targets, validation_per_em, test = 'ce')
+    classified_wrong <- points_of_concern(ems, targets, validation_per_em, test = 'ce', ...)
   }
-  if (verbose) cat("Checking for issues in comparison diagnostics..\n")
-  comparison_wrong <- points_of_concern(ems, targets, validation_per_em, test = 'cd')
+  if (verbose) cat("Checking for issues in comparison diagnostics..\n") #nocov
+  comparison_wrong <- points_of_concern(ems, targets, validation_per_em, test = 'cd', ...)
   if (nrow(comparison_wrong) > 0) {
-    if (verbose) cat("Comparison diagnostic issues. Inflating relevant emulator uncertainties..\n")
+    if (verbose) cat("Comparison diagnostic issues. Inflating relevant emulator uncertainties..\n") #nocov
     while(nrow(comparison_wrong) > 0) {
       number_per_em <- purrr::map_dbl(ems, ~nrow(comparison_diag(., targets = NULL, validation = comparison_wrong, plt = FALSE)))
       ems <- purrr::map(seq_along(ems), function(i) {
         if (number_per_em[i] == 0) return(ems[[i]])
         return(ems[[i]]$mult_sigma(1.1))
       }) |> setNames(purrr::map_chr(ems, "output_name"))
-      comparison_wrong <- points_of_concern(ems, targets, validation_per_em, test = 'cd')
+      comparison_wrong <- points_of_concern(ems, targets, validation_per_em, test = 'cd', ...)
     }
-    binomial_problems <- binomial_diagnostic_test(ems, validation_per_em, df.out = TRUE)
+    binomial_problems <- binomial_diagnostic_test(ems, validation_per_em, df.out = TRUE, ...)
     if (any(apply(binomial_problems, 2, any))) {
-      if (verbose) cat("Problems with scaling detected. Removing problematic emulators.\n")
+      if (verbose) cat("Problems with scaling detected. Removing problematic emulators.\n") #nocov
       ems <- subset_emulators(ems, purrr::map_chr(ems, "output_name")[!apply(binomial_problems, 2, any)])
     }
   }
+  if (length(ems) == 0) {
+    if (verbose) cat("No emulators deemed suitable.\n") #nocov
+    return(ems)
+  }
   if (length(original_outputs) != length(ems))
-    if (verbose) {
+    if (verbose) { #nocov start
       cat("Some emulators did not pass diagnostics: ", paste0(original_outputs[!original_outputs %in% purrr::map_chr(ems, "output_name")], collapse = "; "), ".\n")
       cat("Investigate these outputs carefully and consider adding in additional training points near problematic regions of space.\n")
-    }
+    } #nocov end
   return(ems)
 }
