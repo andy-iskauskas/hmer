@@ -4,7 +4,14 @@
 \alias{diagnostic_pass}
 \title{Automated Diagnostics and Modifications}
 \usage{
-diagnostic_pass(ems, targets, validation, verbose = interactive(), ...)
+diagnostic_pass(
+  ems,
+  targets,
+  validation,
+  check_output = FALSE,
+  verbose = interactive(),
+  ...
+)
 }
 \arguments{
 \item{ems}{The emulators to consider}
@@ -12,6 +19,8 @@ diagnostic_pass(ems, targets, validation, verbose = interactive(), ...)
 \item{targets}{The output targets to compare implausibility against}
 
 \item{validation}{The set of validation points (either a single data.frame or one per emulator)}
+
+\item{check_output}{Whether to check for suitability of outputs re. targets}
 
 \item{verbose}{Whether messages should be printed while running}
 
@@ -46,6 +55,15 @@ offending emulators are removed from the set under consideration. Emulators in
 this category should be carefully considered and their outputs analyzed: they may
 require manual determination of the regression surface or additional training
 points in the neightbourhood of the problematic inputs.
+
+The validation set can also be checked for suitability independent of emulator
+structure: if \code{check_output = TRUE} then the outputs of the validation set
+will be compared against targets, as well as checking the implausibility of the
+points with respect to the emulators. If any outputs are consistent under- or
+over-estimates, or if all points are to be ruled out as implausible, the emulators
+corresponding to these outputs are removed. This option should be used with care:
+such a situation could be informative for considering the model structure and
+whether one should expect a match to observational data.
 }
 \examples{
  new_ems <- diagnostic_pass(SIREmulators$ems, SIREmulators$targets, SIRSample$validation)

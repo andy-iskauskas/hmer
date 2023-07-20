@@ -1164,10 +1164,20 @@ structured_error_check <- function(ems, validation, compare_output = TRUE, thres
 #' require manual determination of the regression surface or additional training
 #' points in the neightbourhood of the problematic inputs.
 #'
+#' The validation set can also be checked for suitability independent of emulator
+#' structure: if \code{check_output = TRUE} then the outputs of the validation set
+#' will be compared against targets, as well as checking the implausibility of the
+#' points with respect to the emulators. If any outputs are consistent under- or
+#' over-estimates, or if all points are to be ruled out as implausible, the emulators
+#' corresponding to these outputs are removed. This option should be used with care:
+#' such a situation could be informative for considering the model structure and
+#' whether one should expect a match to observational data.
+#'
 #' @param ems The emulators to consider
 #' @param targets The output targets to compare implausibility against
 #' @param validation The set of validation points (either a single data.frame or one per emulator)
 #' @param verbose Whether messages should be printed while running
+#' @param check_output Whether to check for suitability of outputs re. targets
 #' @param ... Other arguments to pass to helper functions
 #'
 #' @return A collection of modified emulators, potentially a subset of the original collection
@@ -1176,7 +1186,7 @@ structured_error_check <- function(ems, validation, compare_output = TRUE, thres
 #'
 #' @examples
 #'  new_ems <- diagnostic_pass(SIREmulators$ems, SIREmulators$targets, SIRSample$validation)
-diagnostic_pass <- function(ems, targets, validation, verbose = interactive(), ...) {
+diagnostic_pass <- function(ems, targets, validation, check_output = FALSE, verbose = interactive(), ...) {
   original_outputs <- purrr::map_chr(ems, "output_name")
   if ("data.frame" %in% class(validation)) {
     validation <- validation[apply(validation, 1, function(x) !any(is.na(x))),]
@@ -1186,6 +1196,31 @@ diagnostic_pass <- function(ems, targets, validation, verbose = interactive(), .
     validation_per_em <- purrr::map(validation, function(v) {
       v[apply(v, 1, function(x) !any(is.na(x))),]
     })
+  }
+  if (check_output) {
+    if (verbose) cat("Checking consistent implausibility or over/underestimation of outputs..\n") #nocov
+    imps <- purrr::map(seq_along(ems), ~ems[[.]]$implausibility(validation_per_em[[.]], targets[[ems[[.]]$output_name]], cutoff = 3))
+    fail_imp <- purrr::map_lgl(imps, ~sum(.) == 0)
+    all_pts <- do.call('rbind.data.frame', validation_per_em)
+    consistent_under <- purrr::map_lgl(purrr::map_chr(ems, "output_name"), function(tn) {
+      if (is.atomic(targets[[tn]])) check_val <- targets[[tn]][1]
+      else check_val <- targets[[tn]]$val - 3*targets[[tn]]$sigma
+      return(all(all_pts[,tn] < check_val))
+    })
+    consistent_over <- purrr::map_lgl(purrr::map_chr(ems, "output_name"), function(tn) {
+      if (is.atomic(targets[[tn]])) check_val <- targets[[tn]][2]
+      else check_val <- targets[[tn]]$val + 3*targets[[tn]]$sigma
+      return(all(all_pts[,tn] > check_val))
+    })
+    failed <- fail_imp | consistent_under | consistent_over
+    if (any(failed)) cat(paste("Some outputs unsuitable for targets:", #nocov
+                               paste0(purrr::map_chr(ems, "output_name")[failed]), collapse = "; ", "\n")) #nocov
+    ems <- subset_emulators(ems, purrr::map_chr(ems, "output_name")[!failed])
+    validation_per_em <- validation_per_em[!failed]
+    if (length(ems) == 0) {
+      if (verbose) cat("No emulators deemed suitable.\n") #nocov
+      return(ems)
+    }
   }
   if (verbose) cat("Checking for structured errors in input space..\n") #nocov
   input_structured <- structured_error_check(ems, validation_per_em, FALSE, ...)
@@ -1205,6 +1240,7 @@ diagnostic_pass <- function(ems, targets, validation, verbose = interactive(), .
   }
   if (any(input_structured)) {
     ems <- subset_emulators(ems, purrr::map_chr(ems, "output_name")[!input_structured])
+    validation_per_em <- validation_per_em[!input_structured]
   }
   if (length(ems) == 0) {
     if (verbose) cat("No emulators deemed suitable.\n") #nocov
@@ -1232,8 +1268,10 @@ diagnostic_pass <- function(ems, targets, validation, verbose = interactive(), .
     }) |> setNames(purrr::map_chr(ems, "output_name"))
     output_structured <- structured_error_check(ems, validation_per_em, ...)
   }
-  if (any(output_structured))
+  if (any(output_structured)) {
     ems <- subset_emulators(ems, purrr::map_chr(ems, "output_name")[!output_structured])
+    validation_per_em <- validation_per_em[!output_structured]
+  }
   if (length(ems) == 0) {
     if (verbose) cat("No emulators deemed suitable.\n") #nocov
     return(ems)

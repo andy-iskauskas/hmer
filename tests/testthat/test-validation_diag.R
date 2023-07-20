@@ -280,3 +280,10 @@ test_that("Automated Diagnostics: trained only on subset of output", {
   fixed_output_ems <- diagnostic_pass(new_ems_by_output, SIREmulators$targets, all_pts_by_output[31:90,], threshhold = 0.25)
   expect_equal(length(fixed_output_ems), 0)
 })
+
+test_that("Automated Diagnostics: checking output suitability", {
+  new_ems <- diagnostic_pass(SIREmulators$ems,
+                             SIREmulators$targets,
+                             SIRSample$validation, check_output = TRUE)
+  expect_equal(length(new_ems), 3)
+})
