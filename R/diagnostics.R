@@ -1178,7 +1178,15 @@ structured_error_check <- function(ems, validation, compare_output = TRUE, thres
 #'  new_ems <- diagnostic_pass(SIREmulators$ems, SIREmulators$targets, SIRSample$validation)
 diagnostic_pass <- function(ems, targets, validation, verbose = interactive(), ...) {
   original_outputs <- purrr::map_chr(ems, "output_name")
-  if ("data.frame" %in% class(validation)) validation_per_em <- purrr::map(ems, ~validation)
+  if ("data.frame" %in% class(validation)) {
+    validation <- validation[apply(validation, 1, function(x) !any(is.na(x))),]
+    validation_per_em <- purrr::map(ems, ~validation)
+  }
+  else {
+    validation_per_em <- purrr::map(validation, function(v) {
+      v[apply(v, 1, function(x) !any(is.na(x))),]
+    })
+  }
   if (verbose) cat("Checking for structured errors in input space..\n") #nocov
   input_structured <- structured_error_check(ems, validation_per_em, FALSE, ...)
   if (any(input_structured) && verbose)
@@ -1211,13 +1219,14 @@ diagnostic_pass <- function(ems, targets, validation, verbose = interactive(), .
     structure_fix_attempts <- structure_fix_attempts + 1
     ems <- purrr::map(seq_along(ems), function(i) {
       if (output_structured[i]) {
+        if (verbose) cat(paste0("Retraining emulator for output ", ems[[i]]$output_name, "..\n"))
         old_training <- cbind.data.frame(eval_funcs(scale_input, ems[[i]]$in_data, ems[[i]]$ranges, FALSE), ems[[i]]$out_data) |>
           setNames(c(names(ems[[i]]$ranges), ems[[i]]$output_name))
-        all_data <- rbind.data.frame(validation, old_training)
+        all_data <- rbind.data.frame(validation[,c(names(ems[[i]]$ranges), ems[[i]]$output_name)], old_training)
         new_sample <- sample(nrow(all_data), nrow(old_training))
         new_train <- all_data[new_sample,]
         validation_per_em[[i]] <- all_data[-new_sample,]
-        return(emulator_from_data(new_train, ems[[i]]$output_name, ems[[i]]$ranges))
+        return(emulator_from_data(new_train, ems[[i]]$output_name, ems[[i]]$ranges, verbose = FALSE)[[1]])
       }
       else return(ems[[i]])
     }) |> setNames(purrr::map_chr(ems, "output_name"))
