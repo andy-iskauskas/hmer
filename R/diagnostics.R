@@ -1199,18 +1199,23 @@ diagnostic_pass <- function(ems, targets, validation, check_output = FALSE, verb
   }
   if (check_output) {
     if (verbose) cat("Checking consistent implausibility or over/underestimation of outputs..\n") #nocov
-    imps <- purrr::map(seq_along(ems), ~ems[[.]]$implausibility(validation_per_em[[.]], targets[[ems[[.]]$output_name]], cutoff = 3))
+    imps <- purrr::map(seq_along(ems), function(i) {
+      training_runs <- eval_funcs(scale_input, ems[[i]]$input_data, ems[[i]]$ranges, FALSE)
+      ems[[i]]$implausibility(rbind.data.frame(validation_per_em[[i]][,names(ems[[i]]$ranges)], training_runs), targets[[ems[[i]]$output_name]], cutoff = 3)
+    })
     fail_imp <- purrr::map_lgl(imps, ~sum(.) == 0)
     all_pts <- do.call('rbind.data.frame', validation_per_em)
     consistent_under <- purrr::map_lgl(purrr::map_chr(ems, "output_name"), function(tn) {
       if (is.atomic(targets[[tn]])) check_val <- targets[[tn]][1]
       else check_val <- targets[[tn]]$val - 3*targets[[tn]]$sigma
-      return(all(all_pts[,tn] < check_val))
+      trained_outputs <- ems[[tn]]$out_data
+      return(all(c(all_pts[,tn], trained_outputs) < check_val))
     })
     consistent_over <- purrr::map_lgl(purrr::map_chr(ems, "output_name"), function(tn) {
       if (is.atomic(targets[[tn]])) check_val <- targets[[tn]][2]
       else check_val <- targets[[tn]]$val + 3*targets[[tn]]$sigma
-      return(all(all_pts[,tn] > check_val))
+      trained_outputs <- ems[[tn]]$out_data
+      return(all(c(all_pts[,tn], trained_outputs) > check_val))
     })
     failed <- fail_imp | consistent_under | consistent_over
     if (any(failed)) cat(paste("Some outputs unsuitable for targets:", #nocov
