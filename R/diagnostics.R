@@ -1141,6 +1141,9 @@ structured_error_check <- function(ems, validation, compare_output = TRUE, thres
 #'
 #' Perform a set of diagnostics on emulators, changing them if needed.
 #'
+#' NOTE: Automated diagnostics are currently only supported for determinstic
+#' emulators.
+#'
 #' There are a number of different characteristics that emulators might possess
 #' that give rise to diagnostic flags. This function collects together some of those
 #' whose resulting modifications can be automated. The tests, and consequences, are
@@ -1187,6 +1190,8 @@ structured_error_check <- function(ems, validation, compare_output = TRUE, thres
 #' @examples
 #'  new_ems <- diagnostic_pass(SIREmulators$ems, SIREmulators$targets, SIRSample$validation)
 diagnostic_pass <- function(ems, targets, validation, check_output = FALSE, verbose = interactive(), ...) {
+  if (!is.null(ems$variance) || !is.null(ems$expectation) || !is.null(ems$mode1) || !is.null(ems$mode2))
+    stop("Automated diagnostics not supported for stochastic or multistate emulators.")
   original_outputs <- purrr::map_chr(ems, "output_name")
   if ("data.frame" %in% class(validation)) {
     validation <- validation[apply(validation, 1, function(x) !any(is.na(x))),]

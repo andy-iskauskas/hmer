@@ -96,6 +96,19 @@ eval_funcs <- function(funcs, points, ...) {
   return(purrr::exec(funcs, points, ...))
 }
 
+# Split datasets by uniqueness of columns
+split_dataset <- function(data, split_vars, method = "hash") {
+  if (method != "dplyr") {
+    uids <- apply(data[,split_vars, drop = FALSE], 1, rlang::hash)
+    grouping <- purrr::map(unique(uids), ~data[which(uids == .),])
+  }
+  else {
+    dplyr_group <- data |> dplyr::group_by(across(all_of(split_vars)))
+    grouping <- purrr::map(dplyr::group_rows(dplyr_group), ~data[.,])
+  }
+  return(grouping)
+}
+
 # Inner modification of a function
 multiply_function <- function(f, mult) {
   func_body <- body(f)

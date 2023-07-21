@@ -531,10 +531,11 @@ emulator_from_data <- function(input_data, output_names, ranges,
   if (emulator_type == "multistate")
     input_data_backup <- input_data
   if (is.data.frame(input_data)) {
-    unique_hash <- apply(unique(input_data[, input_names, drop = FALSE]), 1, hash)
-    data_by_point <- purrr::map(unique_hash, function(x) {
-      input_data[apply(input_data[,names(ranges),drop = FALSE], 1, hash) == x,]
-    })
+    data_by_point <- split_dataset(input_data, input_names)
+    # unique_hash <- unique(apply(input_data[, input_names, drop = FALSE], 1, hash))
+    # data_by_point <- purrr::map(unique_hash, function(x) {
+    #   input_data[apply(input_data[,names(ranges),drop = FALSE], 1, hash) == x,]
+    # })
     if (any(purrr::map_dbl(data_by_point, nrow) > 1) && emulator_type == "default") {
       if (FALSE) {
         ## Hidden for now. Might change this at some point!
@@ -790,29 +791,25 @@ emulator_from_data <- function(input_data, output_names, ranges,
   }
   ## Variance emulation starts here
   if (verbose) cat("Multiple model runs per point detected. Splitting by input parameters...\n") #nocov
-  unique_uids <- Reduce(union, purrr::map(input_data, function(dat) {
-    c(apply(unique(dat[,input_names]), 1, hash), use.names = FALSE)
-  }))
-  data_by_point <- purrr::map(input_data, function(dat) {
-    unique_hash <- apply(unique(dat[,input_names]), 1, hash)
-    purrr::map(unique_hash, function(x) {
-      dat[apply(dat[,names(ranges)], 1, hash) == x,]
-    })
-  })
+  unique_points <- unique(do.call('rbind.data.frame', purrr::map(input_data, ~.[,input_names])))
+  unique_uids <- apply(unique_points, 1, hash)
+  data_by_point <- purrr::map(input_data, split_dataset, input_names)
   data_by_point <- purrr::map(data_by_point, function(dat) {
     dat[purrr::map_lgl(dat, ~nrow(.) > 1)]
   })
+  split_hashes <- purrr::map(data_by_point, function(d) {
+    purrr::map_chr(d, ~apply(.[,input_names], 1, hash)[1])
+  })
   param_sets <- purrr::map(unique_uids, function(uid) {
-    output_vals <- purrr::map(data_by_point, function(d) {
-      hashes <- purrr::map_chr(d, ~unique(apply(.[,input_names], 1, hash)))
-      which_matches <- which(hashes == uid)
+    output_vals <- purrr::map(seq_along(split_hashes), function(sh) {
+      which_matches <- which(split_hashes[[sh]] == uid)
       if (length(which_matches) == 0) return(NULL)
-      return(c(d[[which_matches[1]]][,length(d[[which_matches[1]]])]))
+      return(c(data_by_point[[sh]][[which_matches[1]]][,length(data_by_point[[sh]][[which_matches[1]]])]))
     })
     largest_length <- max(purrr::map_dbl(output_vals, length))
     output_vals_padded <- purrr::map(output_vals, ~c(., rep(NA, largest_length-length(.))))
-    which_matches <- which(apply(do.call('rbind.data.frame', purrr::map(input_data, ~.[,input_names])), 1, hash) == uid)[1]
-    which_point <- do.call('rbind.data.frame', purrr::map(input_data, ~.[,input_names]))[which_matches, input_names]
+    which_matches <- which(unique_uids == uid)[1]
+    which_point <- unique_points[which_matches,]
     return(cbind.data.frame(which_point[rep(1,largest_length),], do.call('cbind.data.frame', output_vals_padded)) |>
              setNames(c(input_names, output_names)))
   })

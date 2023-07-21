@@ -33,6 +33,9 @@ A collection of modified emulators, potentially a subset of the original collect
 Perform a set of diagnostics on emulators, changing them if needed.
 }
 \details{
+NOTE: Automated diagnostics are currently only supported for determinstic
+emulators.
+
 There are a number of different characteristics that emulators might possess
 that give rise to diagnostic flags. This function collects together some of those
 whose resulting modifications can be automated. The tests, and consequences, are
