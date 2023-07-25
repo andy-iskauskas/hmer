@@ -1023,18 +1023,21 @@ standard_errors <- function(emulator, targets = NULL, validation = NULL,
 #' @param validation A list of validation points of size equal to \code{length(ems)}
 #' @param n The multiples of sigma to test at
 #' @param df.out Whether to return a single diagnostic TRUE/FALSE, or a detailed data.frame
+#' @param allow.zero Allow for over-precise (potentially overfitted) emulators?
 #'
 #' @return Either a boolean, or a data.frame thereof.
 #'
 #' @noRd
 #' @keywords internal
-binomial_diagnostic_test <- function(ems, validation, n = 2:4, df.out = FALSE, ...) {
-  flagged <- rep(FALSE, length(ems))
+binomial_diagnostic_test <- function(ems, validation, n = 2:4, df.out = FALSE, allow.zero = FALSE, ...) {
   N <- purrr::map_dbl(validation, nrow)
   Xn <- purrr::map_dbl(n, ~4/(9*.^2))
   diag_check <- purrr::map(seq_along(ems), function(i) {
     diag_percents <- purrr::map_dbl(n, ~nrow(comparison_diag(ems[[i]], targets = NULL, validation = validation[[i]], sd = ., plt = FALSE)))
-    bounds <- purrr::map(Xn, ~c(max(0, N[[i]]*. - 3*sqrt(N[[i]]*.*(1-.))), min(N[[i]], N[[i]]*. + 3*sqrt(N*.*(1-.)))))
+    if (allow.zero)
+      bounds <- purrr::map(Xn, ~c(0, min(N[[i]], N[[i]]*. + 3*sqrt(N*.*(1-.)))))
+    else
+      bounds <- purrr::map(Xn, ~c(max(0, N[[i]]*. - 3*sqrt(N[[i]]*.*(1-.))), min(N[[i]], N[[i]]*. + 3*sqrt(N*.*(1-.)))))
     purrr::map_lgl(seq_along(diag_percents), ~diag_percents[.] >= bounds[[.]][1] && diag_percents[.] <= bounds[[.]][2])
   })
   collect_df <- do.call('cbind.data.frame', diag_check) |> setNames(purrr::map_chr(ems, "output_name"))
@@ -1223,8 +1226,8 @@ diagnostic_pass <- function(ems, targets, validation, check_output = FALSE, verb
       return(all(c(all_pts[,tn], trained_outputs) > check_val))
     })
     failed <- fail_imp | consistent_under | consistent_over
-    if (any(failed)) cat(paste("Some outputs unsuitable for targets:", #nocov
-                               paste0(purrr::map_chr(ems, "output_name")[failed]), collapse = "; ", "\n")) #nocov
+    if (any(failed) && verbose) cat(paste("Some outputs unsuitable for targets:", #nocov
+                               paste0(purrr::map_chr(ems, "output_name")[failed], collapse = "; "), "\n")) #nocov
     ems <- subset_emulators(ems, purrr::map_chr(ems, "output_name")[!failed])
     validation_per_em <- validation_per_em[!failed]
     if (length(ems) == 0) {
@@ -1249,6 +1252,8 @@ diagnostic_pass <- function(ems, targets, validation, check_output = FALSE, verb
     input_structured <- structured_error_check(ems, validation_per_em, ...)
   }
   if (any(input_structured)) {
+    if (verbose) cat(paste("Some emulators show unresolved structured input errors:", #nocov
+              paste0(purrr::map_chr(ems, "output_name")[input_structured], collapse = "; "), "\n")) #nocov
     ems <- subset_emulators(ems, purrr::map_chr(ems, "output_name")[!input_structured])
     validation_per_em <- validation_per_em[!input_structured]
   }
@@ -1279,6 +1284,9 @@ diagnostic_pass <- function(ems, targets, validation, check_output = FALSE, verb
     output_structured <- structured_error_check(ems, validation_per_em, ...)
   }
   if (any(output_structured)) {
+    if (verbose) cat(paste("Some emulators show unresolved structured output errors:", #nocov
+              paste0(purrr::map_chr(ems, "output_name")[output_structured], collapse = "; "), "\n")) #nocov
+
     ems <- subset_emulators(ems, purrr::map_chr(ems, "output_name")[!output_structured])
     validation_per_em <- validation_per_em[!output_structured]
   }
@@ -1310,10 +1318,11 @@ diagnostic_pass <- function(ems, targets, validation, check_output = FALSE, verb
       }) |> setNames(purrr::map_chr(ems, "output_name"))
       comparison_wrong <- points_of_concern(ems, targets, validation_per_em, test = 'cd', ...)
     }
-    binomial_problems <- binomial_diagnostic_test(ems, validation_per_em, df.out = TRUE, ...)
-    if (any(apply(binomial_problems, 2, any))) {
-      if (verbose) cat("Problems with scaling detected. Removing problematic emulators.\n") #nocov
-      ems <- subset_emulators(ems, purrr::map_chr(ems, "output_name")[!apply(binomial_problems, 2, any)])
+    binomial_problems <- apply(binomial_diagnostic_test(ems, validation_per_em, df.out = TRUE, ...), 2, all)
+    if (!all(binomial_problems)) {
+      if (verbose) cat(paste("Some emulators show scaling issues:", #nocov
+                paste0(purrr::map_chr(ems, "output_name")[!binomial_problems], collapse = "; "), "\n")) #nocov
+      ems <- subset_emulators(ems, purrr::map_chr(ems, "output_name")[binomial_problems])
     }
   }
   if (length(ems) == 0) {
