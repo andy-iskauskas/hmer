@@ -84,7 +84,10 @@ as provided by \code{\link{nth_implausible}}; a user-defined method can be provi
 instead by supplying the function call to \code{opts[["accept_measure"]]}. Any
 such function must take at least five arguments: the emulators, the points, the
 targets, and a cutoff, as well as a \code{...} argument to ensure compatibility with
-the default behaviour of the point proposal method.
+the default behaviour of the point proposal method. Note that, in accordance with
+the default functionality of \code{\link{nth_implausible}}, if emulating more than
+10 outputs and an explicit \code{opts$nth} argument is not provided, then second-max
+implausibility is used as the measure.
 
 The option \code{opts[["seek"]]} determines how many points should be chosen that
 have a higher probability of matching targets, as opposed to not missing targets. Due

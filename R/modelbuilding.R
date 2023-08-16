@@ -109,23 +109,31 @@ get_coefficient_model <- function(data, ranges, output_name, add = FALSE,
   }
   else
     upper_form <- u_form
-  if (!add && verbose && choose(length(ranges) + order, length(ranges)) > nrow(data)) {
-    warning(paste("Maximum number of regression terms is greater than",
-                  "the available degrees of freedom. Changing to add = TRUE."))
+  if (!add && choose(length(ranges) + order, length(ranges)) > nrow(data)) {
+    if (verbose)
+      warning(paste("Maximum number of regression terms is greater than",
+                    "the available degrees of freedom. Changing to add = TRUE."))
     add <- TRUE
   }
   if (!"data.frame" %in% class(data))
     data <- setNames(data.frame(data), c(names(ranges), output_name))
-  if (add) {
-    model <- step(lm(formula = lower_form, data = data),
-                  scope = list(lower = lower_form, upper = upper_form),
-                  direction = "both", trace = 0, k = log(nrow(data)))
-  }
-  else {
-    model <- step(lm(formula = upper_form, data = data),
-                  scope = list(lower = lower_form, upper = upper_form),
-                  direction = "backward", trace = 0, k = log(nrow(data)))
-  }
+  model <- tryCatch({
+    if (add) {
+      return(step(lm(formula = lower_form, data = data),
+                    scope = list(lower = lower_form, upper = upper_form),
+                    direction = "both", trace = 0, k = log(nrow(data))))
+    }
+    else {
+      return(step(lm(formula = upper_form, data = data),
+                    scope = list(lower = lower_form, upper = upper_form),
+                    direction = "backward", trace = 0, k = log(nrow(data))))
+    }
+  },
+  error = function(e) {
+    warning(paste("Model selection suggests perfect fit for output", output_name, "- possible overfitting issue. Removing this output from emulation."))
+    return(NULL)
+  })
+  if (is.null(model)) return(model)
   if (order != 1) {
     mod_coeffs <- summary(model)$coefficients[-1,]
     mod_anv <- anova(model)
@@ -624,6 +632,10 @@ emulator_from_data <- function(input_data, output_names, ranges,
       if (verbose) cat("Fitting regression surfaces...\n") #nocov
       models <- purrr::map(data, ~get_coefficient_model(., ranges, names(.)[length(.)],
                                                         order = order, verbose = more_verbose))
+      output_names <- output_names[!purrr::map_lgl(models, is.null)]
+      models <- models[!purrr::map_lgl(models, is.null)]
+      if (length(models) == 0)
+        stop("No outputs can be robustly represented by regression surfaces at this order.")
       model_beta_mus <- purrr::map(models, coef)
       model_basis_funcs <- purrr::map(models, function(m) {
         purrr::map(names(m$coefficients), name_to_function, names(ranges))
