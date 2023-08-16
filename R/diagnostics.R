@@ -664,7 +664,7 @@ validation_diagnostics <- function(emulators, targets = NULL,
     actual_diag <- actual_diag[-which(actual_diag == 'ce')]
   }
   if (!is.null(validation))
-    validation <- validation[apply(validation, 1, function(x) all(!is.na(x))),]
+    validation <- validation[apply(validation[,names(targets)], 1, function(x) all(!is.na(x))),]
   if (!is.null(emulators$mode1) && !is.null(emulators$mode2)) {
     if (diagnose == "variance") {
       m1_ems <- emulators$mode1$variance
