@@ -1,3 +1,23 @@
+# hmer 1.5.5
+
+## Major changes
+
+* New functionality: `diagnostic_pass` for automated diagnostics and modifications of
+emulators; `hit_by_wave` for visualisation of history matching progress.
+
+## Bug fixes
+
+* Fixed issue in `simulator_plot` et al. where some combinations of `wave_numbers`
+and `zero_in` caused out-of-index errors.
+* Edge case fixes for training individual variance emulators or one-dimensional
+variance emulators.
+
+## Enhancements
+
+* Vastly improved efficiency of emulator training when `emulator_type = "variance"` or
+`emulator_type = "covariance"`.
+* Improvement to hyperparameter estimation when training covariance emulators.
+
 # hmer 1.5.0
 
 ## Major changes
