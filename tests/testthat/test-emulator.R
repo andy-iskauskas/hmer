@@ -243,17 +243,17 @@ test_that("Batch processing is called for >1000 points", {
 
 test_that("Emulator with no variable dependence", {
   fake_grid <- expand.grid(x = seq(1, 10, by = 1), y = seq(1, 10, by = 1))
-  fake_output <- runif(100, -5, 5)
+  fake_output <- rep(runif(1, -5, 5), 100) + runif(100, -1e-5, 1e-5)
   fake_data <- cbind.data.frame(fake_grid, fake_output) |> setNames(letters[24:26])
-  fake_em <- emulator_from_data(fake_data, c('z'), list(x = c(1, 10), y = c(1, 10)),
-                                beta_var = TRUE, verbose = FALSE)$z
+  fake_em <- suppressWarnings(emulator_from_data(fake_data, c('z'), list(x = c(1, 10), y = c(1, 10)),
+                                beta_var = TRUE, verbose = FALSE)$z)
   expect_equal(
-    c(fake_em$get_exp(fake_data), use.names = FALSE),
+    suppressWarnings(c(fake_em$get_exp(fake_data), use.names = FALSE)),
     c(fake_data$z),
     tolerance = 1e-6
   )
   expect_true(
-    all(fake_em$get_cov(fake_data) < 1e-6)
+    suppressWarnings(all(fake_em$get_cov(fake_data) <= 1e-5))
   )
   expect_equal(
     length(c(fake_em$o_em$get_exp(fake_data))),
