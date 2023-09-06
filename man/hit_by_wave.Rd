@@ -11,7 +11,8 @@ hit_by_wave(
   measure = "mean",
   plt = FALSE,
   as.per = TRUE,
-  grid.plot = TRUE
+  grid.plot = TRUE,
+  n.sig = 3
 )
 }
 \arguments{
@@ -28,6 +29,9 @@ hit_by_wave(
 \item{as.per}{Should the data be percentages, or raw numbers?}
 
 \item{grid.plot}{If \code{plt = TRUE}, determines the type of plot.}
+
+\item{n.sig}{If (val, sigma) targets provided, how many sigma away from the mean do we
+consider a match?}
 }
 \value{
 Either a data.frame of results or a ggplot object plot

@@ -536,6 +536,13 @@ emulator_from_data <- function(input_data, output_names, ranges,
     emulator_type <- "default"
   if (!emulator_type %in% c("default", "variance", "covariance", "multistate"))
     emulator_type <- "default"
+  if (is.data.frame(input_data))
+    output_ranges <- purrr::map_dbl(output_names, ~diff(range(input_data[,.])))
+  else if (all(output_names %in% names(input_data)))
+    output_ranges <- purrr::map_dbl(output_names, ~diff(range(input_data[[.]][,.])))
+  else
+    output_ranges <- rep(1e-2, length(output_names))
+  output_ranges[is.na(output_ranges)] <- 1e-2
   if (emulator_type == "multistate")
     input_data_backup <- input_data
   if (is.data.frame(input_data)) {
@@ -756,7 +763,13 @@ emulator_from_data <- function(input_data, output_names, ranges,
                               delta = model_deltas,
                               verbose = more_verbose
                             ))
-      if (is.null(model_u_sigmas)) model_u_sigmas <- purrr::map(specs, ~as.numeric(.$sigma))
+      if (is.null(model_u_sigmas)) model_u_sigmas <-
+          tryCatch(
+            purrr::map(seq_along(specs), ~max(output_ranges*1e-3, as.numeric(specs[[.]]$sigma))),
+            error = function(e) {
+              purrr::map(seq_along(specs), ~as.numeric(specs[[.]]$sigma))
+            }
+          )
       if (is.null(model_beta_mus)) model_beta_mus <- purrr::map(specs, ~.$beta)
       if (is.null(model_u_corrs)) model_u_corrs <- purrr::map(specs, ~Correlator$new(corr_name, hp = .$hp, nug = .$delta))
     }

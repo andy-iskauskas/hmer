@@ -720,6 +720,8 @@ diagnostic_wrap <- function(waves, targets, output_names = names(targets),
 #' @param plt If TRUE, results are plotted; else a data.frame is returned
 #' @param as.per Should the data be percentages, or raw numbers?
 #' @param grid.plot If \code{plt = TRUE}, determines the type of plot.
+#' @param n.sig If (val, sigma) targets provided, how many sigma away from the mean do we
+#' consider a match?
 #'
 #' @return Either a data.frame of results or a ggplot object plot
 #'
@@ -733,13 +735,13 @@ diagnostic_wrap <- function(waves, targets, output_names = names(targets),
 #'  hit_by_wave(SIRMultiWaveData, SIREmulators$targets, c('aSI', 'aIR', 'aSR'),
 #'   plt = TRUE, as.per = FALSE, grid.plot = FALSE)
 hit_by_wave <- function(waves, targets, input_names, measure = "mean",
-                        plt = FALSE, as.per = TRUE, grid.plot = TRUE) {
+                        plt = FALSE, as.per = TRUE, grid.plot = TRUE, n.sig = 3) {
   wave <- name <- value <- value_unsc <- NULL
   target_hits <- function(result, targets, sum_func = "sum") {
     hits <- purrr::map_lgl(names(targets), function(t) {
       if (is.atomic(targets[[t]]))
         return(result[t] <= targets[[t]][2] && result[t] >= targets[[t]][1])
-      result[t] <= targets[[t]]$val + 3*targets[[t]]$sigma && result[t] >= targets[[t]]$val - 3*targets[[t]]$sigma
+      result[t] <= targets[[t]]$val + n.sig*targets[[t]]$sigma && result[t] >= targets[[t]]$val - n.sig*targets[[t]]$sigma
     })
     sum_function <- get(sum_func)
     return(sum_function(hits))
@@ -755,7 +757,7 @@ hit_by_wave <- function(waves, targets, input_names, measure = "mean",
     intervals <- purrr::map(names(targets), ~as.numeric(c(means[.] - sd/sqrt(reps)*sds[.], means[.] + sd/sqrt(reps)*sds[.]))) |> setNames(names(targets))
     hits <- purrr::map_lgl(names(targets), function(t) {
       if (!is.atomic(targets[[t]]))
-        targ_int <- c(targets[[t]]$val - 3*targets[[t]]$sigma, targets[[t]]$val + 3*targets[[t]]$sigma)
+        targ_int <- c(targets[[t]]$val - n.sig*targets[[t]]$sigma, targets[[t]]$val + n.sig*targets[[t]]$sigma)
       else
         targ_int <- targets[[t]]
       return(check_overlap(targ_int, intervals[[t]]))
