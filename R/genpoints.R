@@ -391,7 +391,7 @@ generate_new_design <- function(ems, n_points, z, method = "default", cutoff = 3
       if (opts$seek > 0) {
         if (verbose) cat("Searching for high probability match points...\n") #nocov
         if (opts$seek <= 1) opts$seek <- floor(n_points * opts$seek)
-        extra_points <- seek_good(ems, z, points, cutoff, opts)
+        extra_points <- seek_good(ems, z, points, cutoff, verbose, opts)
       }
       else extra_points <- NULL
       if (nrow(points) > n_points - opts$seek) {
@@ -627,8 +627,8 @@ generate_new_design <- function(ems, n_points, z, method = "default", cutoff = 3
   }
   if (opts$seek > 0) {
     if (verbose) cat("Searching for points with high matching probability...\n") #nocov
-    if (opts$seek <= 1) opts$seek <- floor(n_points*seek)
-    extra_points <- seek_good(ems, z, points, cutoff, opts)
+    if (opts$seek <= 1) opts$seek <- floor(n_points*opts$seek)
+    extra_points <- seek_good(ems, z, points, cutoff, verbose, opts)
   }
   else extra_points <- NULL
   if (nrow(points) > n_points - opts$seek) {
@@ -1001,14 +1001,14 @@ importance_sample <- function(ems, n_points, z, s_points, cutoff = 3, opts) {
   else if (length(opts$imp_scale) == 1) sd <- rep(2, length(ranges))
   accept_rate <- NULL
   upper_accept <- 0.225
-  lower_accept <- 0.075
+  lower_accept <- 0.1
   while((is.null(accept_rate) || accept_rate > upper_accept ||
          accept_rate < lower_accept) && nrow(new_points) < n_points) {
     if (!is.null(accept_rate)) {
       if (accept_rate > upper_accept) sd <- sd * 1.1
       else sd <- sd * 0.9
     }
-    how_many <- max(floor(n_points/4), 500)
+    how_many <- max(floor(n_points/4), 1000)
     prop_points <- propose_points(s_points, sd, how_many)
     new_points <- rbind(new_points, prop_points)
     uniqueness <- row.names(unique(signif(new_points, 7)))
@@ -1098,8 +1098,9 @@ slice_gen <- function(ems, ranges, n_points, z, points, cutoff, opts) {
 ## Good point generation
 #'
 #' @importFrom stats pnorm
-seek_good <- function(ems, z, plausible_set, cutoff = 3,
+seek_good <- function(ems, z, plausible_set, cutoff = 3, verbose,
                       opts) {
+  if (!is.null(ems$expectation)) ems <- ems$expectation
   n_points <- opts$seek
   if (is.null(opts$seek_distro)) opts$seek_distro <- "norm"
   dist_func <- get(paste0("p", opts$seek_distro))
@@ -1146,12 +1147,19 @@ seek_good <- function(ems, z, plausible_set, cutoff = 3,
     }
     return(data[picked_rows,])
   }
-  point_set <- importance_sample(ems, max(20*n_points, 4*nrow(plausible_set)),
-                                 z, plausible_set, cutoff = cutoff, opts)
+  if (nrow(plausible_set) > 5*n_points) {
+    plausible_set <- maximin_sample(plausible_set, 5*n_points, nms = names(plausible_set))
+  }
+  point_set <- importance_sample(ems, 20*n_points,
+                                 z,
+                                 plausible_set,
+                                 cutoff = cutoff, opts)
+  if (verbose) cat("Generated candidate set...\n")
   probs <- get_prob(ems, point_set, z)
   o_points <- point_set[order(probs, decreasing = TRUE),]
   keep_points <- o_points[1:(10*n_points),]
   row.names(keep_points) <- seq_len(nrow(keep_points))
+  if (verbose) cat("Subselected highest probability points. Thinning...\n")
   final_set <- select_minimal(keep_points, 1, n_points)
   return(final_set)
 }

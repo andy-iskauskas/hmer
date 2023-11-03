@@ -18,7 +18,7 @@ emulator_from_data(
   discrepancies = NULL,
   verbose = interactive(),
   na.rm = FALSE,
-  check.ranges = FALSE,
+  check.ranges = TRUE,
   targets = NULL,
   has.hierarchy = FALSE,
   covariance_opts = NULL,

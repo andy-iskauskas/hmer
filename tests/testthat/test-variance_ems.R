@@ -165,3 +165,21 @@ test_that("Covariance emulation building - specified covariance elements", {
     all(apply(cov_preds, 3, function(x) all(round(eigen(x)$values, 6) >= 0)))
   )
 })
+
+test_that("Variance emulation - point proposal", {
+  pts <- generate_new_design(v_em, 100, list(Y = c(90, 105)), verbose = FALSE)
+  expect_equal(
+    nrow(pts),
+    100
+  )
+})
+
+test_that("Variance emulation - point proposal with seek_good", {
+  skip_on_cran()
+  pts <- generate_new_design(v_em, 100, list(Y = c(90, 105)), verbose = FALSE,
+                             opts = list(seek = 10))
+  expect_equal(
+    nrow(pts),
+    100
+  )
+})

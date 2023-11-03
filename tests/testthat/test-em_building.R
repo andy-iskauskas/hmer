@@ -59,6 +59,7 @@ test_that("Emulator training: orn_uhl, no ranges, few points", {
       c('nS', 'nI', 'nR'),
       input_names = c('aSI', 'aIR', 'aSR'),
       corr_name = "orn_uhl",
+      check.ranges = FALSE,
       verbose = FALSE
     )
   )

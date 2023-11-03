@@ -503,7 +503,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
                                input_names = names(ranges), emulator_type = NULL,
                                specified_priors = NULL, order = 2, beta.var = FALSE,
                                corr_name = "exp_sq", adjusted = TRUE, discrepancies = NULL,
-                               verbose = interactive(), na.rm = FALSE, check.ranges = FALSE,
+                               verbose = interactive(), na.rm = FALSE, check.ranges = TRUE,
                                targets = NULL, has.hierarchy = FALSE, covariance_opts = NULL, ...) {
   if (is.data.frame(input_data)) {
     ## Data cleaning and checking
@@ -765,7 +765,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
                             ))
       if (is.null(model_u_sigmas)) model_u_sigmas <-
           tryCatch(
-            purrr::map(seq_along(specs), ~max(output_ranges*1e-3, as.numeric(specs[[.]]$sigma))),
+            purrr::map(seq_along(specs), ~max(output_ranges[[.]]*1e-3, as.numeric(specs[[.]]$sigma))),
             error = function(e) {
               purrr::map(seq_along(specs), ~as.numeric(specs[[.]]$sigma))
             }

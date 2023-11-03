@@ -61,6 +61,14 @@ test_that("Point generation methods", {
     nrow(points_seek_good),
     100
   )
+  points_seek_good_ratio <- generate_new_design(
+    ems, 100, targs, cutoff = 4, seek = 0.05,
+    verbose = FALSE
+  )
+  expect_equal(
+    nrow(points_seek_good_ratio),
+    100
+  )
 })
 
 test_that("Forced laddering of implausibility", {

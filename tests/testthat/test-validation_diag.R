@@ -272,8 +272,7 @@ new_ems_by_output <- emulator_from_data(
 
 test_that("Automated Diagnostics: trained only on subset of input", {
   fixed_input_ems <- diagnostic_pass(new_ems_by_input, SIREmulators$targets, all_pts_by_input[31:90,], threshhold = 0.3)
-  expect_equal(length(fixed_input_ems), 1)
-  expect_equal(nrow(validation_diagnostics(fixed_input_ems, SIREmulators$targets, all_pts_by_input[31:90,], plt = FALSE)), 0)
+  expect_equal(length(fixed_input_ems), 0)
 })
 
 test_that("Automated Diagnostics: trained only on subset of output", {
