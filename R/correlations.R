@@ -20,7 +20,7 @@ get_dist <- function(df1, df2) {
   if (ncol(df1) != ncol(df2)) stop("Data frames do not have the same dimension.")
   if (identical(df1, df2))
     return(as.matrix(dist(df1)))
-  return(t(as.matrix(pdist::pdist(as.matrix(df1), as.matrix(df2)))))
+  return(t(as.matrix(pdist(as.matrix(df1), as.matrix(df2)))))
   d <- ncol(df1)
   p <- max(nrow(df1), nrow(df2))
   if (d < (833*p^2-198400*p+144350000)/(55550*p+6910000) || p > 2500) {
@@ -98,7 +98,7 @@ matern <- function(x, xp, hp) {
   p <- hp$nu-0.5
   d <- get_dist(x, xp)
   exp(-sqrt(2*p+1)*d/hp$theta) * factorial(p)/factorial(2*p) *
-    Reduce('+', purrr::map(0:p, ~factorial(p+.)/(factorial(.)*factorial(p-.)) *
+    Reduce('+', map(0:p, ~factorial(p+.)/(factorial(.)*factorial(p-.)) *
                              (2*sqrt(2*p+1)*d/hp$theta)^(p-.)))
 }
 
@@ -118,7 +118,7 @@ matern_d <- function(x, xp, hp, xi, xpi = NULL) {
   if (is.null(xpi)) {
     non_sum <- -4*hp$nu/hp$theta^2 * diff_1 * factorial(p)/factorial(2*p) *
       exp(-inner_arg)
-    sum <- Reduce('+', purrr::map(0:(p-1),
+    sum <- Reduce('+', map(0:(p-1),
                                   ~factorial(p-1+.)/(factorial(.) *
                                                        factorial(p-1-.)) *
                                     (2*inner_arg)^(p-1-.)))
@@ -126,7 +126,7 @@ matern_d <- function(x, xp, hp, xi, xpi = NULL) {
   }
   extra_bit <- if(xi == xpi) 4*hp$nu/hp$theta^2 * factorial(p)/factorial(2*p) *
     exp(-inner_arg) * Reduce('+',
-                             purrr::map(0:(p-1),
+                             map(0:(p-1),
                                         ~factorial(p-1+.)/(factorial(.) *
                                                              factorial(p-1-.)) *
                                           (2*inner_arg)^(p-1-.))) else 0
@@ -134,7 +134,7 @@ matern_d <- function(x, xp, hp, xi, xpi = NULL) {
   if (is.null(nrow(diff_2))) diff_2 <- t(diff_2)
   non_sum <- -16*hp$nu^2/hp$theta^4 * diff_1 * diff_2 *
     factorial(p)/factorial(2*p) * exp(-inner_arg)
-  sum <- Reduce("+", purrr::map(0:(p-2),
+  sum <- Reduce("+", map(0:(p-2),
                                 ~factorial(p-2+.)/
                                   (factorial(.)*factorial(p-2-.)) *
                                   (2*inner_arg)^(p-2-.)))
@@ -276,7 +276,7 @@ Correlator <- R6::R6Class(
                                xp[,actives, drop = FALSE], self$hyper_p)
       if (!use.nugget) return(active)
       if (identical(x, xp)) extra <- as.matrix(dist(x))
-      else extra <- t(as.matrix(pdist::pdist(x, xp)))
+      else extra <- t(as.matrix(pdist(x, xp)))
       #extra <- as.matrix(dist(rbind(x, xp)))[(nrow(x)+1):(nrow(x)+nrow(xp)),
                                              #seq_len(nrow(x))]
       extra[extra < 1e-10] <- 1
@@ -300,7 +300,7 @@ Correlator <- R6::R6Class(
       new_corr <- self$clone()
       if (is.null(names(new_hp)))
         new_hp <- setNames(new_hp, names(self$hyper_p))
-      new_hp <- purrr::map(new_hp, ~.)
+      new_hp <- map(new_hp, ~.)
       new_corr$hyper_p <- new_hp
       new_corr$nugget <- nug
       return(new_corr)

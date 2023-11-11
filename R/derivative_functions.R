@@ -1,12 +1,12 @@
 get_deriv_info <- function(em, x, var = FALSE, ...) {
-  deriv_exp <- purrr::map_dbl(names(em$ranges),
+  deriv_exp <- map_dbl(names(em$ranges),
                               function(y) em$get_exp_d(x, p = y, ...))
   if (var) {
     deriv_var <- matrix(
       unlist
-      (purrr::map(names(em$ranges),
+      (map(names(em$ranges),
                   function(a)
-                    purrr::map_dbl(names(em$ranges),
+                    map_dbl(names(em$ranges),
                                    function(b)
                                      em$get_cov_d(x, p1 = a, p2 = b, ...)))),
       nrow = length(em$ranges), byrow = TRUE)
@@ -117,21 +117,21 @@ directional_proposal <- function(ems, x, targets, accept = 2, hstart = 1e-04,
                                  iteration.steps = 100, nv = 500) {
   if (length(x) > length(ems[[1]]$ranges))
     x <- x[,names(ems[[1]]$ranges)]
-  if (any(!names(targets) %in% purrr::map_chr(ems, ~.$output_name))) {
+  if (any(!names(targets) %in% map_chr(ems, ~.$output_name))) {
     warning("Not all targets have a corresponding emulator.
             Restricting to only emulated outputs.")
-    targets <- targets[names(targets) %in% purrr::map_chr(ems, ~.$output_name)]
+    targets <- targets[names(targets) %in% map_chr(ems, ~.$output_name)]
   }
-  point_implaus <- purrr::map_dbl(seq_along(ems),
+  point_implaus <- map_dbl(seq_along(ems),
                                   ~ems[[.]]$implausibility(x, z = targets[[.]]))
-  x_predict <- purrr::map_dbl(ems, ~.$get_exp(x))
-  is_bigger <- purrr::map_lgl(seq_along(targets), function(y) {
+  x_predict <- map_dbl(ems, ~.$get_exp(x))
+  is_bigger <- map_lgl(seq_along(targets), function(y) {
     if (!is.numeric(targets[[y]]))
       comparative <- targets[[y]]$val < x_predict[[y]]
     else comparative <- targets[[y]][2] < x_predict[[y]]
   })
-  x_diffs <- do.call('rbind', purrr::map(ems, ~get_deriv_info(., x)$exp))
-  x_dir <- do.call('rbind', purrr::map(seq_along(is_bigger), function(i) {
+  x_diffs <- do.call('rbind', map(ems, ~get_deriv_info(., x)$exp))
+  x_dir <- do.call('rbind', map(seq_along(is_bigger), function(i) {
                                        if(is_bigger[[i]])
                                          return(-1*x_diffs[i,])
                                        else
@@ -147,7 +147,7 @@ directional_proposal <- function(ems, x, targets, accept = 2, hstart = 1e-04,
                                     function(y)
                                       all(y >= 0 | point_implaus < accept)),]
   nth_discrepancy <- function(ems, x, targets, n = 1) {
-    discs <- purrr::map_dbl(seq_along(ems), function(y) {
+    discs <- map_dbl(seq_along(ems), function(y) {
       if (!is.numeric(targets[[y]]))
         return(abs((ems[[y]]$get_exp(x) - targets[[y]]$val)/targets[[y]]$val))
       else {
@@ -166,7 +166,7 @@ directional_proposal <- function(ems, x, targets, accept = 2, hstart = 1e-04,
     warning("No direction improves the performance on the relevant targets.")
     return(x)
   }
-  range_dists <- purrr::map_dbl(ems[[1]]$ranges, ~diff(.)/2)
+  range_dists <- map_dbl(ems[[1]]$ranges, ~diff(.)/2)
   best_dir <- restrict_dirs[1,] * range_dists
   track_measure <- if (iteration.measure == "exp")
     nth_discrepancy(ems, x, targets) else max(point_implaus)

@@ -1,11 +1,11 @@
 ## Helper function for converting ranges from data.frame or data.matrix to list
 convertRanges <- function(object) {
   if (is.null(object) || missing(object)) return(object)
-  if ("matrix" %in% class(object)) {
+  if (inherits(object, "matrix")) {
     if (ncol(object) == 2 &&
         length(row.names(object)[row.names(object) != ""]) == nrow(object))
       return(setNames(
-        purrr::map(seq_len(nrow(object)),
+        map(seq_len(nrow(object)),
                    ~c(min(object[.,]), max(object[.,]), use.names = FALSE)
         ),
         row.names(object)
@@ -16,10 +16,10 @@ convertRanges <- function(object) {
       return(NULL)
     }
   }
-  if (is.list(object) && !"data.frame" %in% class(object)) {
+  if (is.list(object) && !is.data.frame(object)) {
     if (length(names(object)) == length(object) &&
-        all(purrr::map_dbl(object, length) == 2))
-      return(purrr::map(object, sort))
+        all(map_dbl(object, length) == 2))
+      return(map(object, sort))
     else {
       warning(paste("List of ranges is misspecified,",
                     "(either not all named, or not all have maximum and minimum value)."))
@@ -28,8 +28,8 @@ convertRanges <- function(object) {
   }
   if (is.data.frame(object)) {
     if (length(object) == 2 &&
-        !any(purrr::map_lgl(seq_len(nrow(object)), ~row.names(object)[.]==.)))
-      return(purrr::map(seq_len(nrow(object)),
+        !any(map_lgl(seq_len(nrow(object)), ~row.names(object)[.]==.)))
+      return(map(seq_len(nrow(object)),
                         ~c(min(object[.,]), max(object[.,]))) |>
                setNames(row.names(object)))
     else {
@@ -89,7 +89,7 @@ get_coefficient_model <- function(data, ranges, output_name, add = FALSE,
                                            output_name = output_name, add = add,
                                            order = order, u_form = upper_form)
       a_vars <- names(start_model$coefficients)[-1]
-      a_vars <- names(ranges)[purrr::map_lgl(names(ranges), ~any(grepl(., a_vars)))]
+      a_vars <- names(ranges)[map_lgl(names(ranges), ~any(grepl(., a_vars)))]
       if (length(a_vars) == 0)
         upper_form <- as.formula(paste(output_name, "~ 1"))
       else {
@@ -115,7 +115,7 @@ get_coefficient_model <- function(data, ranges, output_name, add = FALSE,
                     "the available degrees of freedom. Changing to add = TRUE."))
     add <- TRUE
   }
-  if (!"data.frame" %in% class(data))
+  if (!is.data.frame(data))
     data <- setNames(data.frame(data), c(names(ranges), output_name))
   model <- tryCatch({
     if (add) {
@@ -172,6 +172,8 @@ return(model)
 #' @param verbose Should the output name be printed?
 #'
 #' @importFrom stats optim
+#' @importFrom purrr exec
+#' @importFrom MASS ginv
 #'
 #' @keywords internal
 #' @noRd
@@ -184,24 +186,24 @@ hyperparameter_estimate <- function(inputs, outputs, model, corr_name = "exp_sq"
   if (verbose) cat(names(outputs)[[1]], "\n")
   corr <- Correlator$new(corr_name,
                          hp = setNames(
-                           purrr::map(names(hp_range),
+                           map(names(hp_range),
                                       ~hp_range[[.]][[1]]), names(hp_range))
   )
-  if (!"data.frame" %in% class(inputs)) inputs <- data.frame(inputs)
+  if (!is.data.frame(inputs)) inputs <- data.frame(inputs)
   if (!is.null(beta) &&
-      (("lm" %in% class(model) && length(coef(model)) != length(beta)) ||
-       (!"lm" %in% class(model) && length(beta) != length(model))))
+      ((inherits(model, "lm") && length(coef(model)) != length(beta)) ||
+       (!inherits(model, "lm") && length(beta) != length(model))))
     stop("Number of coefficients does not match number of regression functions")
-  if ("lm" %in% class(model)) H <- model.matrix(model) #%*% diag(coef(model), nrow = length(coef(model)))
+  if (inherits(model, "lm")) H <- model.matrix(model) #%*% diag(coef(model), nrow = length(coef(model)))
   else H <- t(eval_funcs(model, inputs))
   if (dim(H)[1] == 1) H <- t(H)
-  av <- purrr::map_lgl(seq_along(names(inputs)), function(x) {
+  av <- map_lgl(seq_along(names(inputs)), function(x) {
     point_vec <- c(rep(0, x-1), 1, rep(0, length(names(inputs))-x))
-    if ("lm" %in% class(model))
+    if (inherits(model, "lm"))
       func_vals <- model.matrix(model$terms,
                                 setNames(data.frame(matrix(c(point_vec, 0), nrow = 1)), c(names(inputs), names(outputs))))
     else
-      func_vals <- purrr::map_dbl(model, purrr::exec, point_vec)
+      func_vals <- map_dbl(model, exec, point_vec)
     sum(func_vals) > 1
   })
   if (all(av == FALSE)) av <- c(TRUE)
@@ -216,10 +218,10 @@ hyperparameter_estimate <- function(inputs, outputs, model, corr_name = "exp_sq"
     A <- corr_mat(inputs, hp, delta)
     a_det <- det(A)
     if (a_det < 0) a_det <- 1e-20
-    A_inv <- tryCatch(chol2inv(chol(A)), error = function(e) MASS::ginv(A))
-    outputs <- purrr::map_dbl(seq_len(nrow(outputs)), ~as.numeric(outputs[.,]))
+    A_inv <- tryCatch(chol2inv(chol(A)), error = function(e) ginv(A))
+    outputs <- map_dbl(seq_len(nrow(outputs)), ~as.numeric(outputs[.,]))
     if (is.null(beta)) {
-      inv_mat <- tryCatch(chol2inv(chol(t(H) %*% A_inv %*% H)), error = function(e) MASS::ginv(t(H) %*% A_inv %*% H))
+      inv_mat <- tryCatch(chol2inv(chol(t(H) %*% A_inv %*% H)), error = function(e) ginv(t(H) %*% A_inv %*% H))
       b_ml <- inv_mat %*% t(H) %*% A_inv %*% outputs
     }
     else b_ml <- beta
@@ -239,36 +241,36 @@ hyperparameter_estimate <- function(inputs, outputs, model, corr_name = "exp_sq"
     best_delta <- delta
     best_params <- c(best_point, best_delta)
   }
-  func_grad <- function(params, log_lik = log_likelihood) {
+  func_grad <- function(params, log_lik = log_likelihood) { #nocov start
     hp <- params[seq_along(hp_range)]
     delta <- params[length(params)]
     if (is.na(delta)) delta <- 0
     A <- corr_mat(inputs, hp, delta)
     a_det <- det(A)
     if (a_det < 0) a_det <- 1e-20
-    A_inv <- tryCatch(chol2inv(chol(A)), error = function(e) MASS::ginv(A))
-    outputs <- purrr::map_dbl(seq_len(nrow(outputs)), ~as.numeric(outputs[.,]))
+    A_inv <- tryCatch(chol2inv(chol(A)), error = function(e) ginv(A))
+    outputs <- map_dbl(seq_len(nrow(outputs)), ~as.numeric(outputs[.,]))
     A_diff_theta <- -2*(1-delta) * as.matrix(dist(inputs, diag = TRUE, upper = TRUE))^2/params[1]^3 * A
     A_diff_delta <- -A + diag(1, nrow = length(outputs))
     if (is.null(beta)) {
-      inv_mat <- tryCatch(chol2inv(chol(t(H) %*% A_inv %*% H)), error = function(e) MASS::ginv(t(H) %*% A_inv %*% H))
+      inv_mat <- tryCatch(chol2inv(chol(t(H) %*% A_inv %*% H)), error = function(e) ginv(t(H) %*% A_inv %*% H))
       b_ml <- inv_mat %*% t(H) %*% A_inv %*% outputs
     }
     else b_ml <- beta
     mod_diff <- if (nrow(H) == 1) t(outputs - H * b_ml) else outputs - H %*% b_ml
     sigmasq_ml <- t(mod_diff) %*% A_inv %*% mod_diff/length(outputs)
     if (log_lik)
-      lik <- purrr::map_dbl(list(A_diff_theta, A_diff_delta),
+      lik <- map_dbl(list(A_diff_theta, A_diff_delta),
                             ~-(length(outputs) * (t(mod_diff) %*% A_inv %*% . %*% A_inv %*% mod_diff)/(t(mod_diff) %*% A_inv %*% mod_diff) +
                                 sum(diag(A_inv %*% .)))/2
                             )
     else
-      lik <- purrr::map_dbl(list(A_diff_theta, A_diff_delta),
+      lik <- map_dbl(list(A_diff_theta, A_diff_delta),
                             ~-(t(mod_diff) %*% A_inv %*% . %*% A_inv %*% mod_diff)/(2*length(outputs)*sigmasq_ml^(length(outputs)/2 + 1) * sqrt(a_det)) -
                               sum(diag(A_inv %*% .))/(2 * sigmasq_ml^(length(outputs)/2) * sqrt(a_det)))
     if (any(is.infinite(lik))) lik <- c(0,0)
     return(lik)
-  }
+  } #nocov end
   if (length(hp_range[['theta']]) == 1) {
     if (is.null(delta)) delta <- 0.05
     best_point <- hp_range
@@ -283,7 +285,7 @@ hyperparameter_estimate <- function(inputs, outputs, model, corr_name = "exp_sq"
       )
     }
     else {
-      grid_search <- expand.grid(purrr::map(hp_range,
+      grid_search <- expand.grid(map(hp_range,
                                             ~seq(.[[1]], .[[2]], length.out = nsteps)))
     }
     grid_liks <- apply(grid_search, 1, function(x) {
@@ -310,14 +312,14 @@ hyperparameter_estimate <- function(inputs, outputs, model, corr_name = "exp_sq"
     if (corr$corr_name == "exp_sq")
       optimise <- optim(initial_params, fn = func_to_opt,
                         gr = func_grad, method = "L-BFGS-B",
-                        lower = c(purrr::map_dbl(hp_range, ~.[[1]]), 0),
-                        upper = c(purrr::map_dbl(hp_range, ~.[[2]]), 0.2),
+                        lower = c(map_dbl(hp_range, ~.[[1]]), 0),
+                        upper = c(map_dbl(hp_range, ~.[[2]]), 0.2),
                         control = list(fnscale = -1))
     else
       optimise <- optim(initial_params, fn = func_to_opt,
                         method = "L-BFGS-B",
-                        lower = c(purrr::map_dbl(hp_range, ~.[[1]]), 0),
-                        upper = c(purrr::map_dbl(hp_range, ~.[[2]]), 0.2),
+                        lower = c(map_dbl(hp_range, ~.[[1]]), 0),
+                        upper = c(map_dbl(hp_range, ~.[[2]]), 0.2),
                         control = list(fnscale = -1))
     best_params <- optimise$par
   }
@@ -419,6 +421,7 @@ hyperparameter_estimate <- function(inputs, outputs, model, corr_name = "exp_sq"
 #' @importFrom rlang hash
 #' @importFrom cluster daisy fanny
 #' @importFrom stats coef formula model.matrix var
+#' @importFrom purrr map map_dbl map_lgl map_chr map2_dbl
 #'
 #' @return An appropriately structured list of \code{\link{Emulator}} objects
 #' @export
@@ -523,7 +526,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
     if (is.null(input_names))
       stop("One of input_names or ranges must be provided.")
     warning("No ranges provided: inputs assumed to be in ranges [-1,1].")
-    ranges <- setNames(purrr::map(input_names, ~c(-1,1)), input_names)
+    ranges <- setNames(map(input_names, ~c(-1,1)), input_names)
   }
   else {
     ranges <- convertRanges(ranges)
@@ -537,9 +540,9 @@ emulator_from_data <- function(input_data, output_names, ranges,
   if (!emulator_type %in% c("default", "variance", "covariance", "multistate"))
     emulator_type <- "default"
   if (is.data.frame(input_data))
-    output_ranges <- purrr::map_dbl(output_names, ~diff(range(input_data[,.])))
+    output_ranges <- map_dbl(output_names, ~diff(range(input_data[,.])))
   else if (all(output_names %in% names(input_data)))
-    output_ranges <- purrr::map_dbl(output_names, ~diff(range(input_data[[.]][,.])))
+    output_ranges <- map_dbl(output_names, ~diff(range(input_data[[.]][,.])))
   else
     output_ranges <- rep(1e-2, length(output_names))
   output_ranges[is.na(output_ranges)] <- 1e-2
@@ -548,11 +551,11 @@ emulator_from_data <- function(input_data, output_names, ranges,
   if (is.data.frame(input_data)) {
     data_by_point <- split_dataset(input_data, input_names)
     # unique_hash <- unique(apply(input_data[, input_names, drop = FALSE], 1, hash))
-    # data_by_point <- purrr::map(unique_hash, function(x) {
+    # data_by_point <- map(unique_hash, function(x) {
     #   input_data[apply(input_data[,names(ranges),drop = FALSE], 1, hash) == x,]
     # })
-    if (any(purrr::map_dbl(data_by_point, nrow) > 1) && emulator_type == "default") {
-      if (FALSE) {
+    if (any(map_dbl(data_by_point, nrow) > 1) && emulator_type == "default") {
+      if (FALSE) { #nocov start
         ## Hidden for now. Might change this at some point!
         # if (verbose) {
         want_variance <- readline(paste("emulator_type is default but multiple runs provided for some parameter sets.\n",
@@ -563,17 +566,17 @@ emulator_from_data <- function(input_data, output_names, ranges,
           emulator_type <- want_variance
         }
         else
-          input_data <- do.call('rbind.data.frame', purrr::map(data_by_point, ~.[1,,drop=FALSE]))
-      }
+          input_data <- do.call('rbind.data.frame', map(data_by_point, ~.[1,,drop=FALSE]))
+      } #nocov end
       else {
         warning("emulator_type is default but multiple runs provided for some parameter sets.
             Training to the mean of realisations.")
-        input_data <- do.call('rbind.data.frame', purrr::map(data_by_point, ~c(.[1,names(ranges)], apply(.[,output_names,drop=FALSE], 2, mean)))) |>
+        input_data <- do.call('rbind.data.frame', map(data_by_point, ~c(.[1,names(ranges)], apply(.[,output_names,drop=FALSE], 2, mean)))) |>
           setNames(names(input_data))
-        variabilities <- do.call('rbind.data.frame', purrr::map(data_by_point, ~apply(.[,output_names,drop=FALSE], 2, var))) |> setNames(output_names)
+        variabilities <- do.call('rbind.data.frame', map(data_by_point, ~apply(.[,output_names,drop=FALSE], 2, var))) |> setNames(output_names)
         ave_vars <- apply(variabilities, 2, mean)
         if (is.null(discrepancies))
-          discrepancies <- purrr::map(ave_vars, ~list(external = 0, internal = sqrt(.))) |> setNames(output_names)
+          discrepancies <- map(ave_vars, ~list(external = 0, internal = sqrt(.))) |> setNames(output_names)
         else {
           for (i in output_names) {
             if (is.null(discrepancies[[i]])) discrepancies[[i]] <- list(external = 0, internal = sqrt(ave_vars[[i]]))
@@ -583,25 +586,25 @@ emulator_from_data <- function(input_data, output_names, ranges,
         }
       }
     }
-    if (all(purrr::map_dbl(data_by_point, nrow) == 1) && emulator_type != "default") {
+    if (all(map_dbl(data_by_point, nrow) == 1) && emulator_type != "default") {
       warning("emulator_type is not default but only one model run per point.
             Changing to emulator_type = 'default'.")
       emulator_type <- "default"
     }
     if (na.rm) {
-      input_data <- purrr::map(output_names, function(o) {
+      input_data <- map(output_names, function(o) {
         new_df <- input_data[,c(names(ranges), o)]
         return(new_df[apply(new_df, 1, function(x) !any(is.na(x))),])
       }) |> setNames(output_names)
     }
     else
-      input_data <- purrr::map(output_names, ~input_data[,c(names(ranges), .)])
+      input_data <- map(output_names, ~input_data[,c(names(ranges), .)])
   }
   if (check.ranges) {
     ranges <- setNames(
-      purrr::map(
+      map(
         names(ranges), function(nm) {
-          all_pts <- do.call('c', purrr::map(input_data, ~.[,nm]))
+          all_pts <- do.call('c', map(input_data, ~.[,nm]))
           c(
             max(ranges[[nm]][1], min(all_pts)-0.05*diff(range(all_pts))),
             min(ranges[[nm]][2], max(all_pts)+0.05*diff(range(all_pts)))
@@ -610,7 +613,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
       ),
     names(ranges))
   }
-  not_enough_points <- purrr::map_lgl(input_data, ~nrow(.) < 10*length(ranges))
+  not_enough_points <- map_lgl(input_data, ~nrow(.) < 10*length(ranges))
   if (verbose && any(not_enough_points)) {
     not_enough_output <- output_names[which(not_enough_points)]
     print_message <- paste("Fewer than", 10*length(ranges), #nocov start
@@ -620,7 +623,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
                            "training points (min 10 times number of input parameters)." #nocov end
                            )
   }
-  data <- purrr::map(input_data, function(dat) {
+  data <- map(input_data, function(dat) {
     temp_names <- names(dat)
     cbind.data.frame(eval_funcs(scale_input, dat[,names(ranges)], ranges), dat[,length(dat)]) |>
       setNames(temp_names)
@@ -637,33 +640,33 @@ emulator_from_data <- function(input_data, output_names, ranges,
   if (emulator_type == "default") {
     if (is.null(specified_priors$func)) {
       if (verbose) cat("Fitting regression surfaces...\n") #nocov
-      models <- purrr::map(data, ~get_coefficient_model(., ranges, names(.)[length(.)],
+      models <- map(data, ~get_coefficient_model(., ranges, names(.)[length(.)],
                                                         order = order, verbose = more_verbose))
-      output_names <- output_names[!purrr::map_lgl(models, is.null)]
-      models <- models[!purrr::map_lgl(models, is.null)]
+      output_names <- output_names[!map_lgl(models, is.null)]
+      models <- models[!map_lgl(models, is.null)]
       if (length(models) == 0)
         stop("No outputs can be robustly represented by regression surfaces at this order.")
-      model_beta_mus <- purrr::map(models, coef)
-      model_basis_funcs <- purrr::map(models, function(m) {
-        purrr::map(names(m$coefficients), name_to_function, names(ranges))
+      model_beta_mus <- map(models, coef)
+      model_basis_funcs <- map(models, function(m) {
+        map(names(m$coefficients), name_to_function, names(ranges))
       })
       if (!beta.var)
-        model_beta_sigmas <- purrr::map(models, ~diag(0, nrow = length(coef(.))))
+        model_beta_sigmas <- map(models, ~diag(0, nrow = length(coef(.))))
       else
-        model_beta_sigmas <- purrr::map(models, ~vcov(.))
+        model_beta_sigmas <- map(models, ~vcov(.))
     }
     else {
       models <- NULL
       if (!(is.null(specified_priors$beta) ||
-            any(purrr::map_lgl(specified_priors$beta, ~is.null(.$mu))))) {
+            any(map_lgl(specified_priors$beta, ~is.null(.$mu))))) {
         beta_priors <- specified_priors$beta
-        if (any(purrr::map_lgl(seq_along(beta_priors), ~length(beta_priors[[.]]$mu) != length(specified_priors$func[[.]]))))
+        if (any(map_lgl(seq_along(beta_priors), ~length(beta_priors[[.]]$mu) != length(specified_priors$func[[.]]))))
           stop("Provided regression function and coefficient specifications do not match.")
-        model_beta_mus <- purrr::map(beta_priors, "mu")
-        if (!any(purrr::map_lgl(beta_priors, ~is.null(.$sigma))))
-          model_beta_sigmas <- purrr::map(beta_priors, "sigma")
+        model_beta_mus <- map(beta_priors, "mu")
+        if (!any(map_lgl(beta_priors, ~is.null(.$sigma))))
+          model_beta_sigmas <- map(beta_priors, "sigma")
         else
-          model_beta_sigmas <- purrr::map(beta_priors, function(bp) {
+          model_beta_sigmas <- map(beta_priors, function(bp) {
             if (is.null(bp$sigma) || nrow(bp$sigma) != length(bp$mu) || ncol(bp$sigma) != length(bp$mu))
               return(diag(0, nrow = length(bp$mu)))
             return(bp$sigma)
@@ -672,14 +675,14 @@ emulator_from_data <- function(input_data, output_names, ranges,
       }
       else {
         model_basis_funcs <- specified_priors$func
-        model_beta_sigmas <- purrr::map(model_basis_funcs, ~diag(0, nrow = length(.)))
+        model_beta_sigmas <- map(model_basis_funcs, ~diag(0, nrow = length(.)))
       }
     }
     if (!is.null(specified_priors$delta)) model_deltas <- specified_priors$delta
     else model_deltas <- NULL
-    if (!(is.null(specified_priors$u) || any(purrr::map_lgl(specified_priors$u, ~is.null(.$sigma) || is.null(.$corr))))) {
-      model_u_sigmas <- purrr::map(specified_priors$u, "sigma")
-      model_u_corrs <- purrr::map(specified_priors$u, "corr")
+    if (!(is.null(specified_priors$u) || any(map_lgl(specified_priors$u, ~is.null(.$sigma) || is.null(.$corr))))) {
+      model_u_sigmas <- map(specified_priors$u, "sigma")
+      model_u_corrs <- map(specified_priors$u, "corr")
     }
     if (verbose) cat("Building correlation structures...\n") #nocov
     if (is.null(model_beta_mus) || is.null(model_u_sigmas) || is.null(model_u_corrs)) {
@@ -710,37 +713,37 @@ emulator_from_data <- function(input_data, output_names, ranges,
           }
         }
         if (corr_name == "exp_sq" || corr_name == "orn_uhl")
-          theta_ranges <- purrr::map(model_basis_funcs,
+          theta_ranges <- map(model_basis_funcs,
                                      ~list(theta = c(min(2/(order+1), 1/3), 2/order)))
         else if (corr_name == "matern")
-          theta_ranges <- purrr::map(model_basis_funcs,
+          theta_ranges <- map(model_basis_funcs,
                                      ~list(theta = c(min(2/(order+1), 1/3), 2/order),
                                            nu = c(0.5, 2.5)))
         else if (corr_name == "rat_quad")
-          theta_ranges <- purrr::map(model_basis_funcs,
+          theta_ranges <- map(model_basis_funcs,
                                      ~list(theta = c(min(2/(order+1), 1/3), 2/order),
                                            alpha = c(-1, 1)))
       }
       else {
         if (corr_name == "exp_sq" || corr_name == "orn_uhl") {
           if (length(specified_priors$hyper_p) == 1)
-            theta_ranges <- purrr::map(model_basis_funcs,
+            theta_ranges <- map(model_basis_funcs,
                                        ~list(theta = specified_priors$hyper_p))
           else
-            theta_ranges <- purrr::map(seq_along(model_basis_funcs),
+            theta_ranges <- map(seq_along(model_basis_funcs),
                                        ~list(theta = specified_priors$hyper_p[[.]]))
         }
         else {
           if (is.null(names(specified_priors$hyper_p)))
-            theta_ranges <- purrr::map(seq_along(model_basis_funcs),
+            theta_ranges <- map(seq_along(model_basis_funcs),
                                        ~specified_priors$hyper_p[[.]])
           else
-            theta_ranges <- purrr::map(seq_along(model_basis_funcs),
+            theta_ranges <- map(seq_along(model_basis_funcs),
                                        ~specified_priors$hyper_p)
         }
       }
       if (is.null(models))
-        specs <- purrr::map(seq_along(model_basis_funcs),
+        specs <- map(seq_along(model_basis_funcs),
                             ~hyperparameter_estimate(
                               data[[.]][,input_names],
                               data[[.]][,length(data),drop=FALSE],
@@ -752,7 +755,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
                               verbose = more_verbose
                             ))
       else
-        specs <- purrr::map(seq_along(model_basis_funcs),
+        specs <- map(seq_along(model_basis_funcs),
                             ~hyperparameter_estimate(
                               data[[.]][,input_names,drop=FALSE],
                               data[[.]][,length(data[[.]]),drop=FALSE],
@@ -765,28 +768,28 @@ emulator_from_data <- function(input_data, output_names, ranges,
                             ))
       if (is.null(model_u_sigmas)) model_u_sigmas <-
           tryCatch(
-            purrr::map(seq_along(specs), ~max(output_ranges[[.]]*1e-3, as.numeric(specs[[.]]$sigma))),
+            map(seq_along(specs), ~max(output_ranges[[.]]*1e-3, as.numeric(specs[[.]]$sigma))),
             error = function(e) {
-              purrr::map(seq_along(specs), ~as.numeric(specs[[.]]$sigma))
+              map(seq_along(specs), ~as.numeric(specs[[.]]$sigma))
             }
           )
-      if (is.null(model_beta_mus)) model_beta_mus <- purrr::map(specs, ~.$beta)
-      if (is.null(model_u_corrs)) model_u_corrs <- purrr::map(specs, ~Correlator$new(corr_name, hp = .$hp, nug = .$delta))
+      if (is.null(model_beta_mus)) model_beta_mus <- map(specs, ~.$beta)
+      if (is.null(model_u_corrs)) model_u_corrs <- map(specs, ~Correlator$new(corr_name, hp = .$hp, nug = .$delta))
     }
-    model_us <- purrr::map(seq_along(model_u_corrs),
+    model_us <- map(seq_along(model_u_corrs),
                            ~list(sigma = model_u_sigmas[[.]], corr = model_u_corrs[[.]]))
-    model_betas <- purrr::map(seq_along(model_beta_mus),
+    model_betas <- map(seq_along(model_beta_mus),
                               ~list(mu = model_beta_mus[[.]], sigma = model_beta_sigmas[[.]]))
     if (!is.null(discrepancies)) {
-      if (is.numeric(discrepancies)) discrepancies <- purrr::map(discrepancies,
+      if (is.numeric(discrepancies)) discrepancies <- map(discrepancies,
                                                                  ~list(internal = ., external = 0))
     }
     else {
-      discrepancies <- purrr::map(model_betas, ~list(internal = 0, external = 0))
+      discrepancies <- map(model_betas, ~list(internal = 0, external = 0))
     }
     if (verbose) cat("Creating emulators...\n") #nocov
     if (!has.hierarchy) {
-      out_ems <- setNames(purrr::map(seq_along(model_us),
+      out_ems <- setNames(map(seq_along(model_us),
                                      ~Emulator$new(basis_f = model_basis_funcs[[.]],
                                                    beta = model_betas[[.]],
                                                    u = model_us[[.]],
@@ -796,7 +799,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
                                                    )),
                           output_names)
     } else {
-      out_ems <- setNames(purrr::map(seq_along(model_us),
+      out_ems <- setNames(map(seq_along(model_us),
                                      ~HierarchicalEmulator$new(basis_f = model_basis_funcs[[.]],
                                                                beta = model_betas[[.]],
                                                                u = model_us[[.]],
@@ -810,29 +813,29 @@ emulator_from_data <- function(input_data, output_names, ranges,
     for (i in seq_along(out_ems)) out_ems[[i]]$output_name <- output_names[[i]]
     if (adjusted) {
       if (verbose) cat("Performing Bayes linear adjustment...\n") #nocov
-      out_ems <- purrr::map(seq_along(out_ems), ~out_ems[[.]]$adjust(input_data[[.]], out_ems[[.]]$output_name))
+      out_ems <- map(seq_along(out_ems), ~out_ems[[.]]$adjust(input_data[[.]], out_ems[[.]]$output_name))
     }
     return(setNames(out_ems, output_names))
   }
   ## Variance emulation starts here
   if (verbose) cat("Multiple model runs per point detected. Splitting by input parameters...\n") #nocov
-  unique_points <- unique(do.call('rbind.data.frame', purrr::map(input_data, ~.[,input_names])))
+  unique_points <- unique(do.call('rbind.data.frame', map(input_data, ~.[,input_names])))
   unique_uids <- apply(unique_points, 1, hash)
-  data_by_point <- purrr::map(input_data, split_dataset, input_names)
-  data_by_point <- purrr::map(data_by_point, function(dat) {
-    dat[purrr::map_lgl(dat, ~nrow(.) > 1)]
+  data_by_point <- map(input_data, split_dataset, input_names)
+  data_by_point <- map(data_by_point, function(dat) {
+    dat[map_lgl(dat, ~nrow(.) > 1)]
   })
-  split_hashes <- purrr::map(data_by_point, function(d) {
-    purrr::map_chr(d, ~apply(.[,input_names], 1, hash)[1])
+  split_hashes <- map(data_by_point, function(d) {
+    map_chr(d, ~apply(.[,input_names], 1, hash)[1])
   })
-  param_sets <- purrr::map(unique_uids, function(uid) {
-    output_vals <- purrr::map(seq_along(split_hashes), function(sh) {
+  param_sets <- map(unique_uids, function(uid) {
+    output_vals <- map(seq_along(split_hashes), function(sh) {
       which_matches <- which(split_hashes[[sh]] == uid)
       if (length(which_matches) == 0) return(NULL)
       return(c(data_by_point[[sh]][[which_matches[1]]][,length(data_by_point[[sh]][[which_matches[1]]])]))
     })
-    largest_length <- max(purrr::map_dbl(output_vals, length))
-    output_vals_padded <- purrr::map(output_vals, ~c(., rep(NA, largest_length-length(.))))
+    largest_length <- max(map_dbl(output_vals, length))
+    output_vals_padded <- map(output_vals, ~c(., rep(NA, largest_length-length(.))))
     which_matches <- which(unique_uids == uid)[1]
     which_point <- unique_points[which_matches,]
     return(cbind.data.frame(which_point[rep(1,largest_length),], do.call('cbind.data.frame', output_vals_padded)) |>
@@ -841,14 +844,14 @@ emulator_from_data <- function(input_data, output_names, ranges,
   if (verbose) cat("Separated dataset by unique points...\n") #nocov
   ## Multistate emulation goes here, so that if it isn't multistate we can go to variance emulation
   if (emulator_type == "multistate") {
-    proportion <- purrr::map_dbl(param_sets, function(x) {
+    proportion <- map_dbl(param_sets, function(x) {
       p_clust <- suppressWarnings(fanny(suppressWarnings(daisy(x[,output_names, drop = FALSE])), k = 2)$clustering)
       return(sum(p_clust == 1)/length(p_clust))
     })
     unique_points <- unique(input_data_backup[,names(ranges)])
     prop_df <- cbind.data.frame(unique_points, proportion) |> setNames(c(names(unique_points), "prop"))
-    has_bimodality <- do.call('rbind.data.frame', purrr::map(param_sets, function(x) {
-      purrr::map_lgl(output_names, function(y) {
+    has_bimodality <- do.call('rbind.data.frame', map(param_sets, function(x) {
+      map_lgl(output_names, function(y) {
         if (length(unique(x[,y])) == 1) return(FALSE)
         clust1 <- suppressWarnings(fanny(suppressWarnings(daisy(x[,y,drop=FALSE])), k = 1))
         clust2 <- suppressWarnings(fanny(suppressWarnings(daisy(x[,y,drop=FALSE])), k = 2))
@@ -884,7 +887,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
         non_bimodal <- NULL
       }
       if (verbose) cat("Training to multistate targets.\n") #nocov
-      bimodal <- purrr::map(output_names[is_bimodal_target], function(x) {
+      bimodal <- map(output_names[is_bimodal_target], function(x) {
         c1_data <- list()
         c2_data <- list()
         param_bimodal <- has_bimodality[,x]
@@ -903,8 +906,8 @@ emulator_from_data <- function(input_data, output_names, ranges,
         mode2_dat <- do.call('rbind.data.frame', c2_data)[,c(names(ranges), x)]
         return(list(mode1 = mode1_dat, mode2 = mode2_dat))
       }) |> setNames(output_names[is_bimodal_target])
-      mode1_dats <- purrr::map(bimodal, "mode1") |> setNames(output_names[is_bimodal_target])
-      mode2_dats <- purrr::map(bimodal, "mode2") |> setNames(output_names[is_bimodal_target])
+      mode1_dats <- map(bimodal, "mode1") |> setNames(output_names[is_bimodal_target])
+      mode2_dats <- map(bimodal, "mode2") |> setNames(output_names[is_bimodal_target])
       mode1_ems <- emulator_from_data(mode1_dats, names(mode1_dats), ranges, verbose = FALSE, emulator_type = "variance",
                                       specified_priors = specified_priors, order = order, beta.var = beta.var,
                                       corr_name = corr_name, adjusted = adjusted, discrepancies = discrepancies,
@@ -947,14 +950,14 @@ emulator_from_data <- function(input_data, output_names, ranges,
   if (emulator_type == "variance") {
     ## This is a bit of a cludge to deal with bimodal emulators where
     ## one parameter doesn't contribute to an output
-    data_by_point <- purrr::map(data_by_point, function(dat) {
+    data_by_point <- map(data_by_point, function(dat) {
       dat_out_name <- names(dat)[length(names(dat))]
-      unique_points_in_dat <- purrr::map_chr(dat, function(subdat) {
+      unique_points_in_dat <- map_chr(dat, function(subdat) {
         apply(subdat[,names(ranges)], 1, hash)[1]
       })
       which_missing <- which(!unique_uids %in% unique_points_in_dat)
       if (length(which_missing) == 0) return(dat)
-      purrr::map(seq_along(unique_uids), function(i) {
+      map(seq_along(unique_uids), function(i) {
         if (!i %in% which_missing) return(dat[[which(unique_points_in_dat == unique_uids[i])]])
         else {
           ## This ALMOST works. But I think it's having downstream effects.
@@ -966,7 +969,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
         }
       })
     })
-    collected_stats <- purrr::map(data_by_point, function(dat) {
+    collected_stats <- map(data_by_point, function(dat) {
       lapply(dat, function(x) {
         n_points <- nrow(x)
         out_vals <- x[,length(x)]
@@ -984,32 +987,32 @@ emulator_from_data <- function(input_data, output_names, ranges,
         ))
       })
     })
-    collected_df_pts <- do.call('rbind.data.frame', purrr::map(collected_stats[[1]], "point")) |>
+    collected_df_pts <- do.call('rbind.data.frame', map(collected_stats[[1]], "point")) |>
       setNames(input_names)
     collected_df_var <- cbind.data.frame(
       collected_df_pts,
-      do.call('cbind.data.frame', purrr::map(collected_stats, ~purrr::map_dbl(., "var")))
+      do.call('cbind.data.frame', map(collected_stats, ~map_dbl(., "var")))
     ) |>
       setNames(c(input_names, output_names))
     collected_df_mean <- cbind.data.frame(
       collected_df_pts,
-      do.call('cbind.data.frame', purrr::map(collected_stats, ~purrr::map_dbl(., "mean")))
+      do.call('cbind.data.frame', map(collected_stats, ~map_dbl(., "mean")))
     ) |>
       setNames(c(input_names, output_names))
     collected_df_kurt <- cbind.data.frame(
       collected_df_pts,
-      do.call('cbind.data.frame', purrr::map(collected_stats, ~purrr::map_dbl(., "kurt")))
+      do.call('cbind.data.frame', map(collected_stats, ~map_dbl(., "kurt")))
     ) |>
       setNames(c(input_names, output_names))
     collected_df_kurt <- cbind.data.frame(collected_df_kurt,
-                                          do.call('cbind.data.frame', purrr::map(collected_stats, ~purrr::map_dbl(., "np")))) |>
+                                          do.call('cbind.data.frame', map(collected_stats, ~map_dbl(., "np")))) |>
       setNames(c(input_names, output_names, paste0(output_names, "_n")))
   }
   if (emulator_type == "covariance") {
     cov_out_names <- outer(output_names, output_names, paste0)
-    data_by_point <- purrr::map(seq_along(data_by_point[[1]]), function(i) {
+    data_by_point <- map(seq_along(data_by_point[[1]]), function(i) {
       cbind.data.frame(data_by_point[[1]][[i]][,names(ranges)],
-                       do.call('cbind.data.frame', purrr::map(data_by_point, ~.[[i]][,length(.[[i]])]))) |>
+                       do.call('cbind.data.frame', map(data_by_point, ~.[[i]][,length(.[[i]])]))) |>
         setNames(c(names(ranges), output_names))
     })
     collected_stats <- lapply(data_by_point, function(x) {
@@ -1018,7 +1021,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
       covs <- cov(x[,output_names])
       kurts <- apply(x[,output_names], 2, kurtosis)
       vofv <- diag(covs)^2 * (kurts - 1 + 2/(n_points-1))/n_points
-      kurt_relev <- purrr::map_dbl(seq_along(kurts), function(y) {
+      kurt_relev <- map_dbl(seq_along(kurts), function(y) {
         if (!is.nan(kurts[y]) && (vofv/diag(covs)^2)[y] <= 1) kurts[y] else NA
       })
       if (!is.null(covariance_opts$logged) && covariance_opts$logged) {
@@ -1039,28 +1042,28 @@ emulator_from_data <- function(input_data, output_names, ranges,
       )
     })
     collected_df_var <- do.call('rbind.data.frame',
-                                purrr::map(collected_stats, function(x) {
+                                map(collected_stats, function(x) {
                                   c(
                                     x$point, diag(x$covs)
                                   )
                                 })) |>
       setNames(c(input_names, output_names))
     collected_df_cov <- do.call('rbind.data.frame',
-                                purrr::map(collected_stats, function(x) {
+                                map(collected_stats, function(x) {
                                   c(
                                     x$point, c(x$covs[upper.tri(x$covs)])
                                   )
                                 })) |>
       setNames(c(input_names, cov_out_names[upper.tri(cov_out_names)]))
     collected_df_mean <- do.call('rbind.data.frame',
-                                 purrr::map(collected_stats, function(x) {
+                                 map(collected_stats, function(x) {
                                    c(
                                      x$point, x$means
                                    )
                                  })) |>
       setNames(c(input_names, output_names))
     collected_df_kurt <- do.call('rbind.data.frame',
-                                  purrr::map(collected_stats, function(x) {
+                                  map(collected_stats, function(x) {
                                     c(
                                       x$point, x$kurt, x$np
                                     )
@@ -1070,7 +1073,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
   if (verbose) cat("Computed summary statistics...\n") #nocov
   if (verbose) cat("Building variance emulator priors...\n") #nocov
   which_high_rep <- do.call('cbind.data.frame',
-                            purrr::map(output_names,
+                            map(output_names,
                                        ~!is.na(collected_df_kurt[,.]))) |>
     setNames(output_names)
   which_high_rep[!which_high_rep] <- NA
@@ -1090,7 +1093,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
     if (sum(x[!is.na(x)]) < 2) return(3)
     return(mean(x[!is.na(x)]))
   })
-  trained_var_ems <- purrr::map(names(variance_emulators), function(v_name) {
+  trained_var_ems <- map(names(variance_emulators), function(v_name) {
     if (round(variance_emulators[[v_name]]$u_sigma, 10) <= 0) {
       s_vars <- collected_df_var[!is.na(collected_df_kurt[,v_name]), v_name]
       if (emulator_type == "covariance")
@@ -1141,8 +1144,8 @@ emulator_from_data <- function(input_data, output_names, ranges,
       j_name <- v_ems[[j,j]]$output_name
       if (nrow(rho) == 1) group1 <- group2 <- 1
       else {
-        group1 <- which(purrr::map_lgl(part_indices, ~i_name %in% .))
-        group2 <- which(purrr::map_lgl(part_indices, ~j_name %in% .))
+        group1 <- which(map_lgl(part_indices, ~i_name %in% .))
+        group2 <- which(map_lgl(part_indices, ~j_name %in% .))
       }
       t_nam <- name_to_time(c(i_name, j_name))
       if (any(is.na(t_nam))) t_nam <- rep(0, 2)
@@ -1154,7 +1157,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
       if (length(k_est) == 1) k_est <- c(k_est, k_est)
       rvi <- (k_est[1]-1)*(v_ems[[i,i]]$get_cov(x) + v_ems[[i,i]]$get_exp(x)^2)
       rvj <- (k_est[2]-1)*(v_ems[[j,j]]$get_cov(x) + v_ems[[j,j]]$get_exp(x)^2)
-      return(purrr::map2_dbl(rvi, rvj, min))
+      return(map2_dbl(rvi, rvj, min))
     }
     cov_vt <- function(x, i, j, n, cov_ems, theta.t, rho, k_est = 3) {
       if (i > j) {
@@ -1194,14 +1197,14 @@ emulator_from_data <- function(input_data, output_names, ranges,
     init_cov_mat[col(init_cov_mat) == row(init_cov_mat)] <- variance_emulators
     recomb_input_data <- cbind.data.frame(
       input_data[[1]][,input_names],
-      do.call('cbind.data.frame', purrr::map(input_data, ~.[,length(.)]))
+      do.call('cbind.data.frame', map(input_data, ~.[,length(.)]))
     ) |> setNames(c(input_names, output_names))
     if (is.null(covariance_opts$rho)) rho_mat <- get_mpc_rho_est(recomb_input_data, output_names)
     else rho_mat <- covariance_opts$rho
     if (is.null(covariance_opts$theta)) theta_val <- get_mpc_theta_est(recomb_input_data, output_names, variance_emulators, rho_mat)
     else theta_val <- covariance_opts$theta
     if (theta_val == 0 || is.nan(theta_val)) theta_val <- 1
-    trained_cov_ems <- purrr::map(1:length(init_cov_ems), function(i) {
+    trained_cov_ems <- map(1:length(init_cov_ems), function(i) {
       indices <- as.numeric(which(cov_out_names == init_cov_ems[[i]]$output_name, arr.ind = TRUE))
       kurts <- kurt_aves[indices]
       init_cov_ems[[i]]$s_diag <- function(x, n) {
@@ -1225,7 +1228,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
     else
       cat("Training mean emulators...\n")
   }
-  trained_mean_ems <- purrr::map(output_names, function(m_name) {
+  trained_mean_ems <- map(output_names, function(m_name) {
     if (!is.null(covariance_opts$logged) && covariance_opts$logged)
       mean_emulators[[m_name]]$s_diag <- function(x, n) exp(trained_var_ems[[m_name]]$get_exp(x))/n
     else
@@ -1292,10 +1295,10 @@ variance_emulator_from_data <- function(input_data, output_names, ranges,
     input_data, 1, function(x) !any(is.na(x))),]
   unique_points <- unique(input_data[, input_names])
   uids <- apply(unique_points, 1, hash)
-  data_by_point <- purrr::map(uids, function(x) {
+  data_by_point <- map(uids, function(x) {
     input_data[apply(input_data[,names(ranges)], 1, hash) == x,]
   })
-  data_by_point <- data_by_point[purrr::map_lgl(data_by_point, ~nrow(.)>1)]
+  data_by_point <- data_by_point[map_lgl(data_by_point, ~nrow(.)>1)]
   if (verbose) cat("Separated dataset by unique points...\n") #nocov
   collected_stats <- do.call('rbind', lapply(data_by_point, function(x) {
     n_points <- nrow(x)
@@ -1310,7 +1313,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges,
       kurts <- apply(x[,output_names], 2, kurtosis)
     }
     vofv <- vars^2 * (kurts - 1 + 2/(n_points-1))/n_points
-    kurt_relevant <- purrr::map_dbl(seq_along(kurts), function(x) {
+    kurt_relevant <- map_dbl(seq_along(kurts), function(x) {
       if(!is.nan(kurts[x]) && (vofv/vars^2)[x] <= 1) kurts[x] else NA
     })
     return(c(x[1, input_names], means, vars, kurt_relevant,
@@ -1329,7 +1332,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges,
       apply(collected_df[,paste0(output_names, "var")], 1,
             function(a) !any(is.na(a))),]
   if (verbose) cat("Computed summary statistics...\n") #nocov
-  variance_emulators <- purrr::map(output_names, function(i) {
+  variance_emulators <- map(output_names, function(i) {
     is_high_rep <- !is.na(collected_df_var[,paste0(i,"kurt")])
     all_var <- setNames(
       collected_df_var[,c(input_names, paste0(i, 'var'))], c(input_names, i))
@@ -1392,7 +1395,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges,
   })
   variance_emulators <- setNames(variance_emulators, output_names)
   if (verbose) cat("Completed variance emulators. Training mean emulators...\n") #nocov
-  exp_mods <- purrr::map(variance_emulators, ~function(x, n) .$get_exp(x)/n)
+  exp_mods <- map(variance_emulators, ~function(x, n) .$get_exp(x)/n)
   exp_data <- setNames(
     collected_df[,c(input_names, paste0(output_names, 'mean'))],
     c(input_names, output_names))
@@ -1405,7 +1408,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges,
     exp_em[[i]]$samples <- collected_df$n
   }
   expectation_emulators <- setNames(
-    purrr::map(
+    map(
       seq_along(exp_em),
       ~exp_em[[.]]$adjust(exp_data, output_names[[.]])),
     output_names)
@@ -1471,11 +1474,11 @@ bimodal_emulator_from_data <- function(data, output_names, ranges,
     input_data, 1, function(x) !any(is.na(x))),]
   unique_points <- unique(data[,input_names])
   uids <- apply(unique_points, 1, hash)
-  param_sets <- purrr::map(uids, function(x) {
+  param_sets <- map(uids, function(x) {
     data[apply(data[,input_names], 1, hash) == x,]
   })
   if(verbose) cat("Separated dataset by unique points.\n") #nocov
-  proportion <- purrr::map_dbl(param_sets, function(x) {
+  proportion <- map_dbl(param_sets, function(x) {
     p_clust <- suppressWarnings(fanny(suppressWarnings(daisy(x[, output_names, drop = FALSE])), k = 2)$clustering)
     return(sum(p_clust == 1)/length(p_clust))
   })
@@ -1486,8 +1489,8 @@ bimodal_emulator_from_data <- function(data, output_names, ranges,
   prop_em <- emulator_from_data(prop_df,
                                 c('prop'), ranges, verbose = FALSE, ...)
   if (verbose) cat("Performing clustering to identify modes.\n") #nocov
-  has_bimodality <- do.call('rbind.data.frame', purrr::map(param_sets, function(x) {
-    purrr::map_lgl(output_names, function(y) {
+  has_bimodality <- do.call('rbind.data.frame', map(param_sets, function(x) {
+    map_lgl(output_names, function(y) {
       if (length(unique(x[,y])) == 1) return(FALSE)
       clust1 <- suppressWarnings(fanny(suppressWarnings(daisy(x[,y, drop = FALSE])), k = 1))
       clust2 <- suppressWarnings(fanny(suppressWarnings(daisy(x[,y, drop = FALSE])), k = 2))
@@ -1511,7 +1514,7 @@ bimodal_emulator_from_data <- function(data, output_names, ranges,
     non_bimodal <- NULL
   }
   if (verbose) cat("Training to bimodal targets.\n") #nocov
-  bimodal <- purrr::map(output_names[is_bimodal_target], function(x) {
+  bimodal <- map(output_names[is_bimodal_target], function(x) {
     c1_data <- list()
     c2_data <- list()
     param_bimodal <- has_bimodality[,x]

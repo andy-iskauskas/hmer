@@ -22,12 +22,12 @@ clean_data <- function(data, in_names, out_name,
                        is.variance = FALSE, boots = 1000) {
   unique_points <- unique(data[,in_names])
   uids <- apply(unique_points, 1, hash)
-  summary_stats <- purrr::map(uids, function(i) {
+  summary_stats <- map(uids, function(i) {
     relev <- data[apply(data[,in_names], 1, hash) == i, out_name]
     if (!is.variance)
       return(c(mean(relev), sd(relev)^2/length(relev), length(relev)))
     var_mean <- sd(relev)^2
-    bootstrap <- purrr::map_dbl(1:boots, function(a) {
+    bootstrap <- map_dbl(1:boots, function(a) {
       repsamp <- sample(relev, length(relev), replace = TRUE)
       sd(repsamp)^2
     })
@@ -52,7 +52,7 @@ k_fold_measure <- function(em, target = NULL, k = 1, ...) {
     if (nrow(train_data) %% k != 0) k <- 1
     else {
       ordering <- sample(seq_len(nrow(train_data)), nrow(train_data))
-      loo_data <- purrr::map(1:(nrow(train_data)/k), function(x) {
+      loo_data <- map(1:(nrow(train_data)/k), function(x) {
         relev_em <- em$o_em$clone()
         relev_pts <- ordering[((x-1)*k+1):(k*x)]
         adjust_data <- train_data[-relev_pts,]
@@ -62,9 +62,9 @@ k_fold_measure <- function(em, target = NULL, k = 1, ...) {
             train_data[relev_pts,],
             adj_em$get_exp(train_data[relev_pts, names(em$ranges)])),
           adj_em$get_cov(train_data[relev_pts, names(em$ranges)]))
-        if ("Hierarchical" %in% class(em))
+        if (inherits(em, "Hierarchical"))
           outp <- cbind(
-            outp, purrr::map_dbl(relev_pts,
+            outp, map_dbl(relev_pts,
                                  ~em$s_diag(train_data[., names(em$ranges)],
                                             1)))
         if (!is.null(target))
@@ -76,13 +76,13 @@ k_fold_measure <- function(em, target = NULL, k = 1, ...) {
     }
   }
   if (k == 1) {
-    loo_data <- purrr::map(seq_len(nrow(train_data)), function(x) {
+    loo_data <- map(seq_len(nrow(train_data)), function(x) {
       relev_em <- em$o_em$clone()
       adjust_data <- train_data[-x,]
       adj_em <- relev_em$adjust(adjust_data, em$output_name)
       outp <- c(train_data[x,], adj_em$get_exp(train_data[x,names(em$ranges)]),
                 adj_em$get_cov(train_data[x,names(em$ranges)]))
-      if ("Hierarchical" %in% class(em))
+      if (inherits(em, "Hierarchical"))
         outp <- c(outp, em$s_diag(train_data[x, names(em$ranges)], 1))
       if (!is.null(target))
         outp <- c(outp, adj_em$implausibility(train_data[x, names(em$ranges)],
@@ -91,7 +91,7 @@ k_fold_measure <- function(em, target = NULL, k = 1, ...) {
     })
   }
   res_names <- c(names(em$ranges), em$output_name, "E", "V")
-  if ("Hierarchical" %in% class(em)) res_names <- c(res_names, "Vest")
+  if (inherits(em, "Hierarchical")) res_names <- c(res_names, "Vest")
   if (!is.null(target)) res_names <- c(res_names, "I")
   out_df <- setNames(
     data.frame(apply(do.call('rbind.data.frame', loo_data), 2, unlist)),
@@ -128,7 +128,7 @@ k_fold_measure <- function(em, target = NULL, k = 1, ...) {
 #' @examples
 #'  summary_diag(SIREmulators$ems$nR, SIRSample$validation)
 summary_diag <- function(emulator, validation, verbose = interactive()) {
-  if ("EmProto" %in% class(emulator))
+  if (inherits(emulator, "EmProto"))
     stop("summary_diag not applicable for Proto_emulator objects.")
   points <- validation[,names(emulator$ranges)]
   outputs <- validation[,emulator$output_name]
@@ -143,7 +143,7 @@ summary_diag <- function(emulator, validation, verbose = interactive()) {
   cov_mat <- emulator$get_cov(points, full = TRUE)
   cov_inv <- tryCatch(
     chol2inv(chol(cov_mat)),
-    error = function(e) {MASS::ginv(cov_mat)}
+    error = function(e) {ginv(cov_mat)}
   )
   mahal_measure <- t(indiv_errs) %*% cov_inv %*% indiv_errs
   if (verbose) cat("Mahalanobis:", round(mahal_measure,4), #nocov start
@@ -177,7 +177,7 @@ summary_diag <- function(emulator, validation, verbose = interactive()) {
 #' residual_diag(SIREmulators$ems$nI, TRUE)
 #'
 residual_diag <- function(emulator, histogram = FALSE, ...) {
-  if ("EmProto" %in% class(emulator))
+  if (inherits(emulator, "EmProto"))
     stop("residual_diag not applicable for Proto_emulator objects.")
   in_points <- eval_funcs(scale_input, data.frame(emulator$in_data),
                           emulator$ranges, FALSE)
@@ -235,13 +235,13 @@ space_removal <- function(ems, targets, points = NULL, ppd = NULL,
                           cutoff = 3, individual = TRUE) {
   if (is.null(points)) {
     if (is.null(ppd)) {
-      if ("EmProto" %in% class(ems[[1]]))
+      if (inherits(ems[[1]], "EmProto"))
         stop("Cannot access emulator training points as basis for space removal calculation for proto_ems.")
       input_points <- eval_funcs(scale_input, data.frame(ems[[1]]$in_data),
                                  ems[[1]]$ranges, FALSE)
       output_points <- setNames(do.call('cbind.data.frame',
-                                        purrr::map(ems, ~.$out_data)),
-                                purrr::map_chr(ems, ~.$output_name))
+                                        map(ems, ~.$out_data)),
+                                map_chr(ems, ~.$output_name))
       points <- data.frame(cbind(input_points, output_points))
     }
     else {
@@ -249,12 +249,12 @@ space_removal <- function(ems, targets, points = NULL, ppd = NULL,
       ranges <- ems[[1]]$ranges
       if (ppd^length(ranges) > maxpoints) {
         points <- setNames(do.call('cbind.data.frame',
-                                   purrr::map(ranges, ~runif(maxpoints, .[[1]], .[[2]]))),
+                                   map(ranges, ~runif(maxpoints, .[[1]], .[[2]]))),
                            names(ranges))
       }
       else {
         points <- setNames(
-          expand.grid(purrr::map(ranges, ~seq(.[[1]], .[[2]], length.out = ppd))),
+          expand.grid(map(ranges, ~seq(.[[1]], .[[2]], length.out = ppd))),
           names(ranges))
       }
     }
@@ -263,9 +263,9 @@ space_removal <- function(ems, targets, points = NULL, ppd = NULL,
     imps <- setNames(
       do.call(
         'cbind.data.frame',
-        purrr::map(ems, ~.$implausibility(points, targets[[.$output_name]],
+        map(ems, ~.$implausibility(points, targets[[.$output_name]],
                                           cutoff = cutoff))),
-      purrr::map_chr(ems, ~.$output_name))
+      map_chr(ems, ~.$output_name))
     return(1-apply(imps, 2, sum)/nrow(points))
   }
   nth_imps <- nth_implausible(ems, points, targets, cutoff = cutoff)
@@ -331,7 +331,7 @@ space_removal <- function(ems, targets, points = NULL, ppd = NULL,
 get_diagnostic <- function(emulator, targets = NULL, validation = NULL,
                            which_diag = 'cd', stdev = 3, cleaned = NULL,
                            warn = TRUE, kfold = NULL, ...) {
-  if (is.null(validation) && "EmProto" %in% class(emulator))
+  if (is.null(validation) && inherits(emulator, "EmProto"))
     stop("Proto_emulator object requires validation set.")
   if (is.null(targets) && which_diag == 'ce')
     stop("Targets must be provided for classification error diagnostics.")
@@ -350,12 +350,12 @@ get_diagnostic <- function(emulator, targets = NULL, validation = NULL,
     else {
       em_exps <- dat[,"E"]
       em_vars <- dat[,"V"]
-      if ("Hierarchical" %in% class(emulator))
+      if (inherits(emulator, "Hierarchical"))
         point_vars <- dat[,"Vest"]
     }
   }
   else {
-    if ("Hierarchical" %in% class(emulator)) {
+    if (inherits(emulator, "Hierarchical")) {
       if (!is.null(cleaned)) cleaned_data <- cleaned
       else cleaned_data <- clean_data(validation, names(emulator$ranges),
                                       emulator$output_name,
@@ -385,7 +385,7 @@ get_diagnostic <- function(emulator, targets = NULL, validation = NULL,
   }
   if (which_diag == 'se') {
     num <- em_exps - output_points
-    if ("Hierarchical" %in% class(emulator))
+    if (inherits(emulator, "Hierarchical"))
       denom <- sqrt(em_vars + point_vars +
                       emulator$disc$internal^2 + emulator$disc$external^2)
     else
@@ -400,7 +400,7 @@ get_diagnostic <- function(emulator, targets = NULL, validation = NULL,
   }
   if (which_diag == 'cd') {
     if (is.null(stdev)) stdev <- 3
-    if ("Hierarchical" %in% class(emulator))
+    if (inherits(emulator, "Hierarchical"))
       emulator_unc <- stdev * sqrt(em_vars + point_vars +
                                      emulator$disc$internal^2 +
                                      emulator$disc$external^2)
@@ -421,7 +421,7 @@ get_diagnostic <- function(emulator, targets = NULL, validation = NULL,
                        rep(mean(this_target), length(output_points)))/
         rep(diff(this_target)/2, length(output_points))
     else
-      sim_imp <- purrr::map_dbl(output_points,
+      sim_imp <- map_dbl(output_points,
                                 ~sqrt((this_target$val-.)^2/
                                         this_target$sigma^2))
     out_data <- setNames(
@@ -539,7 +539,7 @@ analyze_diagnostic <- function(in_data, output_name, targets = NULL,
     }
     else panlims <- NULL
     if (plt) {
-      plot(output_points, in_data$exp, pch = 16,
+      plot(output_points, in_data$exp, pch = 16, asp = list(...)[["asp"]],
            col = ifelse(emulator_invalid, 'red', 'black'),
            xlim = range(output_points), ylim = range(em_ranges),
            xlab = 'f(x)', ylab = 'E[f(x)]',
@@ -645,9 +645,9 @@ validation_diagnostics <- function(emulators, targets = NULL,
                                    diagnose = "expectation", ...) {
   oldpar <- par(no.readonly = TRUE)
   on.exit(par(oldpar), add = TRUE)
-  if ("Emulator" %in% class(emulators))
+  if (inherits(emulators, "Emulator"))
     emulators <- setNames(list(emulators), emulators$output_name)
-  if ("EmProto" %in% unlist(purrr::map(emulators, class), use.names = FALSE) && is.null(validation))
+  if ("EmProto" %in% unlist(map(emulators, class), use.names = FALSE) && is.null(validation))
     stop("Proto_emulator objects require a validation set.")
   if (length(which_diag) == 1 && which_diag == 'all') actual_diag <- c('cd', 'ce', 'se')
   else {
@@ -676,75 +676,75 @@ validation_diagnostics <- function(emulators, targets = NULL,
     }
     if (!is.null(validation)) {
       v_outputs <- validation[,
-                              unique(c(purrr::map_chr(m1_ems, ~.$output_name),
-                                       purrr::map_chr(m2_ems, ~.$output_name))), drop = FALSE]
+                              unique(c(map_chr(m1_ems, ~.$output_name),
+                                       map_chr(m2_ems, ~.$output_name))), drop = FALSE]
       v_class <- fanny(suppressWarnings(daisy(v_outputs)), k = 2)$clustering
       #v_class <- Mclust(v_outputs, G = 1:2, verbose = FALSE)$classification
       valid_one <- validation[v_class == 1,]
       valid_two <- validation[v_class == 2,]
-      cleaning_dat1 <- purrr::map(m1_ems, function(x) {
-        if ("Hierarchical" %in% class(x))
+      cleaning_dat1 <- map(m1_ems, function(x) {
+        if (inherits(x, "Hierarchical"))
           valid_dat <- clean_data(valid_one,
                                   names(x$ranges),
                                   x$output_name, x$em_type == "variance")
         else valid_dat <- NULL
         valid_dat
       })
-      cleaning_dat2 <- purrr::map(m1_ems, function(x) {
-        if ("Hierarchical" %in% class(x))
+      cleaning_dat2 <- map(m1_ems, function(x) {
+        if (inherits(x, "Hierarchical"))
           valid_dat <- clean_data(valid_two,
                                   names(x$ranges),
                                   x$output_name, x$em_type == "variance")
         else valid_dat <- NULL
         valid_dat
       })
-      match_modes <- purrr::map_dbl(m1_ems, function(x) {
+      match_modes <- map_dbl(m1_ems, function(x) {
         outputs1 <- c(x$out_data, cleaning_dat1[[x$output_name]]$mean)
         outputs2 <- c(x$out_data, cleaning_dat2[[x$output_name]]$mean)
         if (sd(outputs1) < sd(outputs2)) return(1)
         return(2)
       })
-      cluster1 <- purrr::map(
+      cluster1 <- map(
         seq_along(m1_ems),
         ~list(emulator = m1_ems[[.]],
               validation = list(valid_one, valid_two)[[match_modes[.]]]))
-      cluster2 <- purrr::map(
+      cluster2 <- map(
         seq_along(m2_ems),
         ~list(emulator = m2_ems[[.]],
               validation = list(valid_two, valid_one)[[match_modes[.]]]))
-      res_one <- setNames(unlist(purrr::map(cluster1, function(x) {
+      res_one <- setNames(unlist(map(cluster1, function(x) {
         suppressWarnings(
           validation_diagnostics(x$emulator, targets, x$validation,
                                  which_diag, analyze = FALSE, ...))
-      }), recursive = FALSE), purrr::map_chr(cluster1, ~.$emulator$output_name))
-      res_two <- setNames(unlist(purrr::map(cluster2, function(x) {
+      }), recursive = FALSE), map_chr(cluster1, ~.$emulator$output_name))
+      res_two <- setNames(unlist(map(cluster2, function(x) {
         suppressWarnings(
           validation_diagnostics(x$emulator, targets, x$validation,
                                  which_diag, analyze = FALSE, ...))
-      }), recursive = FALSE), purrr::map_chr(cluster2, ~.$emulator$output_name))
+      }), recursive = FALSE), map_chr(cluster2, ~.$emulator$output_name))
     }
     else {
       res_one <- setNames(
         unlist(
-          purrr::map(
+          map(
             m1_ems,
             ~suppressWarnings(
               validation_diagnostics(., targets, validation,
                                      which_diag, analyze = FALSE, ...))),
-          recursive = FALSE), purrr::map_chr(m1_ems, ~.$output_name))
+          recursive = FALSE), map_chr(m1_ems, ~.$output_name))
       res_two <- setNames(
         unlist(
-          purrr::map(
+          map(
             m2_ems,
             ~suppressWarnings(
               validation_diagnostics(., targets, validation,
                                      which_diag, analyze = FALSE, ...))),
-          recursive = FALSE), purrr::map_chr(m2_ems, ~.$output_name))
+          recursive = FALSE), map_chr(m2_ems, ~.$output_name))
     }
     diag_results <- setNames(
-      purrr::map(unique(c(names(res_one), names(res_two))), function(x) {
+      map(unique(c(names(res_one), names(res_two))), function(x) {
       if (!is.null(res_one[[x]]) && !is.null(res_two[[x]]))
-        return(purrr::map(seq_along(res_one[[x]]), ~rbind(res_one[[x]][[.]],
+        return(map(seq_along(res_one[[x]]), ~rbind(res_one[[x]][[.]],
                                                           res_two[[x]][[.]])))
       if (is.null(res_one[[x]])) return(res_two[[x]])
       return(res_one[[x]])
@@ -755,8 +755,8 @@ validation_diagnostics <- function(emulators, targets = NULL,
       emulators <- emulators[[ifelse(diagnose == "variance", "variance", "expectation")]]
     }
     if (!is.null(validation)) {
-      cleaning_dat <- purrr::map(emulators, function(x) {
-        if ("Hierarchical" %in% class(x))
+      cleaning_dat <- map(emulators, function(x) {
+        if (inherits(x, "Hierarchical"))
           valid_dat <- clean_data(validation, names(x$ranges),
                                   x$output_name, x$em_type == "variance")
         else valid_dat <- NULL
@@ -767,14 +767,14 @@ validation_diagnostics <- function(emulators, targets = NULL,
     else {
       cleaning_dat <- NULL
       kfolded <- setNames(
-        purrr::map(
+        map(
           emulators,
           function(x) k_fold_measure(x, targets[[x$output_name]], ...)),
-        purrr::map_chr(emulators, ~.$output_name))
+        map_chr(emulators, ~.$output_name))
     }
-    diag_results <- purrr::map(
+    diag_results <- map(
       emulators,
-      function(x) purrr::map(actual_diag, function(y)
+      function(x) map(actual_diag, function(y)
         get_diagnostic(x, targets, validation, y,
                        cleaned = cleaning_dat[[x$output_name]],
                        kfold = kfolded[[x$output_name]], ...)))
@@ -847,7 +847,7 @@ validation_diagnostics <- function(emulators, targets = NULL,
 #'
 individual_errors <- function(em, validation, errtype = "normal",
                               xtype = "index", plottype = "normal") {
-  if ("EmProto" %in% class(em))
+  if (inherits(em, "EmProto"))
     stop("individual_errors not applicable for Proto_emulator objects.")
   if (!errtype %in% c("normal", "eigen", "chol", "cholpivot"))
     stop(paste("Error type not recognised",
@@ -892,7 +892,7 @@ individual_errors <- function(em, validation, errtype = "normal",
       }
       G_inv <- tryCatch(
         chol2inv(chol(G)),
-        error = function(e) {MASS::ginv(G)}
+        error = function(e) {ginv(G)}
       )
       indiv_errors <- G_inv %*% (outputs - em_pred)
   }
@@ -1030,17 +1030,17 @@ standard_errors <- function(emulator, targets = NULL, validation = NULL,
 #' @noRd
 #' @keywords internal
 binomial_diagnostic_test <- function(ems, validation, n = 2:4, df.out = FALSE, allow.zero = FALSE, ...) {
-  N <- purrr::map_dbl(validation, nrow)
-  Xn <- purrr::map_dbl(n, ~4/(9*.^2))
-  diag_check <- purrr::map(seq_along(ems), function(i) {
-    diag_percents <- purrr::map_dbl(n, ~nrow(comparison_diag(ems[[i]], targets = NULL, validation = validation[[i]], sd = ., plt = FALSE)))
+  N <- map_dbl(validation, nrow)
+  Xn <- map_dbl(n, ~4/(9*.^2))
+  diag_check <- map(seq_along(ems), function(i) {
+    diag_percents <- map_dbl(n, ~nrow(comparison_diag(ems[[i]], targets = NULL, validation = validation[[i]], sd = ., plt = FALSE)))
     if (allow.zero)
-      bounds <- purrr::map(Xn, ~c(0, min(N[[i]], N[[i]]*. + 3*sqrt(N*.*(1-.)))))
+      bounds <- map(Xn, ~c(0, min(N[[i]], N[[i]]*. + 3*sqrt(N*.*(1-.)))))
     else
-      bounds <- purrr::map(Xn, ~c(max(0, N[[i]]*. - 3*sqrt(N[[i]]*.*(1-.))), min(N[[i]], N[[i]]*. + 3*sqrt(N*.*(1-.)))))
-    purrr::map_lgl(seq_along(diag_percents), ~diag_percents[.] >= bounds[[.]][1] && diag_percents[.] <= bounds[[.]][2])
+      bounds <- map(Xn, ~c(max(0, N[[i]]*. - 3*sqrt(N[[i]]*.*(1-.))), min(N[[i]], N[[i]]*. + 3*sqrt(N*.*(1-.)))))
+    map_lgl(seq_along(diag_percents), ~diag_percents[.] >= bounds[[.]][1] && diag_percents[.] <= bounds[[.]][2])
   })
-  collect_df <- do.call('cbind.data.frame', diag_check) |> setNames(purrr::map_chr(ems, "output_name"))
+  collect_df <- do.call('cbind.data.frame', diag_check) |> setNames(map_chr(ems, "output_name"))
   if (df.out) return(collect_df)
   return(all(apply(collect_df, 2, all)))
 }
@@ -1055,6 +1055,8 @@ binomial_diagnostic_test <- function(ems, validation, n = 2:4, df.out = FALSE, a
 #' out as implausible by the residual emulators, we consider this point to have failed
 #' diagnostics; else we dismiss it as unimportant.
 #'
+#' @importFrom rlang hash
+#'
 #' @param ems The list of emulators to consider
 #' @param targets The output targets
 #' @param validation A list of validation sets of same size as \code{length(ems)}
@@ -1066,36 +1068,36 @@ binomial_diagnostic_test <- function(ems, validation, n = 2:4, df.out = FALSE, a
 #' @keywords internal
 points_of_concern <- function(ems, targets, validation, test = 'cd', ...) {
   if (test == 'cd')
-    invalid_pts_by_em <- purrr::map(seq_along(ems), ~comparison_diag(ems[[.]], targets, validation[[.]], plt = FALSE))
+    invalid_pts_by_em <- map(seq_along(ems), ~comparison_diag(ems[[.]], targets, validation[[.]], plt = FALSE))
   else
-    invalid_pts_by_em <- purrr::map(seq_along(ems), ~classification_diag(ems[[.]], targets, validation[[.]], plt = FALSE))
+    invalid_pts_by_em <- map(seq_along(ems), ~classification_diag(ems[[.]], targets, validation[[.]], plt = FALSE))
   all_fail_pts <- do.call('rbind.data.frame', invalid_pts_by_em)
   if (nrow(all_fail_pts) == 0)
     return(all_fail_pts)
-  all_uids <- apply(all_fail_pts[,names(ems[[1]]$ranges)], 1, rlang::hash)
+  all_uids <- apply(all_fail_pts[,names(ems[[1]]$ranges)], 1, hash)
   all_fail_pts <- all_fail_pts[which(!duplicated(all_uids)),]
   uids <- all_uids[which(!duplicated(all_uids))]
-  uids_by_em <- purrr::map(invalid_pts_by_em, function(df) apply(df[,names(ems[[1]]$ranges)], 1, rlang::hash))
-  pt_em_corr <- purrr::map(uids, function(u) {
-    which(purrr::map_lgl(uids_by_em, ~u %in% .))
+  uids_by_em <- map(invalid_pts_by_em, function(df) apply(df[,names(ems[[1]]$ranges)], 1, hash))
+  pt_em_corr <- map(uids, function(u) {
+    which(map_lgl(uids_by_em, ~u %in% .))
   })
-  points_dfs <- purrr::map(unique(pt_em_corr), function(upec) {
-    logicals <- purrr::map_lgl(pt_em_corr, function(pec) {
+  points_dfs <- map(unique(pt_em_corr), function(upec) {
+    logicals <- map_lgl(pt_em_corr, function(pec) {
       if (length(pec) != length(upec)) return(FALSE)
       return(all(pec == upec))
     })
     all_fail_pts[which(logicals),]
   })
   points_dfs_em_idents <- unique(pt_em_corr)
-  actual_points <- purrr::map(seq_along(points_dfs), function(i) {
+  actual_points <- map(seq_along(points_dfs), function(i) {
     if (length(points_dfs_em_idents[[i]]) == length(ems)) return(points_dfs[[i]])
     points_dfs[[i]][nth_implausible(ems[-points_dfs_em_idents[[i]]], points_dfs[[i]], targets, n = 1) < 3,]
   })
   actual_point_df <- do.call('rbind.data.frame', actual_points)
   if (nrow(actual_point_df) == 0) return(actual_point_df)
   validation_collect <- do.call('rbind.data.frame', validation)
-  full_points <- do.call('rbind.data.frame', purrr::map(apply(actual_point_df[,names(ems[[1]]$ranges)], 1, rlang::hash), function(h) {
-    validation_collect[which(apply(validation_collect[,names(ems[[1]]$ranges)], 1, rlang::hash) == h)[1],]
+  full_points <- do.call('rbind.data.frame', map(apply(actual_point_df[,names(ems[[1]]$ranges)], 1, hash), function(h) {
+    validation_collect[which(apply(validation_collect[,names(ems[[1]]$ranges)], 1, hash) == h)[1],]
   }))
   return(full_points)
 }
@@ -1125,18 +1127,18 @@ points_of_concern <- function(ems, targets, validation, test = 'cd', ...) {
 structured_error_check <- function(ems, validation, compare_output = TRUE, threshhold = 0.3, ...) {
   for (i in seq_along(validation))
     row.names(validation[[i]]) <- 1:nrow(validation[[i]])
-  failed_points <- purrr::map(seq_along(ems), ~comparison_diag(ems[[.]], targets = NULL, validation = validation[[.]], plt = FALSE))
-  em_fail_indices <- purrr::map(seq_along(failed_points), ~row.names(validation[[.]]) %in% row.names(failed_points[[.]]))
+  failed_points <- map(seq_along(ems), ~comparison_diag(ems[[.]], targets = NULL, validation = validation[[.]], plt = FALSE))
+  em_fail_indices <- map(seq_along(failed_points), ~row.names(validation[[.]]) %in% row.names(failed_points[[.]]))
   if (compare_output) {
-    em_preds <- purrr::map(seq_along(ems), ~ems[[.]]$get_exp(validation[[.]]))
-    fail_dfs <- purrr::map(seq_along(em_preds), ~cbind.data.frame(em_preds[[.]], em_fail_indices[[.]]) |> setNames(c('pred', 'fail')))
-    fail_lms <- purrr::map(fail_dfs, ~lm(data = ., fail ~ pred))
+    em_preds <- map(seq_along(ems), ~ems[[.]]$get_exp(validation[[.]]))
+    fail_dfs <- map(seq_along(em_preds), ~cbind.data.frame(em_preds[[.]], em_fail_indices[[.]]) |> setNames(c('pred', 'fail')))
+    fail_lms <- map(fail_dfs, ~lm(data = ., fail ~ pred))
   }
   else {
-    fail_dfs <- purrr::map(seq_along(em_fail_indices), ~cbind.data.frame(validation[[.]], em_fail_indices[[.]]) |> setNames(c(names(validation[[.]]), "fail")))
-    fail_lms <- purrr::map(fail_dfs, ~lm(data = ., as.formula(paste0("fail ~ ", paste0(names(ems[[1]]$ranges), collapse = "+")))))
+    fail_dfs <- map(seq_along(em_fail_indices), ~cbind.data.frame(validation[[.]], em_fail_indices[[.]]) |> setNames(c(names(validation[[.]]), "fail")))
+    fail_lms <- map(fail_dfs, ~lm(data = ., as.formula(paste0("fail ~ ", paste0(names(ems[[1]]$ranges), collapse = "+")))))
   }
-  purrr::map_lgl(fail_lms, ~!is.nan(summary(.)$adj.r.squared) && summary(.)$adj.r.squared > threshhold)
+  map_lgl(fail_lms, ~!is.nan(summary(.)$adj.r.squared) && summary(.)$adj.r.squared > threshhold)
 }
 
 
@@ -1195,31 +1197,31 @@ structured_error_check <- function(ems, validation, compare_output = TRUE, thres
 diagnostic_pass <- function(ems, targets, validation, check_output = FALSE, verbose = interactive(), ...) {
   if (!is.null(ems$variance) || !is.null(ems$expectation) || !is.null(ems$mode1) || !is.null(ems$mode2))
     stop("Automated diagnostics not supported for stochastic or multistate emulators.")
-  original_outputs <- purrr::map_chr(ems, "output_name")
-  if ("data.frame" %in% class(validation)) {
+  original_outputs <- map_chr(ems, "output_name")
+  if (is.data.frame(validation)) {
     validation <- validation[apply(validation, 1, function(x) !any(is.na(x))),]
-    validation_per_em <- purrr::map(ems, ~validation)
+    validation_per_em <- map(ems, ~validation)
   }
   else {
-    validation_per_em <- purrr::map(validation, function(v) {
+    validation_per_em <- map(validation, function(v) {
       v[apply(v, 1, function(x) !any(is.na(x))),]
     })
   }
   if (check_output) {
     if (verbose) cat("Checking consistent implausibility or over/underestimation of outputs..\n") #nocov
-    imps <- purrr::map(seq_along(ems), function(i) {
+    imps <- map(seq_along(ems), function(i) {
       training_runs <- eval_funcs(scale_input, ems[[i]]$input_data, ems[[i]]$ranges, FALSE)
       ems[[i]]$implausibility(rbind.data.frame(validation_per_em[[i]][,names(ems[[i]]$ranges)], training_runs), targets[[ems[[i]]$output_name]], cutoff = 3)
     })
-    fail_imp <- purrr::map_lgl(imps, ~sum(.) == 0)
+    fail_imp <- map_lgl(imps, ~sum(.) == 0)
     all_pts <- do.call('rbind.data.frame', validation_per_em)
-    consistent_under <- purrr::map_lgl(purrr::map_chr(ems, "output_name"), function(tn) {
+    consistent_under <- map_lgl(map_chr(ems, "output_name"), function(tn) {
       if (is.atomic(targets[[tn]])) check_val <- targets[[tn]][1]
       else check_val <- targets[[tn]]$val - 3*targets[[tn]]$sigma
       trained_outputs <- ems[[tn]]$out_data
       return(all(c(all_pts[,tn], trained_outputs) < check_val))
     })
-    consistent_over <- purrr::map_lgl(purrr::map_chr(ems, "output_name"), function(tn) {
+    consistent_over <- map_lgl(map_chr(ems, "output_name"), function(tn) {
       if (is.atomic(targets[[tn]])) check_val <- targets[[tn]][2]
       else check_val <- targets[[tn]]$val + 3*targets[[tn]]$sigma
       trained_outputs <- ems[[tn]]$out_data
@@ -1227,8 +1229,8 @@ diagnostic_pass <- function(ems, targets, validation, check_output = FALSE, verb
     })
     failed <- fail_imp | consistent_under | consistent_over
     if (any(failed) && verbose) cat(paste("Some outputs unsuitable for targets:", #nocov
-                               paste0(purrr::map_chr(ems, "output_name")[failed], collapse = "; "), "\n")) #nocov
-    ems <- subset_emulators(ems, purrr::map_chr(ems, "output_name")[!failed])
+                               paste0(map_chr(ems, "output_name")[failed], collapse = "; "), "\n")) #nocov
+    ems <- subset_emulators(ems, map_chr(ems, "output_name")[!failed])
     validation_per_em <- validation_per_em[!failed]
     if (length(ems) == 0) {
       if (verbose) cat("No emulators deemed suitable.\n") #nocov
@@ -1239,8 +1241,8 @@ diagnostic_pass <- function(ems, targets, validation, check_output = FALSE, verb
   input_structured <- structured_error_check(ems, validation_per_em, FALSE, ...)
   if (any(input_structured) && verbose)
     cat("Structured input errors detected. Reducing correlation length.\n") #nocov
-  while(any(input_structured & purrr::map_lgl(ems, ~.$corr$hyper_p$theta > 1/3))) {
-    ems <- purrr::map(seq_along(ems), function(i) {
+  while(any(input_structured & map_lgl(ems, ~.$corr$hyper_p$theta > 1/3))) {
+    ems <- map(seq_along(ems), function(i) {
       if (input_structured[i]) {
         hyper_p_spec <- ems[[i]]$corr$hyper_p
         hyper_p_spec$theta <- hyper_p_spec$theta * 0.9
@@ -1248,13 +1250,13 @@ diagnostic_pass <- function(ems, targets, validation, check_output = FALSE, verb
         return(ems[[i]]$set_hyperparams(hyper_p_spec))
       }
       else return(ems[[i]])
-    }) |> setNames(purrr::map_chr(ems, "output_name"))
+    }) |> setNames(map_chr(ems, "output_name"))
     input_structured <- structured_error_check(ems, validation_per_em, ...)
   }
   if (any(input_structured)) {
     if (verbose) cat(paste("Some emulators show unresolved structured input errors:", #nocov
-              paste0(purrr::map_chr(ems, "output_name")[input_structured], collapse = "; "), "\n")) #nocov
-    ems <- subset_emulators(ems, purrr::map_chr(ems, "output_name")[!input_structured])
+              paste0(map_chr(ems, "output_name")[input_structured], collapse = "; "), "\n")) #nocov
+    ems <- subset_emulators(ems, map_chr(ems, "output_name")[!input_structured])
     validation_per_em <- validation_per_em[!input_structured]
   }
   if (length(ems) == 0) {
@@ -1268,7 +1270,7 @@ diagnostic_pass <- function(ems, targets, validation, check_output = FALSE, verb
   structure_fix_attempts <- 0
   while(any(output_structured) && structure_fix_attempts < 5) {
     structure_fix_attempts <- structure_fix_attempts + 1
-    ems <- purrr::map(seq_along(ems), function(i) {
+    ems <- map(seq_along(ems), function(i) {
       if (output_structured[i]) {
         if (verbose) cat(paste0("Retraining emulator for output ", ems[[i]]$output_name, "..\n"))
         old_training <- cbind.data.frame(eval_funcs(scale_input, ems[[i]]$in_data, ems[[i]]$ranges, FALSE), ems[[i]]$out_data) |>
@@ -1280,14 +1282,14 @@ diagnostic_pass <- function(ems, targets, validation, check_output = FALSE, verb
         return(emulator_from_data(new_train, ems[[i]]$output_name, ems[[i]]$ranges, verbose = FALSE)[[1]])
       }
       else return(ems[[i]])
-    }) |> setNames(purrr::map_chr(ems, "output_name"))
+    }) |> setNames(map_chr(ems, "output_name"))
     output_structured <- structured_error_check(ems, validation_per_em, ...)
   }
   if (any(output_structured)) {
     if (verbose) cat(paste("Some emulators show unresolved structured output errors:", #nocov
-              paste0(purrr::map_chr(ems, "output_name")[output_structured], collapse = "; "), "\n")) #nocov
+              paste0(map_chr(ems, "output_name")[output_structured], collapse = "; "), "\n")) #nocov
 
-    ems <- subset_emulators(ems, purrr::map_chr(ems, "output_name")[!output_structured])
+    ems <- subset_emulators(ems, map_chr(ems, "output_name")[!output_structured])
     validation_per_em <- validation_per_em[!output_structured]
   }
   if (length(ems) == 0) {
@@ -1299,11 +1301,11 @@ diagnostic_pass <- function(ems, targets, validation, check_output = FALSE, verb
   if (nrow(classified_wrong) > 0 && verbose)
     cat("Classification diagnostic failures. Inflating relevant emulator uncertainties.\n") #nocov
   while (nrow(classified_wrong) > 0) {
-    number_per_em <- purrr::map_dbl(ems, ~nrow(classification_diag(., targets, classified_wrong, plt = FALSE)))
-    ems <- purrr::map(seq_along(ems), function(i) {
+    number_per_em <- map_dbl(ems, ~nrow(classification_diag(., targets, classified_wrong, plt = FALSE)))
+    ems <- map(seq_along(ems), function(i) {
       if (number_per_em[i] == 0) return(ems[[i]])
       return(ems[[i]]$mult_sigma(1.1))
-    }) |> setNames(purrr::map_chr(ems, "output_name"))
+    }) |> setNames(map_chr(ems, "output_name"))
     classified_wrong <- points_of_concern(ems, targets, validation_per_em, test = 'ce', ...)
   }
   if (verbose) cat("Checking for issues in comparison diagnostics..\n") #nocov
@@ -1311,18 +1313,18 @@ diagnostic_pass <- function(ems, targets, validation, check_output = FALSE, verb
   if (nrow(comparison_wrong) > 0) {
     if (verbose) cat("Comparison diagnostic issues. Inflating relevant emulator uncertainties..\n") #nocov
     while(nrow(comparison_wrong) > 0) {
-      number_per_em <- purrr::map_dbl(ems, ~nrow(comparison_diag(., targets = NULL, validation = comparison_wrong, plt = FALSE)))
-      ems <- purrr::map(seq_along(ems), function(i) {
+      number_per_em <- map_dbl(ems, ~nrow(comparison_diag(., targets = NULL, validation = comparison_wrong, plt = FALSE)))
+      ems <- map(seq_along(ems), function(i) {
         if (number_per_em[i] == 0) return(ems[[i]])
         return(ems[[i]]$mult_sigma(1.1))
-      }) |> setNames(purrr::map_chr(ems, "output_name"))
+      }) |> setNames(map_chr(ems, "output_name"))
       comparison_wrong <- points_of_concern(ems, targets, validation_per_em, test = 'cd', ...)
     }
     binomial_problems <- apply(binomial_diagnostic_test(ems, validation_per_em, df.out = TRUE, ...), 2, all)
     if (!all(binomial_problems)) {
       if (verbose) cat(paste("Some emulators show scaling issues:", #nocov
-                paste0(purrr::map_chr(ems, "output_name")[!binomial_problems], collapse = "; "), "\n")) #nocov
-      ems <- subset_emulators(ems, purrr::map_chr(ems, "output_name")[binomial_problems])
+                paste0(map_chr(ems, "output_name")[!binomial_problems], collapse = "; "), "\n")) #nocov
+      ems <- subset_emulators(ems, map_chr(ems, "output_name")[binomial_problems])
     }
   }
   if (length(ems) == 0) {
@@ -1331,7 +1333,7 @@ diagnostic_pass <- function(ems, targets, validation, check_output = FALSE, verb
   }
   if (length(original_outputs) != length(ems))
     if (verbose) { #nocov start
-      cat("Some emulators did not pass diagnostics: ", paste0(original_outputs[!original_outputs %in% purrr::map_chr(ems, "output_name")], collapse = "; "), ".\n")
+      cat("Some emulators did not pass diagnostics: ", paste0(original_outputs[!original_outputs %in% map_chr(ems, "output_name")], collapse = "; "), ".\n")
       cat("Investigate these outputs carefully and consider adding in additional training points near problematic regions of space.\n")
     } #nocov end
   return(ems)

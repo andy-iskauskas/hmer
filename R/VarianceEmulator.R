@@ -28,9 +28,9 @@ HierarchicalEmulator <- R6Class(
       self$corr <- u$corr
       if (!is.null(out_name)) self$output_name <- out_name
       if (is.null(a_vars)) {
-        self$active_vars <- purrr::map_lgl(seq_along(ranges), function(x) {
+        self$active_vars <- map_lgl(seq_along(ranges), function(x) {
           point_vec <- c(rep(0, x-1), 1, rep(0, length(ranges)-x))
-          func_vals <- purrr::map_dbl(self$basis_f, purrr::exec, point_vec)
+          func_vals <- map_dbl(self$basis_f, exec, point_vec)
           sum(func_vals) > 1
         })
       }
@@ -53,7 +53,7 @@ HierarchicalEmulator <- R6Class(
         temp_in <- eval_funcs(
           scale_input,
           data.frame(self$in_data), self$ranges, FALSE)
-        sample_mod <- purrr::map_dbl(
+        sample_mod <- map_dbl(
           seq_len(nrow(temp_in)),
           ~self$s_diag(temp_in[.,], self$samples[.]))
         if (is.numeric(self$u_sigma))
@@ -69,13 +69,13 @@ HierarchicalEmulator <- R6Class(
         private$data_corrs <- tryCatch(
           private$data_corrs <- chol2inv(chol(d_corr)),
           error = function(e) {
-            MASS::ginv(d_corr)
+            ginv(d_corr)
           }
         )
         private$design_matrix <- t(
           apply(
             self$in_data, 1,
-            function(x) purrr::map_dbl(self$basis_f, purrr::exec, x)))
+            function(x) map_dbl(self$basis_f, exec, x)))
         if (nrow(private$design_matrix) == 1)
           private$design_matrix <- t(private$design_matrix)
         private$u_var_modifier <- private$data_corrs %*%
@@ -94,7 +94,7 @@ HierarchicalEmulator <- R6Class(
       if (!all(self$beta_sigma == 0) || is.null(self$model)) {
         g <- t(
           apply(
-            x, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y)))
+            x, 1, function(y) map_dbl(self$basis_f, exec, y)))
         if (length(self$beta_mu) == 1) beta_part <- g * self$beta_mu
         else beta_part <- g %*% self$beta_mu
       }
@@ -169,7 +169,7 @@ HierarchicalEmulator <- R6Class(
       if (!all(self$beta_sigma == 0))
         g_x <- apply(
           x, 1,
-          function(y) purrr::map_dbl(self$basis_f, purrr::exec, y))
+          function(y) map_dbl(self$basis_f, exec, y))
       else g_x <- NULL
       x <- data.matrix(x)
       bupart_x <- apply(x, 1, self$beta_u_cov)
@@ -187,7 +187,7 @@ HierarchicalEmulator <- R6Class(
         if (!all(self$beta_sigma == 0))
           g_xp <- apply(
             xp, 1,
-            function(y) purrr::map_dbl(self$basis_f, purrr::exec, y))
+            function(y) map_dbl(self$basis_f, exec, y))
         else g_xp <- NULL
         xp <- data.matrix(xp)
         bupart_xp <- apply(xp, 1, self$beta_u_cov)
@@ -277,19 +277,19 @@ HierarchicalEmulator <- R6Class(
           if (is.null(nrow(g_x)))
             beta_part <- diag(diag(self$beta_sigma) * outer(g_x, g_xp))
           else
-            beta_part <- purrr::map_dbl(
+            beta_part <- map_dbl(
               point_seq, ~g_x[,.] %*% self$beta_sigma %*% g_xp[,.])
         }
         if (identical(x, xp)) {
           if (is.numeric(self$u_sigma)) u_part <- rep(self$u_sigma^2, length = nrow(x))
-          else u_part <- purrr::map_dbl(point_seq, ~self$u_sigma(x[.,]^2))
+          else u_part <- map_dbl(point_seq, ~self$u_sigma(x[.,]^2))
         }
         else {
           if (is.numeric(self$u_sigma))
             u_part <- self$u_sigma^2 *
               diag(self$corr$get_corr(x, xp, self$active_vars))
           else
-            u_part <- purrr::map_dbl(
+            u_part <- map_dbl(
               point_seq, ~self$u_sigma(x[.,]) *
                 self$u_sigma(xp[.,])) *
               diag(self$corr$get_corr(x, xp, self$active_vars))
@@ -342,19 +342,19 @@ HierarchicalEmulator <- R6Class(
         }
         if (!all(bupart_x == 0)) {
           if(is.null(nrow(g_x)))
-            bupart <- purrr::map_dbl(
+            bupart <- map_dbl(
               point_seq,
-              ~t(purrr::map_dbl(self$basis_f, purrr::exec, x[.,])) *
+              ~t(map_dbl(self$basis_f, exec, x[.,])) *
                 bupart_xp[.] +
-                t(bupart_x[.] * purrr::map_dbl(
-                  self$basis_f, purrr::exec, xp[.,])))
+                t(bupart_x[.] * map_dbl(
+                  self$basis_f, exec, xp[.,])))
           else
-            bupart <- purrr::map_dbl(
+            bupart <- map_dbl(
               point_seq,
-              ~t(purrr::map_dbl(self$basis_f, purrr::exec, x[.,])) %*%
+              ~t(map_dbl(self$basis_f, exec, x[.,])) %*%
                 bupart_xp[,.] + t(bupart_x[,.] %*%
-                                    purrr::map_dbl(
-                                      self$basis_f, purrr::exec, xp[.,])))
+                                    map_dbl(
+                                      self$basis_f, exec, xp[.,])))
         }
         else bupart <- 0
       }
@@ -395,7 +395,7 @@ HierarchicalEmulator <- R6Class(
         m <- ceiling(nrow(x)/k)
         s_df <- split(x, rep(1:k, each = m, length.out = nrow(x)))
         return(unlist(
-          purrr::map(
+          map(
             s_df,
             ~self$implausibility(., z = z, cutoff = cutoff)),
           use.names = FALSE))
@@ -409,7 +409,7 @@ HierarchicalEmulator <- R6Class(
           self$disc$external <- 0.05 * z$val
         else if (is.numeric(z)) self$disc$external <- 0.05 * mean(z)
       }
-      disc_quad <- sum(purrr::map_dbl(self$disc, ~.^2))
+      disc_quad <- sum(map_dbl(self$disc, ~.^2))
       if (!is.numeric(z) && !is.null(z$val)) {
         imp_var <- self$get_cov(x, c_x = corr_x, c_xp = corr_x) + z$sigma^2 + disc_quad + self$s_diag(x, mean(self$samples))
         #imp_var[imp_var < 0] <- 1e6
@@ -417,12 +417,12 @@ HierarchicalEmulator <- R6Class(
       }
       else {
         pred <- self$get_exp(x, c_data = corr_x)
-        bound_check <- purrr::map_dbl(pred, function(y) {
+        bound_check <- map_dbl(pred, function(y) {
           if (y <= z[2] && y >= z[1]) return(0)
           if (y < z[1]) return(-1)
           if (y > z[2]) return(1)
         })
-        which_compare <- purrr::map_dbl(bound_check, function(y) {
+        which_compare <- map_dbl(bound_check, function(y) {
           if (y < 1) return(z[1])
           return(z[2])
         })
@@ -445,11 +445,11 @@ HierarchicalEmulator <- R6Class(
       else {
         G <- apply(
           this_data_in, 1,
-          function(x) purrr::map_dbl(self$basis_f, purrr::exec, x))
+          function(x) map_dbl(self$basis_f, exec, x))
         temp_in <- eval_funcs(
           scale_input,
           data.frame(this_data_in), self$ranges, FALSE)
-        sample_mod <- purrr::map_dbl(
+        sample_mod <- map_dbl(
           seq_len(nrow(temp_in)),
           ~self$s_diag(temp_in[.,], self$samples[.]))
         Ot <- self$corr$get_corr(this_data_in,
@@ -458,19 +458,19 @@ HierarchicalEmulator <- R6Class(
         O <- tryCatch(
           chol2inv(chol(Ot)),
           error = function(x) {
-            MASS::ginv(Ot)
+            ginv(Ot)
           }
         )
         siginv <- tryCatch(
           chol2inv(chol(self$beta_sigma)),
           error = function(e) {
-            MASS::ginv(self$beta_sigma)
+            ginv(self$beta_sigma)
           }
         )
         new_beta_var <- tryCatch(
           chol2inv(chol(G %*% O %*% (if(is.null(nrow(G))) G else t(G)) + siginv)),
           error = function(e) {
-            MASS::ginv(G %*% O %*% (if(is.null(nrow(G))) G else t(G)) + siginv)
+            ginv(G %*% O %*% (if(is.null(nrow(G))) G else t(G)) + siginv)
           }
         )
         new_beta_exp <- new_beta_var %*%
@@ -555,7 +555,7 @@ HierarchicalEmulator <- R6Class(
     print = function(...) {
       cat("Parameters and ranges: ",
           paste(names(self$ranges),
-                paste0(purrr::map(self$ranges, round, 4)),
+                paste0(map(self$ranges, round, 4)),
                 sep = ": ", collapse = ": "), "\n")
       cat("Specifications: \n")
       if (!is.null(self$model))
@@ -567,7 +567,7 @@ HierarchicalEmulator <- R6Class(
                    collapse="; "), "\n")
       else
         cat("\t Basis functions: ",
-            paste0(purrr::map_chr(
+            paste0(map_chr(
               self$basis_f, function_to_names, names(self$ranges), FALSE),
               collapse = "; "), "\n")
       cat("\t Active variables",
@@ -583,7 +583,7 @@ HierarchicalEmulator <- R6Class(
           if (is.numeric(self$u_sigma))
             self$u_sigma^2
           else
-            self$u_sigma(purrr::map_dbl(self$ranges, mean))^2, "\n")
+            self$u_sigma(map_dbl(self$ranges, mean))^2, "\n")
       cat("\t Expectation: ", self$u_mu(rep(0, length(ranges))), "\n")
       self$corr$print(prepend = "\t")
       cat("Mixed covariance: ", self$beta_u_cov(rep(0, length(ranges))), "\n")

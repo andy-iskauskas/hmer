@@ -46,9 +46,9 @@ Emulator <- R6Class(
       if (is.null(ranges)) stop("Ranges for the parameters must be specified.")
       self$ranges <- ranges
       if (is.null(a_vars)) {
-        self$active_vars <- purrr::map_lgl(seq_along(ranges), function(x) {
+        self$active_vars <- map_lgl(seq_along(ranges), function(x) {
           point_vec <- c(rep(0, x-1), 1, rep(0, length(ranges)-x))
-          func_vals <- purrr::map_dbl(self$basis_f, purrr::exec, point_vec)
+          func_vals <- map_dbl(self$basis_f, exec, point_vec)
           sum(func_vals) > 1
         })
       }
@@ -81,13 +81,13 @@ Emulator <- R6Class(
         private$data_corrs <- tryCatch(
           private$data_corrs <- chol2inv(chol(d_corr)),
           error = function(e) {
-            MASS::ginv(d_corr)
+            ginv(d_corr)
           }
         )
         private$design_matrix <- t(
           apply(
             self$in_data, 1, function(x)
-              purrr::map_dbl(self$basis_f, purrr::exec, x)))
+              map_dbl(self$basis_f, exec, x)))
         if (nrow(private$design_matrix) == 1)
           private$design_matrix <- t(private$design_matrix)
         private$u_var_modifier <- private$data_corrs %*%
@@ -104,7 +104,7 @@ Emulator <- R6Class(
         k <- ceiling(nrow(x)/2000)
         m <- ceiling(nrow(x)/k)
         s_df <- split(x, rep(1:k, each = m, length.out = nrow(x)))
-        return(unlist(purrr::map(s_df, ~self$get_exp(., include_c, c_data)),
+        return(unlist(map(s_df, ~self$get_exp(., include_c, c_data)),
                       use.names = FALSE))
       }
       x <- eval_funcs(scale_input,
@@ -113,7 +113,7 @@ Emulator <- R6Class(
       if (!all(self$beta_sigma == 0) || is.null(self$model)) {
         g <- t(
           apply(
-            x, 1, function(y) purrr::map_dbl(self$basis_f, purrr::exec, y)))
+            x, 1, function(y) map_dbl(self$basis_f, exec, y)))
         if (length(self$beta_mu) == 1) beta_part <- g * self$beta_mu[[1]]
         else beta_part <- g %*% self$beta_mu
       }
@@ -173,7 +173,7 @@ Emulator <- R6Class(
         k <- ceiling(nrow(x)/2000)
         m <- ceiling(nrow(x)/k)
         s_df <- split(x, rep(1:k, each = m, length.out = nrow(x)))
-        return(unlist(purrr::map(s_df, ~self$get_cov(., xp, FALSE, include_c, c_x, c_xp)),
+        return(unlist(map(s_df, ~self$get_cov(., xp, FALSE, include_c, c_x, c_xp)),
                       use.names = FALSE))
       }
       x <- eval_funcs(scale_input,
@@ -181,7 +181,7 @@ Emulator <- R6Class(
                       self$ranges)
       if (!all(self$beta_sigma == 0))
         g_x <- apply(x, 1, function(y)
-          purrr::map_dbl(self$basis_f, purrr::exec, y))
+          map_dbl(self$basis_f, exec, y))
       else g_x <- NULL
       x <- data.matrix(x)
       bupart_x <- apply(x, 1, self$beta_u_cov)
@@ -199,7 +199,7 @@ Emulator <- R6Class(
           self$ranges)
         if (!all(self$beta_sigma == 0))
           g_xp <- apply(xp, 1,
-                      function(y) purrr::map_dbl(self$basis_f, purrr::exec, y))
+                      function(y) map_dbl(self$basis_f, exec, y))
         else g_xp <- NULL
         xp <- data.matrix(xp)
         bupart_xp <- apply(xp, 1, self$beta_u_cov)
@@ -282,20 +282,20 @@ Emulator <- R6Class(
           if (is.null(nrow(g_x)))
             beta_part <- diag(diag(self$beta_sigma) * outer(g_x, g_xp))
           else
-            beta_part <- purrr::map_dbl(point_seq,
+            beta_part <- map_dbl(point_seq,
                                         ~g_x[,.] %*% self$beta_sigma %*% g_xp[,.])
         }
         if (identical(x, xp))
         {
           if (is.numeric(self$u_sigma)) u_part <- rep(self$u_sigma^2, length = nrow(x))
-          else u_part <- purrr::map_dbl(point_seq, ~self$u_sigma(x[.,])^2)
+          else u_part <- map_dbl(point_seq, ~self$u_sigma(x[.,])^2)
         }
         else {
           if (is.numeric(self$u_sigma))
             u_part <- self$u_sigma^2 * diag(
               self$corr$get_corr(x, xp, self$active_vars))
           else
-            u_part <- purrr::map_dbl(
+            u_part <- map_dbl(
               point_seq, ~self$u_sigma(x[.,]) * self$u_sigma(xp[.,])) *
               diag(self$corr$get_corr(x, xp, self$active_vars))
         }
@@ -342,20 +342,20 @@ Emulator <- R6Class(
         }
         if (!all(bupart_x == 0)) {
           if(is.null(nrow(g_x)))
-            bupart <- purrr::map_dbl(
+            bupart <- map_dbl(
               point_seq,
-              ~t(purrr::map_dbl(
+              ~t(map_dbl(
                 self$basis_f,
-                purrr::exec, x[.,])) *
+                exec, x[.,])) *
                 bupart_xp[.] +
-                t(bupart_x[.] * purrr::map_dbl(
-                  self$basis_f, purrr::exec, xp[.,])))
-          else bupart <- purrr::map_dbl(
+                t(bupart_x[.] * map_dbl(
+                  self$basis_f, exec, xp[.,])))
+          else bupart <- map_dbl(
             point_seq,
-            ~t(purrr::map_dbl(
-              self$basis_f, purrr::exec, x[.,])) %*% bupart_xp[,.] +
+            ~t(map_dbl(
+              self$basis_f, exec, x[.,])) %*% bupart_xp[,.] +
               t(bupart_x[,.] %*%
-                  purrr::map_dbl(self$basis_f, purrr::exec, xp[.,])))
+                  map_dbl(self$basis_f, exec, xp[.,])))
         }
         else bupart <- 0
       }
@@ -373,7 +373,7 @@ Emulator <- R6Class(
         k <- ceiling(nrow(x)/2000)
         m <- ceiling(nrow(x)/k)
         s_df <- split(x, rep(1:k, each = m, length.out = nrow(x)))
-        return(unlist(purrr::map(
+        return(unlist(map(
           s_df, ~self$get_exp_d(., p)), use.names = FALSE))
       }
       deriv_func <- tryCatch(
@@ -388,13 +388,13 @@ Emulator <- R6Class(
       if (!p %in% names(self$ranges)) return(0)
       p_ind <- which(names(self$ranges) == p)
       if (is.null(self$model_terms)) {
-        model_terms <- purrr::map_chr(
+        model_terms <- map_chr(
           self$basis_f, function_to_names, names(self$ranges), FALSE)
-        g_d <- purrr::map(model_terms, ~D(parse(text = .), p))
+        g_d <- map(model_terms, ~D(parse(text = .), p))
       }
       else {
         model_terms <- self$model_terms
-        g_d <- purrr::map(
+        g_d <- map(
           self$model_terms,
           ~D(parse(text = sub("I\\((\\w*\\^\\d*)\\)", "\\1",
                               gsub(":", "*", .))), p))
@@ -403,9 +403,9 @@ Emulator <- R6Class(
         unlist(
           do.call(
             'rbind',
-            purrr::map(
+            map(
               seq_along(x[,1]),
-              function(y) purrr::map(g_d, ~eval(., envir = x[y,]))))),
+              function(y) map(g_d, ~eval(., envir = x[y,]))))),
         nrow = nrow(x))
       g <- g/range_scale
       x <- data.matrix(x)
@@ -458,7 +458,7 @@ Emulator <- R6Class(
         k <- ceiling(nrow(x)/2000)
         m <- ceiling(nrow(x)/k)
         s_df <- split(x, rep(1:k, each = m, length.out = nrow(x)))
-        return(unlist(purrr::map(
+        return(unlist(map(
           s_df, ~self$get_cov_d(., p1, xp, p2, FALSE)), use.names = FALSE))
       }
       deriv_func <- tryCatch(
@@ -479,18 +479,18 @@ Emulator <- R6Class(
       p1_ind <- which(names(self$ranges) == p1)
       p2_ind <- which(names(self$ranges) == p2)
       if (is.null(self$model_terms)) {
-        model_terms <- purrr::map_chr(self$basis_f,
+        model_terms <- map_chr(self$basis_f,
                                       function_to_names,
                                       names(self$ranges), FALSE)
-        g_d1 <- purrr::map(model_terms, ~D(parse(text = .), p1))
-        g_d2 <- purrr::map(model_terms, ~D(parse(text = .), p2))
+        g_d1 <- map(model_terms, ~D(parse(text = .), p1))
+        g_d2 <- map(model_terms, ~D(parse(text = .), p2))
       }
       else {
         model_terms <- self$model_terms
-        g_d1 <- purrr::map(self$model_terms,
+        g_d1 <- map(self$model_terms,
                            ~D(parse(text = sub("I\\((\\w*\\^\\d*)\\)",
                                                "\\1", gsub(":", "*", .))), p1))
-        g_d2 <- purrr::map(self$model_terms,
+        g_d2 <- map(self$model_terms,
                            ~D(parse(text = sub("I\\((\\w*\\^\\d*)\\)",
                                                "\\1", gsub(":", "*", .))), p2))
       }
@@ -498,18 +498,18 @@ Emulator <- R6Class(
         matrix(
           unlist(
             do.call(
-              'rbind', purrr::map(
+              'rbind', map(
                 seq_along(x[,1]),
-                function(y) purrr::map(g_d1,
+                function(y) map(g_d1,
                                        ~eval(., envir = x[y,]))))),
           nrow = nrow(x)))
       gp_x <- t(
         matrix(
           unlist(
             do.call(
-              'rbind', purrr::map(
+              'rbind', map(
                 seq_along(x[,1]),
-                function(y) purrr::map(g_d2,
+                function(y) map(g_d2,
                                        ~eval(., envir = x[y,]))))),
           nrow = nrow(x)))
       x <- data.matrix(x)
@@ -530,9 +530,9 @@ Emulator <- R6Class(
             unlist(
               do.call(
                 'rbind',
-                purrr::map(
+                map(
                   seq_along(xp[,1]),
-                  function(y) purrr::map(g_d2,
+                  function(y) map(g_d2,
                                          ~eval(., envir = xp[y,]))))),
             nrow = nrow(xp)))
         xp <- data.matrix(xp)
@@ -602,13 +602,13 @@ Emulator <- R6Class(
         point_seq <- seq_len(nrow(x))
         if (is.null(nrow(g_x))) beta_part <- diag(diag(self$beta_sigma) *
                                                     outer(g_x, gp_x))
-        else beta_part <- purrr::map_dbl(
+        else beta_part <- map_dbl(
           point_seq, ~g_x[,.] %*% self$beta_sigma %*% gp_x[,.])
         if (is.numeric(self$u_sigma))
           u_part <- self$u_sigma^2 * diag(
             self$corr$get_corr_d(x, xp, p1_ind, p2_ind, self$active_vars))/
             (range_scale1*range_scale2)
-        else u_part <- purrr::map_dbl(
+        else u_part <- map_dbl(
           point_seq,
           ~self$u_sigma(x[.,])*self$u_sigma(x[.,])) *
             diag(self$corr$get_corr_d(x, xp, p1_ind,
@@ -648,17 +648,17 @@ Emulator <- R6Class(
             (private$design_matrix %*% bupart_xp + t(c_xp))
         }
         if(is.null(nrow(g_x)))
-          bupart <- purrr::map_dbl(
+          bupart <- map_dbl(
             point_seq,
-            ~t(purrr::map_dbl(
-              self$basis_f, purrr::exec, x[.,])) *
-              bupart_xp[.] + t(bupart_x[.] * purrr::map_dbl(
-                self$basis_f, purrr::exec, xp[.,])))
-        else bupart <- purrr::map_dbl(
+            ~t(map_dbl(
+              self$basis_f, exec, x[.,])) *
+              bupart_xp[.] + t(bupart_x[.] * map_dbl(
+                self$basis_f, exec, xp[.,])))
+        else bupart <- map_dbl(
           point_seq,
-          ~t(purrr::map_dbl(self$basis_f, purrr::exec, x[.,])) %*%
-            bupart_xp[,.] + t(bupart_x[,.] %*% purrr::map_dbl(
-              self$basis_f, purrr::exec, xp[.,])))
+          ~t(map_dbl(self$basis_f, exec, x[.,])) %*%
+            bupart_xp[,.] + t(bupart_x[,.] %*% map_dbl(
+              self$basis_f, exec, xp[.,])))
       }
       return(round(beta_part + u_part + bupart, 10))
     },
@@ -670,7 +670,7 @@ Emulator <- R6Class(
         m <- ceiling(nrow(x)/k)
         s_df <- split(x, rep(1:k, each = m, length.out = nrow(x)))
         return(unlist(
-          purrr::map(
+          map(
             s_df, ~self$implausibility(., z = z, cutoff = cutoff)),
           use.names = FALSE))
       }
@@ -678,7 +678,7 @@ Emulator <- R6Class(
       temp_scale_x <- eval_funcs(scale_input, temp_scale_x, self$ranges)
       temp_scale_x <- data.matrix(temp_scale_x)
       corr_x <- self$corr$get_corr(self$in_data, temp_scale_x, self$active_vars)
-      disc_quad <- sum(purrr::map_dbl(self$disc, ~.^2))
+      disc_quad <- sum(map_dbl(self$disc, ~.^2))
       if (!is.numeric(z) && !is.null(z$val)) {
         imp_var <- self$get_cov(x, c_x = corr_x, c_xp = corr_x) + z$sigma^2 + disc_quad
         imp <- sqrt((z$val - self$get_exp(x, c_data = corr_x))^2/imp_var)
@@ -686,7 +686,7 @@ Emulator <- R6Class(
       else {
         pred <- self$get_exp(x, c_data = corr_x)
         bound_check <- tryCatch(
-            {purrr::map_dbl(pred, function(y) {
+            {map_dbl(pred, function(y) {
             if (y <= z[2] && y >= z[1]) return(0)
             if (y < z[1]) return(-1)
             if (y > z[2]) return(1)
@@ -697,7 +697,7 @@ Emulator <- R6Class(
               )
           }
         )
-        which_compare <- purrr::map_dbl(bound_check, function(y) {
+        which_compare <- map_dbl(bound_check, function(y) {
           if (y < 1) return(z[1])
           return(z[2])
         })
@@ -718,24 +718,24 @@ Emulator <- R6Class(
       }
       else {
         G <- apply(this_data_in, 1,
-                   function(x) purrr::map_dbl(self$basis_f, purrr::exec, x))
+                   function(x) map_dbl(self$basis_f, exec, x))
         Ot <- self$corr$get_corr(this_data_in, actives = self$active_vars)
         O <- tryCatch(
           chol2inv(chol(Ot)),
           error = function(x) {
-            MASS::ginv(Ot)
+            ginv(Ot)
           }
         )
         siginv <- tryCatch(
           chol2inv(chol(self$beta_sigma)),
           error = function(e) {
-            MASS::ginv(self$beta_sigma)
+            ginv(self$beta_sigma)
           }
         )
         new_beta_var <- tryCatch(
           chol2inv(chol(G %*% O %*% (if(is.null(nrow(G))) G else t(G)) + siginv)),
           error = function(e) {
-            MASS::ginv(G %*% O %*% (if(is.null(nrow(G))) G else t(G)) + siginv)
+            ginv(G %*% O %*% (if(is.null(nrow(G))) G else t(G)) + siginv)
           }
         )
         new_beta_exp <- new_beta_var %*%
@@ -816,7 +816,7 @@ Emulator <- R6Class(
     print = function(...) {
       cat("Parameters and ranges: ",
           paste(names(self$ranges),
-                paste0(purrr::map(self$ranges, round, 4)),
+                paste0(map(self$ranges, round, 4)),
                 sep = ": ", collapse = ": "), "\n")
       cat("Specifications: \n")
         if (!is.null(self$model))
@@ -827,7 +827,7 @@ Emulator <- R6Class(
               paste0(names(self$o_em$model$coefficients), collapse="; "), "\n")
         else
           cat("\t Basis functions: ",
-              paste0(purrr::map_chr(
+              paste0(map_chr(
                 self$basis_f, function_to_names, names(self$ranges), FALSE),
                 collapse = "; "), "\n")
       cat("\t Active variables",
@@ -843,7 +843,7 @@ Emulator <- R6Class(
           if (is.numeric(self$u_sigma))
             self$u_sigma^2
           else
-            self$u_sigma(purrr::map_dbl(self$ranges, mean))^2, "\n")
+            self$u_sigma(map_dbl(self$ranges, mean))^2, "\n")
       cat("\t Expectation: ", self$u_mu(rep(0, length(ranges))), "\n")
       self$corr$print(prepend = "\t")
       cat("Mixed covariance: ", self$beta_u_cov(rep(0, length(ranges))), "\n")

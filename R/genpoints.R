@@ -14,7 +14,7 @@ punifs <- function(x, c = rep(0, length(x)), r = 1) {
 # Helper function to obtain the most 'recent' emulators for each output.
 obtain_recent <- function(ems, dup = FALSE, showReduce = TRUE) {
   if (!is.null(ems$expectation)) {
-    em_indices <- duplicated(purrr::map_chr(ems$expectation, "output_name"))
+    em_indices <- duplicated(map_chr(ems$expectation, "output_name"))
     if (!dup) em_indices <- !em_indices
     ems <- list(
       expectation = ems$expectation[em_indices],
@@ -22,7 +22,7 @@ obtain_recent <- function(ems, dup = FALSE, showReduce = TRUE) {
     )
   }
   else if (!is.null(ems$mode1)) {
-    em_indices <- duplicated(purrr::map_chr(ems$mode1$expectation, "output_name"))
+    em_indices <- duplicated(map_chr(ems$mode1$expectation, "output_name"))
     if (!dup) em_indices <- !em_indices
     ems <- list(
       mode1 = list(
@@ -37,7 +37,7 @@ obtain_recent <- function(ems, dup = FALSE, showReduce = TRUE) {
     )
   }
   else {
-    em_indices <- duplicated(purrr::map_chr(ems, "output_name"))
+    em_indices <- duplicated(map_chr(ems, "output_name"))
     if (!dup) em_indices <- !em_indices
     ems <- ems[em_indices]
   }
@@ -46,8 +46,8 @@ obtain_recent <- function(ems, dup = FALSE, showReduce = TRUE) {
 }
 ## Function for pca transformation based on a sample of points
 pca_transform <- function(x, s_points, forward = TRUE) {
-  if ("data.frame" %in% class(s_points)) s_points <- data.matrix(s_points)
-  if ("data.frame" %in% class(x)) x <- data.matrix(x)
+  if (is.data.frame(s_points)) s_points <- data.matrix(s_points)
+  if (is.data.frame(x)) x <- data.matrix(x)
   s_trafo <- sweep(
     sweep(
       s_points, 2,
@@ -56,7 +56,7 @@ pca_transform <- function(x, s_points, forward = TRUE) {
     2, apply(s_points, 2, sd), "/"
   )
   s_estruct <- eigen(cov(s_trafo))
-  s_estruct$values <- purrr::map_dbl(s_estruct$values, ~ifelse(. < 1e-10, 1e-10, .))
+  s_estruct$values <- map_dbl(s_estruct$values, ~ifelse(. < 1e-10, 1e-10, .))
   if (forward) {
     x <- sweep(
       sweep(
@@ -72,19 +72,19 @@ pca_transform <- function(x, s_points, forward = TRUE) {
 ## Function to check points are in range
 in_range <- function(data, ranges) {
   apply(data, 1, function(x)
-    all(purrr::map_lgl(seq_along(ranges),
+    all(map_lgl(seq_along(ranges),
                        ~x[.] >= ranges[[.]][1] && x[.] <= ranges[[.]][2])))
 }
 ## Function to obtain a maximin sample from a set of proposed points
 maximin_sample <- function(points, n, reps = 1000, nms) {
   c_measure <- op <- NULL
-  opts <- purrr::map(1:reps, function(rep) {
+  opts <- map(1:reps, function(rep) {
     tp <- points[sample(nrow(points), n), , drop = FALSE]
-    if (!"data.frame" %in% class(tp)) tp <- setNames(tp, nms)
+    if (!is.data.frame(tp)) tp <- setNames(tp, nms)
     measure <- min(dist(tp))
     return(list(points = tp, value = measure))
   })
-  return(opts[[which.max(purrr::map_dbl(opts, "value"))]]$points)
+  return(opts[[which.max(map_dbl(opts, "value"))]]$points)
 }
 
 #' Generate Proposal Points
@@ -192,8 +192,9 @@ maximin_sample <- function(points, n, reps = 1000, nms) {
 #'
 #' @importFrom mvtnorm dmvnorm rmvnorm
 #' @importFrom stats setNames runif dist cov
-#' @importFrom utils write.csv
-#' @importFrom tidyr pivot_longer
+#' @importFrom utils write.csv stack
+#' @importFrom purrr imap
+#' @importFrom lhs randomLHS
 #'
 #' @param ems A list of \code{\link{Emulator}} objects, trained
 #' on previous design points.
@@ -269,11 +270,11 @@ generate_new_design <- function(ems, n_points, z, method = "default", cutoff = 3
   ranges <- getRanges(ems)
   if (is.na(opts$nth)) {
     if (!is.null(ems$expectation))
-      nems <- length(unique(purrr::map_chr(ems$expectation, "output_name")))
+      nems <- length(unique(map_chr(ems$expectation, "output_name")))
     else if (!is.null(ems$mode1))
-      nems <- length(unique(purrr::map_chr(ems$mode1$expectation, "output_name")))
+      nems <- length(unique(map_chr(ems$mode1$expectation, "output_name")))
     else
-      nems <- length(unique(purrr::map_chr(ems, "output_name")))
+      nems <- length(unique(map_chr(ems, "output_name")))
     opts$nth <- ifelse(nems > 10, 2, 1)
   }
   if (is.character(opts$accept_measure) && opts$accept_measure == "default") imp_func <- function(ems, x, z, ...) nth_implausible(ems, x, z, n = opts$nth, ...)
@@ -465,34 +466,34 @@ generate_new_design <- function(ems, n_points, z, method = "default", cutoff = 3
           relev_ems <- recent_ems
         if (is.null(relev_ems$mode1)) {
           recent_imps <- do.call("cbind.data.frame",
-                                 purrr::map(
+                                 map(
                                    relev_ems,
                                    ~.$implausibility(plausible_set, z[[.$output_name]])
                                  ))
           recent_exps <- do.call("cbind.data.frame",
-                                 purrr::map(
+                                 map(
                                    relev_ems, ~.$get_exp(plausible_set)
                                  ))
           preflight(cbind(plausible_set, recent_exps), z)
         }
         else {
           recent_imps1 <- do.call('cbind.data.frame',
-                                  purrr::map(
+                                  map(
                                     relev_ems$mode1,
                                     ~.$implausibility(plausible_set, z[[.$output_name]])
                                   ))
           recent_imps2 <- do.call('cbind.data.frame',
-                                  purrr::map(
+                                  map(
                                     relev_ems$mode2,
                                     ~.$implausibility(plausible_set, z[[.$output_name]])
                                   ))
           recent_imps <- pmin(recent_imps1, recent_imps2)
         }
-        name <- value <- NULL
-        plot_imps <- tidyr::pivot_longer(recent_imps, cols = everything())
-        plot_imps$name <- factor(plot_imps$name, levels = names(relev_ems))
+        ind <- values <- NULL
+        plot_imps <- stack(recent_imps)
+        plot_imps$ind <- factor(plot_imps$ind, levels = names(relev_ems))
         if (verbose) { #nocov start
-          print(ggplot(data = plot_imps, aes(x = name, y = value)) +
+          print(ggplot(data = plot_imps, aes(x = ind, y = values)) +
                   geom_boxplot() +
                   labs(title = "Implausibility Boxplot"))
           cat("Inspect implausibility boxplot for problematic outputs,",
@@ -662,11 +663,11 @@ lhs_gen <- function(ems, ranges, n_points, z, cutoff = 3, verbose, opts = NULL) 
     }
     actual_points <- eval_funcs(scale_input, train_pts, init_ranges, FALSE)
     pca_points <- pca_transform(actual_points, actual_points)
-    pca_ranges <- purrr::map(seq_len(ncol(pca_points)), ~range(pca_points[,.])) |> setNames(paste0("X", seq_len(ncol(pca_points))))
-    pca_ranges <- purrr::map(pca_ranges, ~.*c(0.9, 1.1))
+    pca_ranges <- map(seq_len(ncol(pca_points)), ~range(pca_points[,.])) |> setNames(paste0("X", seq_len(ncol(pca_points))))
+    pca_ranges <- map(pca_ranges, ~.*c(0.9, 1.1))
     temp_pts <- eval_funcs(scale_input,
                            setNames(
-                             data.frame(2 * lhs::randomLHS(n_points * opts$points.factor, length(pca_ranges)) - 0.5),
+                             data.frame(2 * randomLHS(n_points * opts$points.factor, length(pca_ranges)) - 0.5),
                              paste0("X", seq_along(pca_ranges))
                            ), pca_ranges, FALSE)
     points <- data.frame(pca_transform(temp_pts, actual_points, FALSE)) |> setNames(names(init_ranges))
@@ -674,7 +675,7 @@ lhs_gen <- function(ems, ranges, n_points, z, cutoff = 3, verbose, opts = NULL) 
   }
   else {
     points <- eval_funcs(scale_input, setNames(
-      data.frame(2* (lhs::randomLHS(n_points * opts$points.factor, length(ranges)) - 0.5)),
+      data.frame(2* (randomLHS(n_points * opts$points.factor, length(ranges)) - 0.5)),
     names(ranges)), ranges, FALSE)
   }
   if (is.character(opts$accept_measure) && opts$accept_measure == "default") {
@@ -722,14 +723,14 @@ lhs_gen_cluster <- function(ems, ranges, n_points, z, cutoff = 3, verbose = FALS
            warning = function(e) {warning("opts$points.factor is not numeric; setting to 40"); opts$points.factor <- 40})
   which_active <- setNames(
     data.frame(do.call('rbind',
-                       purrr::map(ems, ~.$active_vars))),
+                       map(ems, ~.$active_vars))),
     names(ranges)
   )
   cluster_id <- NULL
   tryCatch({
-      dist_mat <- suppressWarnings(cluster::daisy(which_active, metric = 'gower'))
-      single_clust <- cluster::fanny(dist_mat, k = 1)
-      double_clust <- cluster::fanny(dist_mat, k = 2)
+      dist_mat <- suppressWarnings(daisy(which_active, metric = 'gower'))
+      single_clust <- fanny(dist_mat, k = 1)
+      double_clust <- fanny(dist_mat, k = 2)
       if (single_clust$objective[["objective"]] < double_clust$objective[["objective"]])
         cluster_id <- c(single_clust$clustering, use.names = FALSE)
       else cluster_id <- c(double_clust$clustering, use.names = FALSE)
@@ -749,16 +750,16 @@ lhs_gen_cluster <- function(ems, ranges, n_points, z, cutoff = 3, verbose = FALS
     return(lhs_gen(ems, ranges, n_points, z, cutoff, verbose, opts))
   c1 <- ems[cluster_id == 1]
   c2 <- ems[cluster_id == 2]
-  p1 <- unique(do.call(c, purrr::map(c1, ~names(ranges)[.$active_vars])))
-  p2 <- unique(do.call(c, purrr::map(c2, ~names(ranges)[.$active_vars])))
+  p1 <- unique(do.call(c, map(c1, ~names(ranges)[.$active_vars])))
+  p2 <- unique(do.call(c, map(c2, ~names(ranges)[.$active_vars])))
   pn <- intersect(p1, p2)
   if (length(union(p1, p2)) == length(pn) && all(union(p1, p2) %in% pn))
     return(lhs_gen(ems, ranges, n_points, z, cutoff, verbose, opts))
   if (length(p1) > length(p2)) {
     c1 <- ems[cluster_id == 2]
     c2 <- ems[cluster_id == 1]
-    p1 <- unique(do.call(c, purrr::map(c2, ~names(ranges)[.$active_vars])))
-    p2 <- unique(do.call(c, purrr::map(c1, ~names(ranges)[.$active_vars])))
+    p1 <- unique(do.call(c, map(c2, ~names(ranges)[.$active_vars])))
+    p2 <- unique(do.call(c, map(c1, ~names(ranges)[.$active_vars])))
   }
   if (verbose) cat("Clusters determined. Cluster 1 has length", #nocov start
                    length(c1), "with", length(p1),
@@ -771,7 +772,7 @@ lhs_gen_cluster <- function(ems, ranges, n_points, z, cutoff = 3, verbose = FALS
                       floor(0.4 * np * opts$points.factor),
                       5*length(ranges))
     prop_lhs <- setNames(
-      data.frame(2 * (lhs::randomLHS(np * opts$points.factor, length(params)) - 0.5)),
+      data.frame(2 * (randomLHS(np * opts$points.factor, length(params)) - 0.5)),
       params
     )
     spare_p <- ranges[!names(ranges) %in% params]
@@ -905,8 +906,8 @@ line_sample <- function(ems, ranges, z, s_points, cutoff = 3, opts) {
     pt_dist <- dist(pts)
     return(list(p1 = pts[1,], p2 = pts[2,], d = pt_dist))
   })
-  s_lines <- s_lines[!duplicated(purrr::map_dbl(s_lines, ~.$d))]
-  best_pts <- s_lines[order(purrr::map_dbl(s_lines, ~.$d),
+  s_lines <- s_lines[!duplicated(map_dbl(s_lines, ~.$d))]
+  best_pts <- s_lines[order(map_dbl(s_lines, ~.$d),
                             decreasing = TRUE)][1:opts$n_lines]
   samp_pts <- lapply(best_pts, function(x) {
     tryCatch(
@@ -920,23 +921,23 @@ line_sample <- function(ems, ranges, z, s_points, cutoff = 3, opts) {
       }
     )
   })
-  samp_pts <- samp_pts[!purrr::map_lgl(samp_pts, is.null)]
-  samp_pts <- purrr::map(samp_pts, ~.[in_range(., ranges),])
-  samp_pts <- samp_pts[!purrr::map_lgl(
+  samp_pts <- samp_pts[!map_lgl(samp_pts, is.null)]
+  samp_pts <- map(samp_pts, ~.[in_range(., ranges),])
+  samp_pts <- samp_pts[!map_lgl(
     samp_pts, ~(is.null(.) || is.null(nrow(.)) || nrow(.) == 0)
   )]
   if (is.character(opts$accept_measure) && opts$accept_measure == "default")
-    imps <- purrr::map(samp_pts,
+    imps <- map(samp_pts,
                        ~nth_implausible(
                          ems, ., z,
                          n = opts$nth, cutoff = cutoff,
                          ordered = TRUE
                          ))
-  else imps <- purrr::map(samp_pts, ~opts$accept_measure(ems, ., z, cutoff = cutoff, n = opts$nth))
-  include_pts <- purrr::imap(samp_pts, function(x, i) {
+  else imps <- map(samp_pts, ~opts$accept_measure(ems, ., z, cutoff = cutoff, n = opts$nth))
+  include_pts <- imap(samp_pts, function(x, i) {
     pts <- x
     imp <- imps[[i]]
-    included <- purrr::map_lgl(seq_along(imp), function(y) {
+    included <- map_lgl(seq_along(imp), function(y) {
       if (!imp[y]) return(FALSE)
       if (y == 1 || y == length(imp)) return(TRUE)
       if (!imp[y+1] || !imp[y-1]) return(TRUE)
@@ -1044,13 +1045,13 @@ slice_gen <- function(ems, ranges, n_points, z, points, cutoff, opts) {
   complete_points <- pca_base <- points
   if (opts$pca_slice) {
     points <- pca_transform(points, pca_base)
-    pca_ranges <- purrr::map(seq_along(pca_base), ~c(-5,5))
+    pca_ranges <- map(seq_along(pca_base), ~c(-5,5))
   }
   else
     pca_ranges <- ranges
   index_list <- rep(1, nrow(points))
   while (nrow(complete_points) < n_points) {
-    range_list <- purrr::map(seq_along(index_list),
+    range_list <- map(seq_along(index_list),
                              ~pca_ranges[[index_list[.]]])
     new_slice <- make_slice(points, range_list, index_list)
     points <- new_slice$p
@@ -1111,12 +1112,12 @@ seek_good <- function(ems, z, plausible_set, cutoff = 3, verbose,
                           targets[[i]]$val + 3*targets[[i]]$sigma)
     }
     em_exps <- do.call('cbind.data.frame',
-                       purrr::map(ems, ~.$get_exp(points)))
+                       map(ems, ~.$get_exp(points)))
     em_sds <- sqrt(do.call('cbind.data.frame',
-                           purrr::map(ems, ~.$get_cov(points))))
+                           map(ems, ~.$get_cov(points))))
     em_probs <- do.call('rbind.data.frame',
-                        purrr::map(seq_len(nrow(em_exps)), function(x) {
-                          purrr::map_dbl(seq_along(em_exps[x,]), function(y) {
+                        map(seq_len(nrow(em_exps)), function(x) {
+                          map_dbl(seq_along(em_exps[x,]), function(y) {
                             pnorm(targets[[ems[[y]]$output_name]][2],
                                   em_exps[x,y], em_sds[x,y]) -
                               pnorm(targets[[ems[[y]]$output_name]][1],
@@ -1126,9 +1127,9 @@ seek_good <- function(ems, z, plausible_set, cutoff = 3, verbose,
     result <- apply(
       em_probs, 1,
       function(x) prod(
-        purrr::map_dbl(
+        map_dbl(
           unique(names(targets)),
-          ~min(x[purrr::map_chr(ems, function(a) a$output_name) == .]))))
+          ~min(x[map_chr(ems, function(a) a$output_name) == .]))))
     return(result)
   }
   select_minimal <- function(data, first_index, how_many) {
@@ -1136,7 +1137,7 @@ seek_good <- function(ems, z, plausible_set, cutoff = 3, verbose,
       dist(data, upper = TRUE, diag = TRUE))[-first_index,]
     picked_rows <- c(first_index)
     while(length(picked_rows) < how_many) {
-      new_point_dists <- purrr::map_dbl(row.names(data_dist), function(x) {
+      new_point_dists <- map_dbl(row.names(data_dist), function(x) {
         temp_dd <- data_dist[!row.names(data_dist) %in% x,]
         dists <- apply(temp_dd[,c(picked_rows, as.numeric(x))], 1, min)
         return(max(dists))

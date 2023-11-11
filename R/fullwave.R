@@ -34,7 +34,7 @@ preflight <- function(data, targets, coff = 0.95, verbose = interactive(), na.rm
     if (!is.atomic(targets[[i]])) targets[[i]] <- c(targets[[i]]$val - 3*targets[[i]]$sigma, targets[[i]]$val + 3*targets[[i]]$sigma)
   }
   getHits <- function(data, targets) {
-    hmm <- data.frame(do.call('cbind', purrr::map(seq_along(names(data)), ~data[,names(data)[.]] >= targets[[names(data)[[.]]]][1] & data[,names(data)[.]] <= targets[[names(data)[.]]][2])))
+    hmm <- data.frame(do.call('cbind', map(seq_along(names(data)), ~data[,names(data)[.]] >= targets[[names(data)[[.]]]][1] & data[,names(data)[.]] <= targets[[names(data)[.]]][2])))
     hmm <- setNames(data.frame(t(apply(hmm, 1, as.numeric))), names(data))
     return(hmm)
   }
@@ -165,7 +165,7 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL,
                       prop_train = 0.7, cutoff = 3, nth = 1,
                       verbose = interactive(), n_points = nrow(data), ...) {
   new_ranges <- setNames(
-    purrr::map(
+    map(
       names(ranges),
       ~c(max(ranges[[.]][1], min(data[,.]) - 0.05 * diff(range(data[,.]))),
          min(ranges[[.]][2], max(data[,.]) + 0.05 * diff(range(data[,.]))))),
@@ -199,8 +199,8 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL,
   }
   if (length(invalid_ems) > 0)
     ems <- ems[-invalid_ems]
-  if (!any(purrr::map_lgl(targets, is.atomic)))
-    emulator_uncerts <- purrr::map_dbl(
+  if (!any(map_lgl(targets, is.atomic)))
+    emulator_uncerts <- map_dbl(
       ems, ~(.$u_sigma^2 +
                targets[[.$output_name]]$sigma^2)/targets[[.$output_name]]$sigma)
   else emulator_uncerts <- NULL
@@ -215,7 +215,7 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL,
     }
   }
   emulator_order <- c(
-    purrr::map_dbl(
+    map_dbl(
       ems,
       ~sum(.$implausibility(data, targets[[.$output_name]], cutoff))),
     use.names = FALSE)
@@ -224,13 +224,13 @@ full_wave <- function(data, ranges, targets, old_emulators = NULL,
     working_ems <- c(ems, old_emulators)
   else
     working_ems <- ems
-  targets <- targets[purrr::map_chr(working_ems, ~.$output_name)]
+  targets <- targets[map_chr(working_ems, ~.$output_name)]
   if (verbose) cat("Generating new points...\n") #nocov
   new_points <- generate_new_design(working_ems, n_points, targets,
                                   cutoff = cutoff, verbose = FALSE, nth = nth)
   if (nrow(new_points) == 0)
     stop("Could not generate points in non-implausible space.")
-  if (!any(purrr::map_lgl(targets, is.atomic)))
+  if (!any(map_lgl(targets, is.atomic)))
     if (!is.null(emulator_uncerts) &&
         all(emulator_uncerts < 1.02) &&
         length(emulator_uncerts) == length(targets))

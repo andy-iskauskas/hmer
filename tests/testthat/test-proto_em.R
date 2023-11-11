@@ -25,6 +25,15 @@ test_that("Basic proto_emulator behaviour works", {
   expect_true("EmProto" %in% class(pe2))
 })
 
+test_that("Custom print failure", {
+  print_f <- function(arg) return(paste(a, "is the argument"))
+  expect_error(
+    Proto_emulator$new(
+      ranges, targets, pf, vf, print_func = function(arg) return(paste(a, "is the argument"))
+    )
+  )
+})
+
 test_that("Proto em failure states",  {
   expect_error(
     Proto_emulator$new(
@@ -170,5 +179,87 @@ test_that("Proto derivative fails gracefully", {
   expect_error(
     directional_proposal(vpe, SIRSample$validation[1,], targets),
     "No derivative expression"
+  )
+})
+
+test_that("Active variable handling", {
+  pm <- Proto_emulator$new(
+    ranges,
+    names(targets),
+    pf, vf, ifunc,
+    a_vars = c('aSI', 'aIR')
+  )
+  expect_equal(
+    pm$active_vars,
+    c(TRUE, TRUE, FALSE)
+  )
+  pm_too_many <- Proto_emulator$new(
+    ranges,
+    names(targets),
+    pf, vf, ifunc,
+    a_vars = c(TRUE, FALSE, TRUE, TRUE)
+  )
+  expect_equal(
+    pm_too_many$active_vars,
+    c(TRUE, FALSE, TRUE)
+  )
+  pm_too_few <- Proto_emulator$new(
+    ranges,
+    names(targets),
+    pf, vf, ifunc,
+    a_vars = c(TRUE, FALSE)
+  )
+  expect_equal(
+    pm_too_few$active_vars,
+    c(TRUE, FALSE, FALSE)
+  )
+  expect_error(
+    Proto_emulator$new(
+      ranges,
+      names(targets),
+      pf, vf, ifunc,
+      a_vars = c(2, 3, 1)
+    ),
+    "Could not parse"
+  )
+})
+
+test_that("Additional argument handling", {
+  pf_arg <- function(x, arg_add) {get(arg_add); arg_add; predict(relev_lm, x)}
+  vf_arg <- function(x, arg_add) {get(arg_add); arg_add; vf(x)}
+  im_arg <- function(x, z, cutoff, arg_add) ifunc(x, z, cutoff)
+  expect_error(
+    Proto_emulator$new(
+      ranges, names(targets),
+      pf_arg, vf, ifunc
+    )
+  )
+  expect_error(
+    Proto_emulator$new(
+      ranges, names(targets),
+      pf, vf_arg, ifunc
+    )
+  )
+  expect_error(
+    Proto_emulator$new(
+      ranges, names(targets),
+      pf, vf, im_arg
+    )
+  )
+  expect_error(
+    Proto_emulator$new(
+      ranges, names(targets),
+      pf_arg, vf, ifunc,
+      arg_add = "error"
+    ),
+    "Predict function failing"
+  )
+  expect_error(
+    Proto_emulator$new(
+      ranges, names(targets),
+      pf, vf_arg, ifunc,
+      arg_add = "error"
+    ),
+    "Variance function failing"
   )
 })

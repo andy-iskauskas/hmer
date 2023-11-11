@@ -1,16 +1,16 @@
 obtain_clusters <- function(x) { #nocov start
-  clusters <- suppressWarnings(purrr::map(2:6, ~fanny(x, .)))
-  which_clust <- which.max(purrr::map_dbl(clusters, ~.$silinfo$avg.width))
-  points_clustered <- purrr::map(1:(which_clust+1), function(i) {
+  clusters <- suppressWarnings(map(2:6, ~fanny(x, .)))
+  which_clust <- which.max(map_dbl(clusters, ~.$silinfo$avg.width))
+  points_clustered <- map(1:(which_clust+1), function(i) {
     x[clusters[[which_clust]]$clustering == i,]
   })
-  cluster_data <- purrr::map(points_clustered, function(a) {
+  cluster_data <- map(points_clustered, function(a) {
     return(list(mu = apply(a, 2, mean),
                 sigma = var(a),
                 siginv = tryCatch(
                   chol2inv(chol(var(a))),
                   error = function(e) {
-                    return(MASS::ginv(var(a)))
+                    return(ginv(var(a)))
                   }
                   )
                 ))
@@ -22,13 +22,13 @@ obtain_clusters <- function(x) { #nocov start
       siginv = tryCatch(
         chol2inv(chol(var(x))),
         error = function(e) {
-          return(MASS::ginv(var(x)))
+          return(ginv(var(x)))
         })
     ))
   )
 }
 predict_cluster <- function(x, clusters) {
-  vals <- do.call('rbind', purrr::map(clusters, function(c) {
+  vals <- do.call('rbind', map(clusters, function(c) {
     point_diffs <- data.matrix(sweep(x, 2, c$mu))
     return(diag(point_diffs %*% c$siginv %*% t(point_diffs)))
   }))
@@ -40,7 +40,7 @@ idemc_step <- function(ems, targets, points, point_imps, ladder, clusters,
                        order_active, ranges, M = 10, pm = 0.9, w = 0.8) {
   input_names <- names(ems[[1]]$ranges)
   in_range <- function(x, ranges) {
-    is_in <- purrr::map_lgl(seq_along(ranges), ~x[[.]] >= ranges[[.]][1] &&
+    is_in <- map_lgl(seq_along(ranges), ~x[[.]] >= ranges[[.]][1] &&
                               x[[.]] <= ranges[[.]][2])
     return(all(is_in))
   }
@@ -58,7 +58,7 @@ idemc_step <- function(ems, targets, points, point_imps, ladder, clusters,
         proposal[[j]] <- setNames(
           data.frame(
             matrix(
-              purrr::map_dbl(
+              map_dbl(
                 clusters[[j]]$ranges,
                 ~runif(1, .[[1]], .[[2]])
               ), nrow = 1
@@ -108,12 +108,12 @@ idemc_step <- function(ems, targets, points, point_imps, ladder, clusters,
   ## Do the crossover
   else {
     for (i in seq_len(ncross)) {
-      index1 <- sample(1:n, 1, prob = purrr::map_dbl(1:n, ~2*./(n*(n+1))))
+      index1 <- sample(1:n, 1, prob = map_dbl(1:n, ~2*./(n*(n+1))))
       if (n == 2)
         index2 <- ifelse(index1 == 1, 2, 1)
       else
         index2 <- sample((1:n)[-index1], 1,
-                         prob = purrr::map_dbl((1:n)[-index1],
+                         prob = map_dbl((1:n)[-index1],
                                                ~2*(n+1-.)/((n-2)*(n+1)+2*index1)))
       x1 <- proposal[[index1]][,order_active]
       x2 <- proposal[[index2]][,order_active]
@@ -245,7 +245,7 @@ idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)),
   ems <- collect_emulators(ems)
   ranges <- getRanges(ems, FALSE)
   order_active <- order(
-    apply(do.call('rbind', purrr::map(ems, "active_vars")), 2, sum),
+    apply(do.call('rbind', map(ems, "active_vars")), 2, sum),
           decreasing = TRUE)
   if (is.null(burnt) ||
       is.null(burnt$points) ||
@@ -254,7 +254,7 @@ idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)),
       is.null(burnt$ladder)) {
     # Burn-in stage one: identify all rungs
     points <- setNames(do.call('cbind.data.frame',
-                               purrr::map(ranges, ~runif(s, .[[1]], .[[2]]))),
+                               map(ranges, ~runif(s, .[[1]], .[[2]]))),
                        names(ranges))
     clusters_list <- list(list(ranges = ranges))
     ladder = c(Inf)
@@ -282,7 +282,7 @@ idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)),
       all_imps[1,] <- point_imps
       if (!verbose || !requireNamespace("progressr", quietly = TRUE)) {
         for (i in seq_len(s)) {
-          these_points <- purrr::map(all_points, ~.[i,])
+          these_points <- map(all_points, ~.[i,])
           idemc_res <- idemc_step(ems, targets, these_points, all_imps[i,],
                                   ladder, clusters_list, order_active, ranges,
                                   M = M, pm = pm, w = w)
@@ -296,7 +296,7 @@ idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)),
         progressr::with_progress({
           prog <- progressr::progressor(steps = s)
           for (i in seq_len(s)) {
-            these_points <- purrr::map(all_points, ~.[i,])
+            these_points <- map(all_points, ~.[i,])
             idemc_res <- idemc_step(ems, targets, these_points, all_imps[i,],
                                     ladder, clusters_list, order_active, ranges,
                                     M = M, pm = pm, w = w)
@@ -309,13 +309,13 @@ idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)),
         })
       }
       points <- all_points[[length(all_points)]]
-      clusters_list <- purrr::map(seq_along(all_points), function(i) {
+      clusters_list <- map(seq_along(all_points), function(i) {
         if (i == 1) return(list(ranges = ranges))
         return(obtain_clusters(all_points[[i]]))
       })
       imps <- all_imps[,ncol(all_imps)]
       imp_cutoff <- sort(imps)[floor(p*s)+1]
-      points_list <- purrr::map(all_points, ~.[nrow(.),])
+      points_list <- map(all_points, ~.[nrow(.),])
     }
     if (imp_cutoff < cutoff) imp_cutoff <- cutoff
     if (verbose) cat(imp_cutoff, "\n")
@@ -338,7 +338,7 @@ idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)),
     if (sn != s) {
       if (!verbose || !requireNamespace("progressr", quietly = TRUE)) {
         for (i in 1:sn) {
-          these_points <- purrr::map(all_points, ~.[i,])
+          these_points <- map(all_points, ~.[i,])
           idemc_res <- idemc_step(ems, targets, these_points, all_imps[i,],
                                   ladder, clusters_list, order_active, ranges,
                                   M = M, pm = pm, w = w)
@@ -351,7 +351,7 @@ idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)),
         progressr::with_progress({
           prog <- progressr::progressor(steps = sn)
           for (i in 1:sn) {
-            these_points <- purrr::map(all_points, ~.[i,])
+            these_points <- map(all_points, ~.[i,])
             idemc_res <- idemc_step(ems, targets, these_points, all_imps[i,],
                                     ladder, clusters_list, order_active, ranges,
                                     M = M, pm = pm, w = w)
@@ -363,8 +363,8 @@ idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)),
         })
       }
       points <- all_points[[length(all_points)]]
-      points_list <- purrr::map(all_points, ~.[nrow(.),])
-      clusters_list <- purrr::map(seq_along(all_points), function(i) {
+      points_list <- map(all_points, ~.[nrow(.),])
+      clusters_list <- map(seq_along(all_points), function(i) {
         if (i == 1) return(list(ranges = ranges))
         return(obtain_clusters(all_points[[i]]))
       })
@@ -401,7 +401,7 @@ idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)),
   all_imps[1,] <- point_imps
   if (!verbose || !requireNamespace("progressr", quietly = TRUE)) {
     for (i in seq_len(N*thin)) {
-      these_points <- purrr::map(all_points, ~.[i,])
+      these_points <- map(all_points, ~.[i,])
       idemc_res <- idemc_step(ems, targets, these_points, all_imps[i,],
                               ladder, clusters_list, order_active, ranges,
                               M = M, pm = pm, w = w)
@@ -414,7 +414,7 @@ idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)),
     progressr::with_progress({
       prog <- progressr::progressor(steps = N*thin)
       for (i in seq_len(N*thin)) {
-        these_points <- purrr::map(all_points, ~.[i,])
+        these_points <- map(all_points, ~.[i,])
         idemc_res <- idemc_step(ems, targets, these_points, all_imps[i,],
                                    ladder, clusters_list, order_active, ranges,
                                    M = M, pm = pm, w = w)
@@ -425,10 +425,10 @@ idemc <- function(ems, N, targets, cutoff = 3, s = max(500, ceiling(N/5)),
       }
     })
   }
-  all_points <- purrr::map(all_points, ~.[-1,])
+  all_points <- map(all_points, ~.[-1,])
   all_imps <- all_imps[-1]
   if (thin > 1) {
-    all_points <- purrr::map(all_points, ~.[seq(thin, N*thin, by = thin),])
+    all_points <- map(all_points, ~.[seq(thin, N*thin, by = thin),])
     all_imps <- all_imps[seq(thin, N*thin, by = thin),]
   }
   if (detailed) return(all_points)

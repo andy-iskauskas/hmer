@@ -16,15 +16,14 @@ Proto_emulator <- R6::R6Class(
       self$add_args <- list(...)
       if (is.null(a_vars)) self$active_vars <- rep(TRUE, length(self$ranges))
       if (all(is.character(a_vars))) self$active_vars <- names(self$ranges) %in% a_vars
-      if (length(self$active_vars) != length(self$ranges)) {
-        if (length(self$active_vars) > length(self$ranges)) self$active_vars <- a_vars[1:length(self$ranges)]
+      else if (length(a_vars) != length(self$ranges)) {
+        if (length(a_vars) > length(self$ranges)) self$active_vars <- a_vars[1:length(self$ranges)]
         else self$active_vars <- c(a_vars, rep(FALSE, length(self$ranges) - length(a_vars)))
       }
       if (!all(is.logical(self$active_vars))) {
-        tryCatch(as.logical(self$active_vars),
-                 error = function(e) stop(paste("Could not parse active variables a_vars:", e)))
+        stop(paste("Could not parse active variables a_vars."))
       }
-      testPoint <- data.frame(matrix(purrr::map_dbl(ranges, mean), nrow = 1)) |> setNames(names(ranges))
+      testPoint <- data.frame(matrix(map_dbl(ranges, mean), nrow = 1)) |> setNames(names(ranges))
       self$output_name <- output_name
       if (!is.function(predict_func)) stop("Prediction 'function' does not appear to be a function.")
       if (length(formals(predict_func)) < 1) stop("Prediction function requires at least one argument.")
@@ -130,12 +129,12 @@ Proto_emulator <- R6::R6Class(
         }
         else {
           pred <- self$get_exp(x)
-          bound_check <- purrr::map_dbl(pred, function(y) {
+          bound_check <- map_dbl(pred, function(y) {
             if (y <= z[2] && y >= z[1]) return(0)
             if (y < z[1]) return(-1)
             return(1)
           })
-          which_compare <- purrr::map_dbl(bound_check, function(y) {
+          which_compare <- map_dbl(bound_check, function(y) {
             if (y < 1) return(z[1])
             return(z[2])
           })

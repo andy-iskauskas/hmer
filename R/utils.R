@@ -12,8 +12,8 @@ colourblindcont <- list(low = '#1aff1a', mid = '#ac9011', high = '#48118e')
 
 # Scales inputs: important since the emulators should take inputs purely in [-1,1]
 scale_input <- function(x, r, forward = TRUE) {
-  centers <- purrr::map(r, ~(.x[2]+.x[1])/2)
-  scales <- purrr::map(r, ~(.x[2]-.x[1])/2)
+  centers <- map(r, ~(.x[2]+.x[1])/2)
+  scales <- map(r, ~(.x[2]-.x[1])/2)
   if (is.null(names(x))) {
     centers <- unlist(centers, use.names = F)
     scales <- unlist(scales, use.names = F)
@@ -38,7 +38,7 @@ scale_input <- function(x, r, forward = TRUE) {
     else
       output <- x * scales + centers
   }
-  if (!"data.frame" %in% class(output)) {
+  if (!is.data.frame(output)) {
     output <- data.frame(output)
     names(output) <- NULL
   }
@@ -48,10 +48,26 @@ scale_input <- function(x, r, forward = TRUE) {
 # Helper to convert functions to names
 function_to_names <- function(f, var_names, function_form = TRUE) {
   f_str <- deparse(body(f))
-  subbed <- stringr::str_replace_all(
-    gsub("x\\[\\[(\\d*)\\]\\](^\\d)?",
-         "var_names[\\1]\\2", f_str),
-    "var_names\\[\\d*\\]", function(x) eval(parse(text = x)))
+  first_sub <- gsub("x\\[{1,2}(\\d*)\\]{1,2}(^\\d)?",
+                    "var_names[\\1]\\2", f_str)
+  matching <- gregexec("var_names\\[\\d*\\]", first_sub)[[1]]
+  if (length(matching) == 1 && attr(matching, "match.length") == -1) return(first_sub)
+  match_locs <- matching[1,]
+  match_lengths <- attr(matching, "match.length")
+  subbed <- ""
+  match_index <- 1
+  i <- 1
+  while (i <= nchar(first_sub)) {
+    if (i %in% match_locs) {
+      end_val <- i + match_lengths[match_index]
+      subbed <- paste0(subbed, eval(parse(text = substr(first_sub, i, end_val-1))))
+      i <- end_val
+    }
+    else {
+      subbed <- paste0(subbed, substr(first_sub, i, i))
+      i <- i + 1
+    }
+  }
   if (function_form) {
     subbed <- gsub("\\s\\*\\s", ":", subbed)
   }
@@ -60,6 +76,20 @@ function_to_names <- function(f, var_names, function_form = TRUE) {
   }
   return(subbed)
 }
+# function_to_names <- function(f, var_names, function_form = TRUE) {
+#   f_str <- deparse(body(f))
+#   subbed <- stringr::str_replace_all(
+#     gsub("x\\[{1,2}(\\d*)\\]{1,2}(^\\d)?",
+#          "var_names[\\1]\\2", f_str),
+#     "var_names\\[\\d*\\]", function(x) eval(parse(text = x)))
+#   if (function_form) {
+#     subbed <- gsub("\\s\\*\\s", ":", subbed)
+#   }
+#   else {
+#     subbed <- gsub("\\s\\*\\s", "\\*", subbed)
+#   }
+#   return(subbed)
+# }
 
 name_to_function <- function(str, var_names) {
   if (str == "(Intercept)") return(function(x) 1)
@@ -80,31 +110,31 @@ eval_funcs <- function(funcs, points, ...) {
   manyfuncs <- (typeof(funcs) != "closure")
   if (manyfuncs && pointsdim)
     return(apply(points, 1,
-                 function(x) purrr::map_dbl(funcs, purrr::exec, x, ...)))
+                 function(x) map_dbl(funcs, exec, x, ...)))
   if (manyfuncs)
-    return(purrr::map_dbl(funcs, purrr::exec, points, ...))
+    return(map_dbl(funcs, exec, points, ...))
   if (pointsdim) {
     return(tryCatch(apply(points, 1, funcs, ...),
                     error = function(cond1) {
-                      tryCatch(purrr::exec(funcs, points, ...),
+                      tryCatch(exec(funcs, points, ...),
                                error = function(cond2) {
                                  cat(cond1$message, "\n", cond2$message, "\n")
                                  stop()
                                })
                     }))
   }
-  return(purrr::exec(funcs, points, ...))
+  return(exec(funcs, points, ...))
 }
 
 # Split datasets by uniqueness of columns
 split_dataset <- function(data, split_vars, method = "hash") {
   if (method != "dplyr") {
-    uids <- apply(data[,split_vars, drop = FALSE], 1, rlang::hash)
-    grouping <- purrr::map(unique(uids), ~data[which(uids == .),])
+    uids <- apply(data[,split_vars, drop = FALSE], 1, hash)
+    grouping <- map(unique(uids), ~data[which(uids == .),])
   }
   else {
-    dplyr_group <- data |> dplyr::group_by(across(all_of(split_vars)))
-    grouping <- purrr::map(dplyr::group_rows(dplyr_group), ~data[.,])
+    dplyr_group <- data |> group_by(across(all_of(split_vars)))
+    grouping <- map(group_rows(dplyr_group), ~data[.,])
   }
   return(grouping)
 }
@@ -220,16 +250,16 @@ get_truncation <- function(e, v, mu = TRUE, nu = 6, a = 0, b = Inf) {
 subset_emulators <- function(emulators, output_names) {
   if (!is.null(emulators$mode1)) {
     m1exp <- emulators$mode1$expectation[
-      purrr::map_chr(emulators$mode1$expectation,
+      map_chr(emulators$mode1$expectation,
                      ~.$output_name) %in% output_names]
     m1var <- emulators$mode1$variance[
-      purrr::map_chr(emulators$mode1$variance,
+      map_chr(emulators$mode1$variance,
                      ~.$output_name) %in% output_names]
     m2exp <- emulators$mode2$expectation[
-      purrr::map_chr(emulators$mode2$expectation,
+      map_chr(emulators$mode2$expectation,
                      ~.$output_name) %in% output_names]
     m2var <- emulators$mode2$variance[
-      purrr::map_chr(emulators$mode2$variance,
+      map_chr(emulators$mode2$variance,
                      ~.$output_name) %in% output_names]
     collated <- list(
       mode1 = list(
@@ -245,10 +275,10 @@ subset_emulators <- function(emulators, output_names) {
   }
   else if (!is.null(emulators$variance)) {
     mexp <- emulators$expectation[
-      purrr::map_chr(emulators$expectation,
+      map_chr(emulators$expectation,
                      ~.$output_name) %in% output_names]
     mvar <- emulators$variance[
-      purrr::map_chr(emulators$variance,
+      map_chr(emulators$variance,
                      ~.$output_name) %in% output_names]
     collated <- list(
       expectation = mexp,
@@ -256,7 +286,7 @@ subset_emulators <- function(emulators, output_names) {
     )
   }
   else {
-    collated <- emulators[purrr::map(emulators, ~.$output_name) %in% output_names]
+    collated <- emulators[map(emulators, ~.$output_name) %in% output_names]
   }
   return(collated)
 }
@@ -299,13 +329,13 @@ subset_emulators <- function(emulators, output_names) {
 collect_emulators <- function(emulators, targets = NULL, cutoff = 3,
                               ordering = c("params", "imp", "volume"),
                               sample_size = 200, ...) {
-  if ("Emulator" %in% class(emulators))
+  if (inherits(emulators, "Emulator"))
     return(setNames(list(emulators), emulators$output_name))
-  if (all(purrr::map_lgl(emulators, ~"Emulator" %in% class(.)))) {
-    em_names <- purrr::map_chr(emulators, ~.$output_name)
-    em_range_lengths <- purrr::map_dbl(emulators, ~length(.$ranges))
-    em_range_prods <- purrr::map_dbl(emulators,
-                                     ~prod(purrr::map_dbl(.$ranges, diff)))
+  if (all(map_lgl(emulators, ~inherits(., "Emulator")))) {
+    em_names <- map_chr(emulators, ~.$output_name)
+    em_range_lengths <- map_dbl(emulators, ~length(.$ranges))
+    em_range_prods <- map_dbl(emulators,
+                                     ~prod(map_dbl(.$ranges, diff)))
     if (is.null(targets)) {
       which_ordering <- match(ordering, c("params", "volume"))
     } else {
@@ -324,10 +354,10 @@ collect_emulators <- function(emulators, targets = NULL, cutoff = 3,
           targets[[i]] <- list(val = targets[[i]], sigma = 0.05*targets[[i]])
         }
       }
-      maximal_ranges <- purrr::map(emulators, "ranges")[[which.max(purrr::map_dbl(emulators, ~length(.$ranges)))]]
-      sample_points <- do.call('cbind.data.frame', purrr::map(maximal_ranges, ~runif(sample_size, min = .[[1]], max = .[[2]]))) |> setNames(names(maximal_ranges))
+      maximal_ranges <- map(emulators, "ranges")[[which.max(map_dbl(emulators, ~length(.$ranges)))]]
+      sample_points <- do.call('cbind.data.frame', map(maximal_ranges, ~runif(sample_size, min = .[[1]], max = .[[2]]))) |> setNames(names(maximal_ranges))
       if (length(cutoff) == 1) cutoff <- rep(cutoff, length(emulators))
-      em_imps <- do.call('cbind', purrr::map(seq_along(emulators), ~emulators[[.]]$implausibility(sample_points, targets[[emulators[[.]]$output_name]], cutoff = cutoff[[.]])))
+      em_imps <- do.call('cbind', map(seq_along(emulators), ~emulators[[.]]$implausibility(sample_points, targets[[emulators[[.]]$output_name]], cutoff = cutoff[[.]])))
       imp_restriction <- apply(em_imps, 2, sum)
       em_ordering <- do.call(order, list(-em_range_lengths, imp_restriction, em_range_prods)[which_ordering])
     } else {
@@ -361,16 +391,16 @@ collect_emulators <- function(emulators, targets = NULL, cutoff = 3,
                 prop = collect_emulators(prop_ems)))
   }
   if (!is.null(emulators[[1]]$mode1)) {
-    m1ems <- purrr::map(emulators, ~.$mode1)
-    m2ems <- purrr::map(emulators, ~.$mode2)
-    prop_ems <- purrr::map(emulators, ~.$prop)
+    m1ems <- map(emulators, ~.$mode1)
+    m2ems <- map(emulators, ~.$mode2)
+    prop_ems <- map(emulators, ~.$prop)
     return(list(mode1 = collect_emulators(m1ems, targets = NULL),
                 mode2 = collect_emulators(m2ems, targets = NULL),
                 prop = collect_emulators(prop_ems)))
   }
   if (!is.null(emulators[[1]]$expectation)) {
-    exp_ems <- purrr::map(emulators, ~.$expectation)
-    var_ems <- purrr::map(emulators, ~.$variance)
+    exp_ems <- map(emulators, ~.$expectation)
+    var_ems <- map(emulators, ~.$variance)
     if (!is.null(targets$expectation)) {
       targs_exp <- targets$expectation
       targs_var <- targets$variance
@@ -404,17 +434,17 @@ getRanges <- function(emulators, minimal = TRUE) {
   if (!is.null(emulators$expectation)) emulators <- emulators$expectation
   if (!is.null(emulators$mode1))
     emulators <- c(emulators$mode1$expectation, emulators$mode2$expectation)
-  range_lengths <- purrr::map_dbl(emulators, ~length(.$ranges))
+  range_lengths <- map_dbl(emulators, ~length(.$ranges))
   if (length(unique(range_lengths)) != 1) {
     emulators <- emulators[range_lengths == max(range_lengths)]
   }
   range_widths <- data.frame(
     do.call(
-      'rbind', purrr::map(emulators, ~purrr::map(.$ranges, diff))))
+      'rbind', map(emulators, ~map(.$ranges, diff))))
   which_choose <- if (minimal)
     apply(range_widths, 2, which.min)
   else apply(range_widths, 2, which.max)
-  return(setNames(purrr::map(names(range_widths),
+  return(setNames(map(names(range_widths),
                              ~emulators[[which_choose[[.]]]]$ranges[[.]]),
                   names(range_widths)))
 }
@@ -422,16 +452,16 @@ getRanges <- function(emulators, minimal = TRUE) {
 ### In progress: need to consider active variables in this function
 exp_sq_helper <- function(points, data, first_points, theta) {
   orig_corr <- exp_sq(first_points, data, list(theta = theta))
-  grid_indices <- which(purrr::map_dbl(seq_along(first_points),
+  grid_indices <- which(map_dbl(seq_along(first_points),
                                        ~length(unique(first_points[,.]))) == 1)
   unique_grid_points <- unique(points[,grid_indices])
   starting_point <- unique_grid_points[1,]
   unique_grid_points <- unique_grid_points[-1,]
-  diffs_list <- purrr::map(grid_indices, ~t(outer(first_points[,.], data[,.], "-")))
-  all_corrs <- purrr::map(seq_len(nrow(unique_grid_points)), function(i) {
+  diffs_list <- map(grid_indices, ~t(outer(first_points[,.], data[,.], "-")))
+  all_corrs <- map(seq_len(nrow(unique_grid_points)), function(i) {
     trans_vector <- unlist(unique_grid_points[i,] - starting_point)
-    modifier <- prod(purrr::map_dbl(trans_vector, ~exp(-.^2/theta^2)))
-    cross_term <- Reduce("*", purrr::map(seq_along(diffs_list),
+    modifier <- prod(map_dbl(trans_vector, ~exp(-.^2/theta^2)))
+    cross_term <- Reduce("*", map(seq_along(diffs_list),
                                          ~exp(-2 * diff_list[[.]] * trans_vector[.]/theta^2)))
     return(modifier * orig_corr * cross_term)
   })

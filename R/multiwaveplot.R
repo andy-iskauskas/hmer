@@ -7,6 +7,7 @@
 #' are also created on the diagonal.
 #'
 #' @importFrom GGally ggpairs
+#' @importFrom viridis viridis
 #'
 #' @param waves The list of data.frames, one for each set of points at that wave.
 #' @param input_names The input names to be plotted.
@@ -51,7 +52,7 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5,
     if(surround) g <- g + geom_point(cex = p_size, pch = 1, colour = 'black')
     return(g)
   }
-  pal <- viridis::viridis(max(length(waves), max(wave_numbers)),
+  pal <- viridis(max(length(waves), max(wave_numbers)),
                           option = "D", direction = -1)[wave_numbers]
   g <- ggpairs(total_data, columns = seq_along(input_names), aes(colour = wave),
           lower = list(continuous = plotfun),
@@ -91,6 +92,7 @@ wave_points <- function(waves, input_names, surround = FALSE, p_size = 1.5,
 #' smallest such that contain the point.
 #'
 #' @importFrom GGally ggpairs ggally_densityDiag
+#' @importFrom rlang as_string
 #'
 #' @param waves The list of data.frames, one for each set of outputs at that wave.
 #' @param targets The output targets.
@@ -130,7 +132,7 @@ wave_values <- function(waves, targets, output_names = names(targets),
                         which_wave = ifelse(zero_in, 0, 1),
                         upper_scale = 1, ...) {
   waves <- tryCatch(
-    purrr::map(waves, data.frame),
+    map(waves, data.frame),
     error = function(e) {
       stop(paste("Cannot convert wave objects to data.frame:", e))
     }
@@ -148,7 +150,7 @@ wave_values <- function(waves, targets, output_names = names(targets),
     apply(
       data, 1,
       function(x) all(
-        purrr::map_lgl(
+        map_lgl(
           seq_along(ranges),
           ~x[.] >= ranges[[.]][1] && x[.] <= ranges[[.]][2])))
   }
@@ -161,13 +163,13 @@ wave_values <- function(waves, targets, output_names = names(targets),
         collected_ems <- collect_emulators(ems)
         which_ems_fit <- do.call(
           'cbind.data.frame',
-          purrr::map(
+          map(
             collected_ems,
             ~in_range(waves[[i+1]][,names(.$ranges)], .$ranges)))
         which_em_use <- setNames(
           do.call(
             'cbind.data.frame',
-            purrr::map(
+            map(
               names(targets),
               ~apply(
                 t(
@@ -177,25 +179,25 @@ wave_values <- function(waves, targets, output_names = names(targets),
                 function(x) which(x)[1]))), names(targets))
         em_exps <- do.call(
           'cbind.data.frame',
-          purrr::map(ems, ~.$get_exp(waves[[i+1]])))
+          map(ems, ~.$get_exp(waves[[i+1]])))
         em_vars <- do.call(
           'cbind.data.frame',
-          purrr::map(ems, ~sqrt(.$get_cov(waves[[i+1]]))))
+          map(ems, ~sqrt(.$get_cov(waves[[i+1]]))))
         out_exps <- setNames(
           do.call(
             'rbind.data.frame',
-            purrr::map(
+            map(
               seq_len(nrow(which_em_use)),
               function(x)
-                purrr::map_dbl(
+                map_dbl(
                   seq_along(which_em_use),
                   function(y) em_exps[x,y]))), names(targets))
         out_vars <- setNames(
           do.call(
             'rbind.data.frame',
-            purrr::map(
+            map(
               seq_len(nrow(which_em_use)),
-              function(x) purrr::map_dbl(
+              function(x) map_dbl(
                 seq_along(which_em_use),
                 function(y) em_vars[x,y]))), names(targets))
         out_list[[i+1]] <- setNames(
@@ -220,7 +222,7 @@ wave_values <- function(waves, targets, output_names = names(targets),
   if (length(var_list) != 0) total_var <- do.call('rbind', var_list)
   total_data$wave <- factor(total_data$wave)
   output_ranges <- setNames(
-    purrr::map(
+    map(
       output_names,
       ~range(subset(total_data, wave == which_wave)[,.])), output_names)
   if (restrict) {
@@ -249,11 +251,11 @@ wave_values <- function(waves, targets, output_names = names(targets),
       output_names <- names(targets)
     }
   }
-  pal <- viridis::viridis(max(length(waves), max(wave_numbers)),
+  pal <- viridis(max(length(waves), max(wave_numbers)),
                           option = "D", direction = -1)[wave_numbers+1]
   lfun <- function(data, mapping, targets, zoom = F) { #nocov start
-    xname <- rlang::quo_get_expr(mapping$x)
-    yname <- rlang::quo_get_expr(mapping$y)
+    xname <- quo_get_expr(mapping$x)
+    yname <- quo_get_expr(mapping$y)
     g <- ggplot(data = data, mapping = mapping) +
       geom_point(cex = p_size) +
       scale_colour_manual(values = pal) +
@@ -280,8 +282,8 @@ wave_values <- function(waves, targets, output_names = names(targets),
     return(g)
   }
   lfun_var <- function(data, mapping, targets, var_data, zoom = F) {
-    xname <- rlang::quo_get_expr(mapping$x)
-    yname <- rlang::quo_get_expr(mapping$y)
+    xname <- quo_get_expr(mapping$x)
+    yname <- quo_get_expr(mapping$y)
     g <- ggplot(data = data, mapping = mapping) +
       geom_tile(aes(width = 6*var_data[,paste0(yname, 'V')],
                     height = 6*var_data[,paste0(yname, 'V')],
@@ -311,7 +313,7 @@ wave_values <- function(waves, targets, output_names = names(targets),
     return(g)
   }
   dfun <- function(data, mapping, targets) {
-    xname <- rlang::as_string(rlang::quo_get_expr(mapping$x))
+    xname <- as_string(quo_get_expr(mapping$x))
     g <- ggally_densityDiag(data = data, mapping = mapping, alpha = 0.4) +
       geom_vline(xintercept = targets[[xname]], colour = 'red', linewidth = l_wid) +
       scale_fill_manual(values = pal) +
@@ -393,7 +395,7 @@ wave_dependencies <- function(waves, targets, output_names = names(targets),
                               wave_numbers = ifelse(zero_in, 0, 1):
                                 (length(waves)-ifelse(zero_in, 1, 0)), ...) {
   waves <- tryCatch(
-    purrr::map(waves, data.frame),
+    map(waves, data.frame),
     error = function(e) {
       stop(paste("Cannot convert wave objects to data.frame:", e))
     }
@@ -410,7 +412,7 @@ wave_dependencies <- function(waves, targets, output_names = names(targets),
   }
   total_data <- do.call('rbind', waves[wave_numbers+1])
   total_data$wave <- factor(total_data$wave)
-  pal <- viridis::viridis(max(length(waves), max(wave_numbers)),
+  pal <- viridis(max(length(waves), max(wave_numbers)),
                           option = "D", direction = -1)[wave_numbers+1]
   plot_list <- list()
   for (i in seq_along(output_names)) {
@@ -443,7 +445,7 @@ wave_dependencies <- function(waves, targets, output_names = names(targets),
         })
     }
   }
-  return(suppressWarnings(GGally::ggmatrix(plots = plot_list,
+  return(suppressWarnings(ggmatrix(plots = plot_list,
                                            ncol = length(input_names),
                                            nrow = length(output_names),
                                            xAxisLabels = input_names,
@@ -471,6 +473,7 @@ wave_dependencies <- function(waves, targets, output_names = names(targets),
 #'
 #' @import ggplot2
 #' @importFrom dplyr mutate
+#' @importFrom stats reshape
 #'
 #' @param wave_points The set of wave points, as a list of data.frames
 #' @param z The set of target values for each output
@@ -501,7 +504,7 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL,
                            normalize = FALSE, logscale = FALSE, byhit = FALSE,
                            barcol = "#444444", ...) {
   wave_points <- tryCatch(
-    purrr::map(wave_points, data.frame),
+    map(wave_points, data.frame),
     error = function(e) {
       stop(paste("Cannot convert wave objects to data.frame:", e))
     }
@@ -517,7 +520,7 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL,
   name <- value <- run <- wave <- val <- sigma <- NULL
   output_names <- names(z)
   target_hits <- function(result, targets, sum_func = "sum") {
-    hits <- purrr::map_lgl(names(targets), function(t) {
+    hits <- map_lgl(names(targets), function(t) {
         return(result[t] <= targets[[t]][2] && result[t] >= targets[[t]][1])
     })
     sum_function <- get(sum_func)
@@ -525,14 +528,14 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL,
   }
   sim_runs <- do.call(
     'rbind',
-    purrr::map(
+    map(
       wave_numbers,
       ~data.frame(wave_points[[.+ifelse(zero_in, 1, 0)]][,output_names, drop = FALSE],
                   wave = .)))
   if (byhit) {
     t_hits <- apply(sim_runs, 1, target_hits, z)
-    waves_by_hits <- purrr::map(0:length(z), ~sim_runs[t_hits == .,])
-    w_numbers <- (0:length(z))[purrr::map_lgl(waves_by_hits, ~nrow(.) > 0)]
+    waves_by_hits <- map(0:length(z), ~sim_runs[t_hits == .,])
+    w_numbers <- (0:length(z))[map_lgl(waves_by_hits, ~nrow(.) > 0)]
     return(simulator_plot(waves_by_hits, z, zero_in = TRUE, palette = palette,
                           wave_numbers = w_numbers, normalize = normalize,
                           logscale = logscale, byhit = FALSE, barcol = barcol,
@@ -553,24 +556,33 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL,
       z[[i]] <- log(z[[i]])
     }
   }
-  pivoted <- pivot_longer(sim_runs, cols = !c('run', 'wave'))
+  #pivoted <- pivot_longer(sim_runs, cols = !c('run', 'wave'))
+  pivoted <- reshape(sim_runs, varying =  names(sim_runs)[!names(sim_runs) %in% c('run', 'wave')],
+                      times = names(sim_runs)[!names(sim_runs) %in% c('run', 'wave')],
+                      idvar = c("run", "wave"),
+                      direction = "long", v.names = "values") |>
+    setNames(c('wave', 'run', 'name', 'value'))
   pivoted$wave <- as.factor(pivoted$wave)
   pivoted$name <- factor(pivoted$name, levels = names(z))
   if (is.null(palette))
-    pal <- viridis::viridis(length(wave_points),
+    pal <- viridis(length(wave_points),
                             option = 'plasma', direction = -1)
   else pal <- palette
   pal <- pal[seq_along(pal) %in% (wave_numbers+ifelse(zero_in, 1, 0))]
-  obs <- data.frame(name = names(z), min = purrr::map_dbl(z, ~.[1]),
-                    max = purrr::map_dbl(z, ~.[2]))
+  obs <- data.frame(name = names(z), min = map_dbl(z, ~.[1]),
+                    max = map_dbl(z, ~.[2]))
   optionals <- list(...)
   if (!is.null(optionals[['change_legend']]) && optionals[['change_legend']])
     legend_title = "# Hits"
   else
     legend_title = "Wave"
   if(length(output_names) == 1) {
-      obs <- uncount(obs, length(unique(pivoted$wave))) %>%
-        mutate(wave = factor(0:(length(unique(pivoted$wave)) - 1)))
+      obs <- data.frame(wave = unique(pivoted$wave),
+                        name = rep(obs$name, length(unique(pivoted$wave))),
+                        min = rep(obs$min, length(unique(pivoted$wave))),
+                        max = rep(obs$max, length(unique(pivoted$wave))))
+      # obs <- uncount(obs, length(unique(pivoted$wave))) |>
+      #   mutate(wave = factor(0:(length(unique(pivoted$wave)) - 1)))
       g <- ggplot(data = pivoted, aes(x = wave, y = value)) +
         ggbeeswarm::geom_beeswarm(aes(colour = wave, group = wave)) +
         scale_colour_manual(values = pal, name = legend_title) +
@@ -713,6 +725,9 @@ diagnostic_wrap <- function(waves, targets, output_names = names(targets),
 #' consider an output matched to if the mean lies within 3 standard deviations of
 #' the output, where the standard deviation is calculated over the realisations.
 #'
+#' @importFrom dplyr summarise
+#' @importFrom viridis scale_colour_viridis
+#'
 #' @param waves The collection of waves, as a list of data.frames
 #' @param targets The output targets
 #' @param input_names The names of the input parameters
@@ -738,7 +753,7 @@ hit_by_wave <- function(waves, targets, input_names, measure = "mean",
                         plt = FALSE, as.per = TRUE, grid.plot = TRUE, n.sig = 3) {
   wave <- name <- value <- value_unsc <- NULL
   target_hits <- function(result, targets, sum_func = "sum") {
-    hits <- purrr::map_lgl(names(targets), function(t) {
+    hits <- map_lgl(names(targets), function(t) {
       if (is.atomic(targets[[t]]))
         return(result[t] <= targets[[t]][2] && result[t] >= targets[[t]][1])
       result[t] <= targets[[t]]$val + n.sig*targets[[t]]$sigma && result[t] >= targets[[t]]$val - n.sig*targets[[t]]$sigma
@@ -754,8 +769,8 @@ hit_by_wave <- function(waves, targets, input_names, measure = "mean",
       if (int2[1] <= int1[2] && int2[1] >= int1[1]) return(TRUE)
       return(FALSE)
     }
-    intervals <- purrr::map(names(targets), ~as.numeric(c(means[.] - sd/sqrt(reps)*sds[.], means[.] + sd/sqrt(reps)*sds[.]))) |> setNames(names(targets))
-    hits <- purrr::map_lgl(names(targets), function(t) {
+    intervals <- map(names(targets), ~as.numeric(c(means[.] - sd/sqrt(reps)*sds[.], means[.] + sd/sqrt(reps)*sds[.]))) |> setNames(names(targets))
+    hits <- map_lgl(names(targets), function(t) {
       if (!is.atomic(targets[[t]]))
         targ_int <- c(targets[[t]]$val - n.sig*targets[[t]]$sigma, targets[[t]]$val + n.sig*targets[[t]]$sigma)
       else
@@ -765,43 +780,43 @@ hit_by_wave <- function(waves, targets, input_names, measure = "mean",
     sum_function <- get(sum_func)
     return(sum_function(hits))
   }
-  waves <- purrr::map(waves, ~.[,c(input_names, names(targets))])
-  wave_uids <- purrr::map(waves, function(w) {
-    apply(w[,input_names], 1, rlang::hash)
+  waves <- map(waves, ~.[,c(input_names, names(targets))])
+  wave_uids <- map(waves, function(w) {
+    apply(w[,input_names], 1, hash)
   })
   duplicated <- FALSE
-  if (any(purrr::map_lgl(wave_uids, ~length(unique(.)) != length(.)))) duplicated <- TRUE
+  if (any(map_lgl(wave_uids, ~length(unique(.)) != length(.)))) duplicated <- TRUE
   if (duplicated == TRUE && measure != "real") {
-    waves_grouped <- purrr::map(waves, ~. |> dplyr::group_by(across(all_of(input_names))))
-    wave_means <- purrr::map(waves_grouped, ~. |> dplyr::summarise(.groups = "keep", across(everything(), mean)))
+    waves_grouped <- map(waves, ~. |> group_by(across(all_of(input_names))))
+    wave_means <- map(waves_grouped, ~. |> summarise(.groups = "keep", across(everything(), mean)))
     if (measure == "stoch") {
-      wave_reps <- purrr::map(waves_grouped, ~purrr::map_dbl(dplyr::group_rows(.), length))
-      wave_sds <- purrr::map(waves_grouped, ~. |> dplyr::summarise(.groups = "keep", across(everything(), sd)))
+      wave_reps <- map(waves_grouped, ~map_dbl(group_rows(.), length))
+      wave_sds <- map(waves_grouped, ~. |> summarise(.groups = "keep", across(everything(), sd)))
     }
     else {
       wave_reps <- NULL
       wave_sds <- NULL
     }
     if (is.null(wave_reps)) {
-      hit_data <- purrr::map(wave_means, function(w) {
+      hit_data <- map(wave_means, function(w) {
         apply(w, 1, target_hits, targets)
       })
     }
     else {
-      hit_data <- purrr::map(seq_along(wave_means), function(i) {
-        purrr::map_dbl(seq_len(nrow(wave_means[[i]])), function(j) {
+      hit_data <- map(seq_along(wave_means), function(i) {
+        map_dbl(seq_len(nrow(wave_means[[i]])), function(j) {
           target_overlaps(wave_means[[i]][j,], wave_sds[[i]][j,], wave_reps[[i]][j], targets)
         })
       })
     }
   }
   else {
-    hit_data <- purrr::map(waves, function(w) {
+    hit_data <- map(waves, function(w) {
       apply(w, 1, target_hits, targets)
     })
   }
   hit_data_df <- do.call('rbind.data.frame',
-                         purrr::map(hit_data, function(h) purrr::map_dbl(0:length(targets), ~sum(h == .)))
+                         map(hit_data, function(h) map_dbl(0:length(targets), ~sum(h == .)))
   ) |> setNames(0:length(targets))
   if (as.per) hit_data_df <- sweep(hit_data_df, 1, apply(hit_data_df, 1, sum), "/")
   if (!plt) {
@@ -810,15 +825,23 @@ hit_by_wave <- function(waves, targets, input_names, measure = "mean",
     return(hit_data_df)
   }
   hit_data_df$wave <- seq_len(nrow(hit_data_df))-1
-  plot.mat <- tidyr::pivot_longer(hit_data_df, cols = !wave)
+  # plot.mat <- tidyr::pivot_longer(hit_data_df, cols = !wave)
+  plot.mat <- reshape(hit_data_df, varying = seq_len(length(hit_data_df)-1),
+          times = seq_len(length(hit_data_df)-1), idvar = "wave",
+          direction = "long", v.names = "values") |>
+    setNames(c("wave", "name", "value"))
   plot.mat$wave <- factor(plot.mat$wave, levels = rev(seq_along(hit_data_df)-1))
-  plot.mat$name <- factor(plot.mat$name, levels = 0:length(targets))
+  plot.mat$name <- factor(plot.mat$name-1, levels = 0:length(targets))
   if (!as.per) {
-    hit_data_df_max <- max(purrr::map_dbl(hit_data, length))
+    hit_data_df_max <- max(map_dbl(hit_data, length))
     hit_data_df_scale <- data.frame(t(apply(hit_data_df[,!names(hit_data_df) == 'wave'], 1, function(x) ceiling(x*hit_data_df_max/sum(x))))) |>
       setNames(0:length(targets))
     hit_data_df_scale$wave <- hit_data_df$wave
-    scale_additional <- tidyr::pivot_longer(hit_data_df_scale, cols = !wave)
+    #scale_additional <- tidyr::pivot_longer(hit_data_df_scale, cols = !wave)
+    scale_additional <- reshape(hit_data_df_scale, varying = seq_len(length(hit_data_df_scale)-1),
+                        times = seq_len(length(hit_data_df_scale)-1), idvar = "wave",
+                        direction = "long", v.names = "values") |>
+      setNames(c("wave", "name", "value"))
     holdout <- plot.mat$value
     plot.mat$value <- scale_additional$value
     plot.mat$value_unsc <- holdout
@@ -846,7 +869,7 @@ hit_by_wave <- function(waves, targets, input_names, measure = "mean",
   else
     g <- ggplot(data = plot.mat, aes(x = name, y = value, group = wave, colour = wave)) +
     geom_line() +
-    viridis::scale_colour_viridis(discrete = TRUE, name = "Wave")
+    scale_colour_viridis(discrete = TRUE, name = "Wave")
   g <- g + theme_minimal() +
     labs(title = paste(ifelse(as.per, "Percentage", "Number"), "of Points Hitting # Outputs, by Wave"),
          subtitle = subtit, x = "# Outputs", y = ifelse(grid.plot, "Wave", ifelse(as.per, "Percentage", "Number")))
