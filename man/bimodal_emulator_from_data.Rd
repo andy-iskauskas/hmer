@@ -61,7 +61,7 @@ The output of the function is a list, containing three objects: \code{mode1}, \c
 while \code{prop} has the form of an \code{emulator_from_data} output.
 }
 \examples{
- \donttest{
+ \donttest{ # Excessive runtime
   # Use the stochastic SIR dataset
   SIR_ranges <- list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05))
   SIR_names <- c("I10", "I25", "I50", "R10", "R25", "R50")

@@ -67,7 +67,7 @@ result in a very large number of points. If this is the case, then \code{maxpoin
 are sampled uniformly from the region instead of regularly spacing them.
 }
 \examples{
-\donttest{
+\donttest{ # Excessive runtime
  plot_lattice(SIREmulators$ems, SIREmulators$targets, ppd = 10)
  plot_lattice(SIREmulators$ems$nS, SIREmulators$targets)
 }

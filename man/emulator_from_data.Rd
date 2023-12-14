@@ -150,7 +150,7 @@ v_ems_corr <- emulator_from_data(BirthDeath$training, c("Y"),
  corr_name = list(variance = "matern", expectation = "exp_sq")
 )
 
-\donttest{
+\donttest{ # Excessive runtime
   ems_quad <- emulator_from_data(SIRSample$training, out_vars, ranges)
   ems_quad # Now includes quadratic terms
   ems_cub <- emulator_from_data(SIRSample$training, out_vars, ranges, order = 3)

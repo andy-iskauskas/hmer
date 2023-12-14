@@ -1,7 +1,7 @@
 ---
 title: "Emulation and History Matching Handbook"
 author: "Andy Iskauskas"
-date: "2023-05-03"
+date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Emulation and History Matching Handbook}
@@ -9,9 +9,41 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
+```{r, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "handbook-"
+)
+```
 
+```{r setup, include=FALSE}
+library(hmer)
+library(lhs)
+library(deSolve)
+library(ggplot2)
 
+ode_results <- function(parms, end_time = 25) {
+  des = function(time, state, parms) {
+    with(as.list(c(state, parms)), {
+      dS <- aSR*R-aSI*I*S/(S+I+R)
+      dI <- aSI*I*S/(S+I+R)-aIR*I
+      dR <- aIR*I-aSR*R
+      return(list(c(dS, dI, dR)))
+    })
+  }
+  yini = c(S = 950, I = 50, R = 0)
+  times = seq(0, end_time, by = 1)
+  out = ode(yini, times, des, parms)
+  return(out)
+}
 
+get_res <- function(inputs) {
+  ode_out <- data.frame(t(apply(inputs, 1, function(x) ode_results(x)[11, c('S', 'I', 'R')])))
+  return(setNames(cbind(inputs, ode_out), c(names(inputs), c('nS', 'nI', 'nR'))))
+}
+set.seed(12)
+```
 
 
 ## Introduction
@@ -44,8 +76,7 @@ Emulators are statistical surrogates for a complex model and have a number of st
 
 Suppose we have a situation where our training runs focus on a subset of the region. If we expect the emulators to extrapolate to the entire space, we might not be surprised that the result is sub-optimal. The most extreme example is if we focus on a subregion where a target is consistently over- or under-estimated: it is possible to train emulators that have low uncertainty (due to the consistency of the output) but simultaneously cannot attain a target value even if we know a match is possible. We will use the SIR model used in the `SIRSample` dataset and similar to illustrate this.
 
-
-```r
+```{r bad-design}
 bad_design <- data.frame(aSI = runif(30, 0.6, 0.8),
                          aIR = runif(30, 0, 0.1),
                          aSR = runif(30, 0, 0.05))
@@ -53,16 +84,11 @@ bad_design <- data.frame(aSI = runif(30, 0.6, 0.8),
 bad_results <- get_res(bad_design)
 bad_emulators <- emulator_from_data(bad_results, c('nS', 'nI', 'nR'),
                                     ranges = list(aSI = c(0.6, 0.8), aIR = c(0, 0.1), aSR = c(0, 0.05)))
-#> Fitting regression surfaces...
-#> Building correlation structures...
-#> Creating emulators...
-#> Performing Bayes linear adjustment...
 ```
 
 In a circumstance such as this, we may find that the emulator diagnostics are 'fine', albeit with high values of implausibility in the misclassification diagnostics (the middle column). However, attempts to generate runs will fail to find points within a respectable implausibility threshold (prompting additional output from `generate_new_design`), and an aid to identification will be returned: namely, a set of box plots of the implausibilities for each output as well as a printed check on the training outputs to see if there is a consistent over- or under-estimation of one or more targets. Note that we have vastly increased the targets, and increased the initial number of points proposed, just to get to this point!
 
-
-```r
+```{r bad-design-diagnostic, fig.height = 7, fig.width = 7}
 bad_design_v <- data.frame(aSI = runif(30, 0.6, 0.8),
                          aIR = runif(30, 0, 0.1),
                          aSR = runif(30, 0, 0.05))
@@ -75,59 +101,9 @@ bad_targets <- list(
 invalid <- validation_diagnostics(bad_emulators, bad_targets, bad_validation)
 ```
 
-![plot of chunk bad-design-diagnostic](handbook-bad-design-diagnostic-1.png)
-
-
-```r
+```{r bad_design_generation}
 try_generate <- generate_new_design(bad_emulators, 100, bad_targets, verbose = TRUE,
  opts = list(points.factor = 100))
-#> Proposing from LHS...
-#> 15 initial valid points generated for I=12.491
-#> Performing line sampling...
-#> Line sampling generated 6 more points.
-#> Performing importance sampling...
-#> Importance sampling generated 90 more points.
-#> 14 initial valid points generated for I=9.271
-#> Performing line sampling...
-#> Line sampling generated 40 more points.
-#> Performing importance sampling...
-#> Importance sampling generated 64 more points.
-#> 15 initial valid points generated for I=8.331
-#> Performing line sampling...
-#> Line sampling generated 40 more points.
-#> Performing importance sampling...
-#> Importance sampling generated 46 more points.
-#> 14 initial valid points generated for I=8.229
-#> Performing line sampling...
-#> Line sampling generated 40 more points.
-#> Performing importance sampling...
-#> Importance sampling generated 72 more points.
-#> 14 initial valid points generated for I=8.167
-#> Performing line sampling...
-#> Line sampling generated 40 more points.
-#> Performing importance sampling...
-#> Importance sampling generated 81 more points.
-#> 14 initial valid points generated for I=8.121
-#> Performing line sampling...
-#> Line sampling generated 40 more points.
-#> Performing importance sampling...
-#> Importance sampling generated 118 more points.
-#> Point proposal seems to be asymptoting around cutoff 8.101 - terminating.
-#> Target nS consistently underestimated.
-#> Target nI consistently overestimated.
-#> Target nR consistently overestimated.
-```
-
-![plot of chunk bad_design_generation](handbook-bad_design_generation-1.png)
-
-```
-#> Inspect implausibility boxplot for problematic outputs, and consider transforming them or removing them from this wave.
-#> Resample 1 
-#> Performing line sampling...
-#> Line sampling generated 40 more points.
-#> Performing importance sampling...
-#> Importance sampling generated 49 more points.
-#> Selecting final points using maximin criterion...
 ```
 
 If we encounter this problem, it is worth returning to our initial design and considering whether including additional training points would be appropriate or whether our initial design was poorly specified.
@@ -168,38 +144,23 @@ As an example, we consider the dataset provided in `problem_data`; this consists
 
 We try to train a set of emulators to this dataset in the normal fashion. The one change is that we use the `targets` argument of `emulator_from_data` in order to gain an insight into the structure of the data. Here we only focus on a couple of outputs for convenience.
 
-
-```r
+```{r train-emulators-problem}
 problem_ems <- emulator_from_data(problem_data$data, names(problem_data$targets)[7:9], problem_data$ranges, targets = problem_data$targets, more_verbose = FALSE)
-#> Target output7 consistently overestimated.
-#> Target output9 consistently overestimated.
-#> Some outputs may not be adequately emulated due to consistent over/underestimation of outputs in training data.
-#> Consider looking at the outputs (e.g. using behaviour_plot); some outputs may require extra runs and/or transformation applied.
-#> Fitting regression surfaces...
-#> Building correlation structures...
-#> Creating emulators...
-#> Performing Bayes linear adjustment...
 ```
 
 There are a few things of interest here, but we will focus on the first few printed statements. They indicate that some of the outputs to match to are consistently over-estimated - this in and of itself is not guaranteed to be a problem, but it always warrants further study. We can look at the behaviour of one of the identified outputs from the model perspective using a simple plot command.
 
-
-```r
+```{r check-output, fig.height = 7, fig.width = 7}
 plot(x = problem_data$data[,names(problem_data$ranges)[9]], y = problem_data$data[,names(problem_data$targets)[7]],
      pch = 16, xlim = problem_data$ranges[[9]], ylim = c(0, 1), xlab = "Parameter", ylab = "Output")
 abline(h = problem_data$targets[[7]], lty = 2)
 ```
 
-![plot of chunk check-output](handbook-check-output-1.png)
-
 As suggested, we may also use `behaviour_plot` to look at the emulator predictions. This can replicate the above behaviour if given the points and no emulators, but we want to look at the emulator behaviour here.
 
-
-```r
+```{r behaviour-plot, fig.width = 7, fig.height = 7}
 behaviour_plot(ems = list(problem_ems[[1]]), targets = problem_data$targets)
 ```
-
-![plot of chunk behaviour-plot](handbook-behaviour-plot-1.png)![plot of chunk behaviour-plot](handbook-behaviour-plot-2.png)
 
 We can see that, for some inputs we begin to see an indication of the 'trench' behaviour to the left-hand side of the input values. However, it does not truly see the steep drop-off and it is nowhere near the target, predicting a range of output7 of approximately $[0.7, 1]$.
 
@@ -213,8 +174,7 @@ One solution to this issue is to omit an output of this type from the particular
 
 The above problem has its roots in the nature of the model. We may conclude that this output is very unlikely to be matched, but remember that we only use a (comparatively) small number of points to train the emulators. If there are interesting and relevant behaviours in a very small part of the parameter space, it is entirely possible that we have simply missed them. In this example, we know the answer: let us include the 'extra' points in the above plot:
 
-
-```r
+```{r check-output-extra, fig.height = 7, fig.width = 7}
 plot_data <- rbind(problem_data$data, problem_data$extra)
 plot(x = plot_data[,names(problem_data$ranges)[9]], y = plot_data[,names(problem_data$targets)[7]],
      pch = 16, xlim = problem_data$ranges[[9]], ylim = c(0, 1), xlab = "Parameter", ylab = "Output",
@@ -222,14 +182,11 @@ plot(x = plot_data[,names(problem_data$ranges)[9]], y = plot_data[,names(problem
 abline(h = problem_data$targets[[7]], lty = 2)
 ```
 
-![plot of chunk check-output-extra](handbook-check-output-extra-1.png)
-
 In fact, in a small part of the parameter space (somewhere near what turns out to be a 10d 'corner' of the space) this target comes much closer to being attained. The behaviour of the output is very interesting: in the vast majority of the input space it settles consistently at high values. As we get close to this corner, it steeply drops off into the trench where the acceptable matches can be found. It is not reasonable, therefore, to just dismiss these outputs out of hand: they do in fact contain useful information about the structure of the space.
 
 One way to potentially elicit this information is to consider a transformation of the outputs. The relevant transformation depends on the nature of the data: here, given that the output values are between 0 and 1, we might consider a `logit` transformation. Care must be taken with this transformation, including the fact that the logit transformation acts on $(0,1)$ and not $[0,1]$; here however we simply outline a sketch of the solution.
 
-
-```r
+```{r logit-example, fig.height = 7, fig.width = 7}
 logit_data_first <- problem_data$data
 logit_data_second <- problem_data$extra
 logit_data_first$output7 <- log(logit_data_first$output7/(1-logit_data_first$output7))
@@ -242,27 +199,15 @@ plot(x = logit_data[,names(problem_data$ranges)[9]], y = logit_data[,names(probl
 abline(h = log(problem_data$targets[[7]]/(1-problem_data$targets[[7]])), lty = 2)
 ```
 
-![plot of chunk logit-example](handbook-logit-example-1.png)
-
 This transformation has pulled the original data and the 'corner' data closer together, but more importantly it has helped to distinguish what appeared to be very similar behaviour of the original data. Training an emulator to this transformed data stands a better chance of giving us a sensible result, with an appropriate estimation of the uncertainty. Indeed, we can see this by comparing an emulator trained to the original data and one trained to the transformed data. The slice we choose is along the two parameters that are identically 0 in the 'best fit' point, with all other parameters set to their 'best fit' values.
 
-
-```r
+```{r problem-imp, fig.height = 7, fig.width = 7}
 plot(problem_ems[[1]], plot_type = 'imp', params = c('input9', 'input15'), fixed_vals = problem_data$extra[1,(1:21)[-c(9, 15)]], targets = problem_data$targets)
 ```
-
-![plot of chunk problem-imp](handbook-problem-imp-1.png)
-
-```r
+```{r transformed-imp, fig.height = 7, fig.width = 7}
 new_emulator <- emulator_from_data(logit_data_first, c('output7'), problem_data$ranges)
-#> Fitting regression surfaces...
-#> Building correlation structures...
-#> Creating emulators...
-#> Performing Bayes linear adjustment...
 plot(new_emulator$output7, plot_type = 'imp', params = c('input9', 'input15'), fixed_vals = logit_data_second[1, (1:21)[-c(9, 15)]], targets = list(output7 = log(problem_data$targets$output7/(1-problem_data$targets$output7))))
 ```
-
-![plot of chunk transformed-imp](handbook-transformed-imp-1.png)
 
 We can see a marked difference in the implausibility, and checking the print statements from the two emulators will show a big difference in the level of uncertainty: the transformed emulator is more uncertain simply because it is being exposed to a wider range of behaviour. Note that we did not train the transformed emulator on our 'extra' points: this emulator had no greater knowledge about the space than the original emulator.
 
@@ -288,50 +233,31 @@ There are a variety of functions in the package to visualise the behaviour of th
 
 As an example, consider again the `problem_data` dataset. We can easily obtain the specifications of the emulator corresponding to (transformed) output7, and find that it has a set of 'active variables': namely inputs 1, 8, 9, and 15, which we can see using the `plot_actives` command.
 
-
-```r
+```{r plot-active, fig.height = 7, fig.width = 7}
 plot_actives(new_emulator)
 ```
 
-![plot of chunk plot-active](handbook-plot-active-1.png)
-
 We know that at a training point, the emulator should exactly replicate the output value and that the uncertainty at this point is 0, so let us plot this:
 
-
-```r
+```{r output-active-1, fig.height = 7, fig.width = 7}
 plot(new_emulator$output7, params = c('input1', 'input8'),
               fixed_vals = problem_data$data[1,(1:21)[-c(1,8)]]) +
   geom_point(x = problem_data$data[1,1], y = problem_data$data[1,8])
-```
-
-![plot of chunk output-active-1](handbook-output-active-1-1.png)
-
-```r
 plot(new_emulator$output7, plot_type = 'sd', params = c('input1', 'input8'),
               fixed_vals = problem_data$data[1,(1:21)[-c(1,8)]]) +
   geom_point(x = problem_data$data[1,1], y = problem_data$data[1,8])
 ```
 
-![plot of chunk output-active-1](handbook-output-active-1-2.png)
-
 Now, let's do the same with inputs 2 and 3:
 
-
-```r
+```{r output-active-2, fig.height = 7, fig.width = 7}
 plot(new_emulator$output7, params = c('input18', 'input20'),
               fixed_vals = problem_data$data[1,(1:21)[-c(18, 20)]]) +
   geom_point(x = problem_data$data[1,2], y = problem_data$data[1,3])
-```
-
-![plot of chunk output-active-2](handbook-output-active-2-1.png)
-
-```r
 plot(new_emulator$output7, plot_type = 'sd', params = c('input18', 'input20'),
               fixed_vals = problem_data$data[1,(1:21)[-c(18,20)]]) +
   geom_point(x = problem_data$data[1,2], y = problem_data$data[1,3])
 ```
-
-![plot of chunk output-active-2](handbook-output-active-2-2.png)
 
 The expectation surface appears to be completely flat across the surface, as does the standard deviation. What's going wrong here?
 
@@ -343,8 +269,7 @@ for some correlation function $c(x, x^{\prime})$ - the $A$ subscript indicates t
 
 But if a training point is included in the slice (as we did above), shouldn't we expect at least some variation? Shouldn't there be a single point in the standard deviation plot where it is zero? The answer is yes, but it is almost impossible to pick this up in the plot. The nature of the correlation structure is that there is a discontinuous jump akin to a Dirac delta when $x=x^{\prime}$ (due to the $I_{x=x^{\prime}}$ term), so that at a single point the variance drops to identically zero. When creating the contour plots, this cannot be accommodated. We can see this clearly by creating a one-dimensional plot across one of the non-active variables:
 
-
-```r
+```{r dirac-delta, fig.height = 5, fig.width = 5}
 dm <- matrix(0, ncol = length(problem_data$ranges), nrow = 1000)
 for (i in 1:length(problem_data$ranges)) dm[,i] <- rep(problem_data$data[1,i], 1000)
 dm[,18] <- sort(c(problem_data$data[1,18], seq(problem_data$ranges[[18]][1], problem_data$ranges[[18]][2], length.out = 999)))
@@ -352,8 +277,6 @@ data1d <- setNames(data.frame(dm), names(problem_data$ranges))
 vars <- new_emulator$output7$get_cov(data1d)
 plot(x = data1d$input18, y = vars, type = 'l', xlab = "input18", ylab = 'Variance')
 ```
-
-![plot of chunk dirac-delta](handbook-dirac-delta-1.png)
 
 Such 'constant' plots should not be a concern - they represent the actual behaviour of the emulator on the slice in question.
 

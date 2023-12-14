@@ -76,7 +76,7 @@ emulators, and \code{points} corresponding to the new proposed points. The point
 be put into the simulator to generate runs for a subsequent wave.
 }
 \examples{
-\donttest{
+\donttest{ #excessive runtime
  ranges <- list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05))
  default <- full_wave(do.call('rbind.data.frame', SIRSample), ranges,
   SIREmulators$targets)

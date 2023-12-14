@@ -51,7 +51,7 @@ All other parameters passed to this function are equivalent to those in
 emulators are the Bayes Linear adjusted forms.
 }
 \examples{
-\donttest{
+\donttest{ # Excessive runtime
  # A simple example using the BirthDeath dataset
  v_ems <- variance_emulator_from_data(BirthDeath$training, c("Y"),
   list(lambda = c(0, 0.08), mu = c(0.04, 0.13)), c_lengths = c(0.75))
