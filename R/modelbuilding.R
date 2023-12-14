@@ -444,7 +444,7 @@ hyperparameter_estimate <- function(inputs, outputs, model, corr_name = "exp_sq"
 #'  corr_name = list(variance = "matern", expectation = "exp_sq")
 #' )
 #'
-#' \donttest{
+#' \donttest{ # Excessive runtime
 #'   ems_quad <- emulator_from_data(SIRSample$training, out_vars, ranges)
 #'   ems_quad # Now includes quadratic terms
 #'   ems_cub <- emulator_from_data(SIRSample$training, out_vars, ranges, order = 3)
@@ -1280,7 +1280,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
 #' @references Goldstein & Vernon (2016) in preparation
 #'
 #' @examples
-#' \donttest{
+#' \donttest{ # Excessive runtime
 #'  # A simple example using the BirthDeath dataset
 #'  v_ems <- variance_emulator_from_data(BirthDeath$training, c("Y"),
 #'   list(lambda = c(0, 0.08), mu = c(0.04, 0.13)), c_lengths = c(0.75))
@@ -1459,7 +1459,7 @@ variance_emulator_from_data <- function(input_data, output_names, ranges,
 #' @export
 #'
 #' @examples
-#'  \donttest{
+#'  \donttest{ # Excessive runtime
 #'   # Use the stochastic SIR dataset
 #'   SIR_ranges <- list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05))
 #'   SIR_names <- c("I10", "I25", "I50", "R10", "R25", "R50")

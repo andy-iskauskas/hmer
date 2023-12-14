@@ -152,7 +152,7 @@ preflight <- function(data, targets, coff = 0.95, verbose = interactive(), na.rm
 #' @export
 #'
 #' @examples
-#' \donttest{
+#' \donttest{ #excessive runtime
 #'  ranges <- list(aSI = c(0.1, 0.8), aIR = c(0, 0.5), aSR = c(0, 0.05))
 #'  default <- full_wave(do.call('rbind.data.frame', SIRSample), ranges,
 #'   SIREmulators$targets)

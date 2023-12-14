@@ -213,7 +213,7 @@ maximin_sample <- function(points, n, reps = 1000, nms) {
 #' @export
 #'
 #' @examples
-#'  \donttest{
+#'  \donttest{ # Excessive runtime
 #'   # A simple example that uses  number of the native and ... parameter opts.
 #'   pts <- generate_new_design(SIREmulators$ems, 100, SIREmulators$targets,
 #'   distro = 'sphere', opts = list(resample = 0))

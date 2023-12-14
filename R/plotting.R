@@ -319,7 +319,7 @@ imp_plot <- function(em, z, plotgrid = NULL, ppd = 30, cb = FALSE, nth = NULL,
 #'  emulator_plot(SIREmulators$ems, ppd = 10)
 #'  emulator_plot(SIREmulators$ems$nS, ppd = 10)
 #'  emulator_plot(SIREmulators$ems, plot_type = 'var', ppd = 10, params = c('aIR', 'aSR'))
-#'  \donttest{
+#'  \donttest{ # Excessive runtime
 #'     emulator_plot(SIREmulators$ems, plot_type = 'imp', ppd = 10,
 #'      targets = SIREmulators$targets,
 #'      fixed_vals = list(aSR = 0.02))
@@ -532,7 +532,7 @@ output_plot <- function(ems, targets, points = NULL, npoints = 1000) {
 #' @references Bower, Goldstein & Vernon (2010) <doi:10.1214/10-BA524>
 #'
 #' @examples
-#' \donttest{
+#' \donttest{ # Excessive runtime
 #'  plot_lattice(SIREmulators$ems, SIREmulators$targets, ppd = 10)
 #'  plot_lattice(SIREmulators$ems$nS, SIREmulators$targets)
 #' }
