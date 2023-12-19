@@ -253,3 +253,10 @@ test_that("Emulator training: too many terms", {
                        order = 3, verbose = FALSE, more_verbose = TRUE)
   )
 })
+
+test_that("Emulator training: bad ranges", {
+  expect_error(
+    em_no_range <- emulator_from_data(SIRSample$training, names(SIREmulators$targets),
+                                      list(aSI = c(0.1, 0.8), aIR = c(0, 0), aSR = c(0, 0.05)))
+  )
+})
