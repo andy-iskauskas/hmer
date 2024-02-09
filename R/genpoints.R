@@ -243,6 +243,8 @@ generate_new_design <- function(ems, n_points, z, method = "default", cutoff = 3
   if (is.null(opts$accept_measure)) opts$accept_measure <- "default"
   if (!is.null(opts$cluster) && opts$cluster == 1) opts$cluster <- TRUE
   if (is.null(opts$cluster) || !is.logical(opts$cluster)) opts$cluster <- FALSE
+  if (is.null(opts$use_collect)) opts$use_collect <- TRUE
+  else tryCatch(is.logical(opts$use_collect), warning = function(e) {warning("Emulator collection setting not logical; setting to TRUE"); opts$use_collect <- TRUE})
   if (is.null(opts$cutoff_tolerance)) opts$cutoff_tolerance <- 0.01
   else tryCatch(opts$cutoff_tolerance <- as.numeric(opts$cutoff_tolerance), warning = function(e) {warning("Cutoff tolerance is not numeric; setting to 0.01"); opts$cutoff_tolerance <- 0.01})
   if (is.null(opts$ladder_tolerance)) opts$ladder_tolerance <- 0.1
@@ -266,7 +268,8 @@ generate_new_design <- function(ems, n_points, z, method = "default", cutoff = 3
   } #nocov end
   if (is.null(list(...)[["cutoff_info"]])) min_cutoff <- cutoff
   else min_cutoff <- list(...)[["cutoff_info"]][1]
-  ems <- collect_emulators(ems, z, cutoff, ...)
+  if (opts$use_collect)
+    ems <- collect_emulators(ems, z, cutoff, ...)
   ranges <- getRanges(ems)
   if (is.na(opts$nth)) {
     if (!is.null(ems$expectation))
