@@ -53,7 +53,7 @@ get_dist <- function(df1, df2) {
 #' #> 3.266131e-13
 exp_sq <- function(x, xp, hp) {
   if (is.null(hp$theta)) stop("Correlation length theta must be specified.")
-  dists <- get_dist(x/hp$theta, xp/hp$theta)^2
+  dists <- get_dist(sweep(x, 2, hp$theta, "/"), sweep(xp, 2, hp$theta, "/"))^2
   return(exp(-dists))
 }
 

@@ -7,9 +7,9 @@
 #'
 #' The model operates using simple differential equations, where
 #'
-#' S' = aSR*R - aSI*S*R/(S+I+R)
+#' S' = aSR*R - aSI*S*I/(S+I+R)
 #'
-#' I' = aSI*S*R/(S+I+R) - aIR*I
+#' I' = aSI*S*I/(S+I+R) - aIR*I
 #'
 #' R' = aIR*I - aSR*R.
 #'
@@ -18,7 +18,7 @@
 #' \describe{
 #'   \item{aSI}{Infection: transition rate from S to I}
 #'   \item{aIR}{Recovery: transition rate from I to R}
-#'   \item{aSR}{Immunisation: transition rate from S to R}
+#'   \item{aSR}{Waning immunity: transition rate from R to S}
 #'   \item{nS}{Final number of S}
 #'   \item{nI}{Final number of I}
 #'   \item{nR}{Final number of R}
@@ -43,7 +43,7 @@
 #' \describe{
 #'   \item{aSI}{Infection: transition rate from S to I}
 #'   \item{aIR}{Recovery: transition rate from I to R}
-#'   \item{aSR}{Immunisation: transition rate from S to R}
+#'   \item{aSR}{Waning Immunity: transition rate from R to S}
 #'   \item{nS}{Implausibility for nS}
 #'   \item{nI}{Implausibility for nI}
 #'   \item{nR}{Implausibility for nR}
