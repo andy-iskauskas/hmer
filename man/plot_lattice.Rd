@@ -14,7 +14,9 @@ plot_lattice(
   imp_breaks = NULL,
   contour = TRUE,
   ranges = NULL,
-  raster_imp = FALSE
+  raster_imp = FALSE,
+  plot_vars = NULL,
+  fixed_vars = NULL
 )
 }
 \arguments{
@@ -38,6 +40,10 @@ which to draw contours.}
 \item{ranges}{Parameter ranges. If not supplied, defaults to emulator ranges.}
 
 \item{raster_imp}{Should the implausibility plots be rasterised?}
+
+\item{plot_vars}{If provided, indicates which subset of parameters to plot.}
+
+\item{fixed_vars}{If provided, indicates the fixed value of the plot-excluded parameters.}
 }
 \value{
 A ggplot object
@@ -65,11 +71,19 @@ rather than proportion of non-implausible points.
 The \code{maxpoints} argument is used as a cutoff for if a regular ppd grid would
 result in a very large number of points. If this is the case, then \code{maxpoints} points
 are sampled uniformly from the region instead of regularly spacing them.
+
+If only a subset of parameters are relevant, then the \code{plot_vars} and \code{fixed_vars}
+can be used to specify the subset. If \code{plot_vars} is provided, corresponding to a list
+of parameter names, then those parameters not included are fixed to their mid-range values;
+if \var{fixed_vars} is provided as a named list, then the parameters not included are fixed
+to the corresponding specified values.
 }
 \examples{
 \donttest{ # Excessive runtime
  plot_lattice(SIREmulators$ems, SIREmulators$targets, ppd = 10)
  plot_lattice(SIREmulators$ems$nS, SIREmulators$targets)
+ plot_lattice(SIREmulators$ems, SIREmulators$targets, plot_vars = c('aSI', 'aIR'))
+ plot_lattice(SIREmulators$ems, SIREmulators$targets, fixed_vars = list(aSR = 0.03))
 }
 }
 \references{

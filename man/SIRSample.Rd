@@ -10,7 +10,7 @@ A list of two data frames. The first has 30 rows and 6 variables, the second
 \describe{
   \item{aSI}{Infection: transition rate from S to I}
   \item{aIR}{Recovery: transition rate from I to R}
-  \item{aSR}{Immunisation: transition rate from S to R}
+  \item{aSR}{Waning immunity: transition rate from R to S}
   \item{nS}{Final number of S}
   \item{nI}{Final number of I}
   \item{nR}{Final number of R}
@@ -28,9 +28,9 @@ and 0 recovered (R). The final values are taken at time t=10.
 \details{
 The model operates using simple differential equations, where
 
-S' = aSR*R - aSI*S*R/(S+I+R)
+S' = aSR*R - aSI*S*I/(S+I+R)
 
-I' = aSI*S*R/(S+I+R) - aIR*I
+I' = aSI*S*I/(S+I+R) - aIR*I
 
 R' = aIR*I - aSR*R.
 }

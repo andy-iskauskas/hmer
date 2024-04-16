@@ -508,6 +508,12 @@ output_plot <- function(ems, targets, points = NULL, npoints = 1000) {
 #' result in a very large number of points. If this is the case, then \code{maxpoints} points
 #' are sampled uniformly from the region instead of regularly spacing them.
 #'
+#' If only a subset of parameters are relevant, then the \code{plot_vars} and \code{fixed_vars}
+#' can be used to specify the subset. If \code{plot_vars} is provided, corresponding to a list
+#' of parameter names, then those parameters not included are fixed to their mid-range values;
+#' if \var{fixed_vars} is provided as a named list, then the parameters not included are fixed
+#' to the corresponding specified values.
+#'
 #' @importFrom stats xtabs
 #' @importFrom GGally ggmatrix grab_legend
 #' @import ggplot2
@@ -523,6 +529,8 @@ output_plot <- function(ems, targets, points = NULL, npoints = 1000) {
 #' @param contour Logical determining whether to plot implausibility contours or not.
 #' @param ranges Parameter ranges. If not supplied, defaults to emulator ranges.
 #' @param raster_imp Should the implausibility plots be rasterised?
+#' @param plot_vars If provided, indicates which subset of parameters to plot.
+#' @param fixed_vars If provided, indicates the fixed value of the plot-excluded parameters.
 #'
 #' @return A ggplot object
 #'
@@ -535,33 +543,51 @@ output_plot <- function(ems, targets, points = NULL, npoints = 1000) {
 #' \donttest{ # Excessive runtime
 #'  plot_lattice(SIREmulators$ems, SIREmulators$targets, ppd = 10)
 #'  plot_lattice(SIREmulators$ems$nS, SIREmulators$targets)
+#'  plot_lattice(SIREmulators$ems, SIREmulators$targets, plot_vars = c('aSI', 'aIR'))
+#'  plot_lattice(SIREmulators$ems, SIREmulators$targets, fixed_vars = list(aSR = 0.03))
 #' }
 plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE,
                          cutoff = 3, maxpoints = 5e4, imp_breaks = NULL,
-                         contour = TRUE, ranges = NULL, raster_imp = FALSE) {
+                         contour = TRUE, ranges = NULL, raster_imp = FALSE,
+                         plot_vars = NULL, fixed_vars = NULL) {
   ems <- collect_emulators(ems)
   if (is.null(ranges))
     ranges <- if (inherits(ems, "Emulator")) ems$ranges else ems[[1]]$ranges
-  if (ppd^length(ranges) > maxpoints) {
+  if (!is.null(plot_vars) && is.null(fixed_vars)) {
+    pvars <- names(ranges)[!names(ranges) %in% plot_vars]
+    fixed_vars <- purrr::map(pvars, ~mean(ranges[[.]])) |>
+      setNames(pvars)
+  }
+  if (!is.null(fixed_vars))
+    if (length(ranges) < length(fixed_vars)+2)
+      stop("Fewer than two parameters are varying - cannot produce plot.")
+  if (is.null(fixed_vars)) red_ranges <- ranges
+  else red_ranges <- ranges[!names(ranges) %in% names(fixed_vars)]
+  if (ppd^length(red_ranges) > maxpoints) {
     point_grid <- setNames(
       data.frame(
         do.call('cbind',
-                map(ranges, ~runif(maxpoints, .[[1]], .[[2]])))),
-      names(ranges))
+                map(red_ranges, ~runif(maxpoints, .[[1]], .[[2]])))),
+      names(red_ranges))
     nbins <- 19
   }
   else {
-    dim_bounds <- map(ranges, ~seq(.[[1]], .[[2]], length.out = ppd+1))
+    dim_bounds <- map(red_ranges, ~seq(.[[1]], .[[2]], length.out = ppd+1))
     dim_unif <- map(dim_bounds,
                            ~map_dbl(1:(length(.)-1),
                                            function(i) mean(.[i:(i+1)])))
     point_grid <- expand.grid(dim_unif)
   }
+  if (!is.null(fixed_vars)) {
+    fixed_df <- cbind.data.frame(purrr::map(names(fixed_vars), ~rep(fixed_vars[[.]], nrow(point_grid)))) |>
+      setNames(names(fixed_vars))
+    point_grid <- (cbind.data.frame(point_grid, fixed_df))[,names(ranges)]
+  }
   point_grid$I <- nth_implausible(ems, point_grid, targets)
   one_dim <- function(data, parameter) {
     param_seq <- seq(
-      ranges[[parameter]][1],
-      ranges[[parameter]][2], length.out = ppd + 1)
+      red_ranges[[parameter]][1],
+      red_ranges[[parameter]][2], length.out = ppd + 1)
     collection <- map(1:ppd, function(x) {
       valid_points <- data[data[,parameter] >= param_seq[x] &
                              data[,parameter] <= param_seq[x+1],]
@@ -574,7 +600,7 @@ plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE,
     setNames(do.call('rbind.data.frame', collection), c(parameter, 'op'))
   }
   two_dim <- function(data, parameters, op = FALSE) {
-    param_seqs <- map(ranges[parameters],
+    param_seqs <- map(red_ranges[parameters],
                              ~seq(.[[1]], .[[2]], length.out = ppd + 1))
     param_list <- list()
     for (i in 1:ppd) {
@@ -614,8 +640,8 @@ plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE,
     imp_names <- as.character(imp_breaks)
   }
   parameter_combinations <- expand.grid(
-    names(ranges),
-    names(ranges),
+    names(red_ranges),
+    names(red_ranges),
     stringsAsFactors = FALSE)
   plot_list <- map(seq_len(nrow(parameter_combinations)), function(x) {
     parameters <- unlist(parameter_combinations[x,], use.names = FALSE)
@@ -626,8 +652,8 @@ plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE,
         scale_y_continuous(expand = c(0, 0), limits = c(0, 1)))
     }
     else if (which(
-      names(ranges) == parameters[1]) >
-      which(names(ranges) == parameters[2])) {
+      names(red_ranges) == parameters[1]) >
+      which(names(red_ranges) == parameters[2])) {
       pt <- two_dim(point_grid, parameters)
       g <- ggplot(mapping = aes(x = pt[,1], y = pt[,2]))
       if (!raster_imp)
@@ -665,9 +691,9 @@ plot_lattice <- function(ems, targets, ppd = 20, cb = FALSE,
     scale_colour_gradient(low = 'black', high = 'white',
                           breaks = seq(0, 1, by = 0.1), name = "Op. Depth") +
     guides(fill = guide_legend(order = 1, reverse = TRUE))
-  return(ggmatrix(plot_list, length(ranges), length(ranges),
+  return(ggmatrix(plot_list, length(red_ranges), length(red_ranges),
                   title = "Minimum Implausibility and Optical Depth",
-                  xAxisLabels = names(ranges), yAxisLabels = names(ranges),
+                  xAxisLabels = names(red_ranges), yAxisLabels = names(red_ranges),
                   showYAxisPlotLabels = FALSE,
                   legend = grab_legend(pointless_plot)))
 }

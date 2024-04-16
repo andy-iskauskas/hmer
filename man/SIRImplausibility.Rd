@@ -9,7 +9,7 @@ A data frame with 1000 rows and 7 variables:
 \describe{
   \item{aSI}{Infection: transition rate from S to I}
   \item{aIR}{Recovery: transition rate from I to R}
-  \item{aSR}{Immunisation: transition rate from S to R}
+  \item{aSR}{Waning Immunity: transition rate from R to S}
   \item{nS}{Implausibility for nS}
   \item{nI}{Implausibility for nI}
   \item{nR}{Implausibility for nR}
