@@ -1053,9 +1053,9 @@ slice_gen <- function(ems, ranges, n_points, z, points, cutoff, opts) {
   else
     pca_ranges <- ranges
   index_list <- rep(1, nrow(points))
+  range_list <- map(seq_along(index_list),
+                    ~pca_ranges[[index_list[.]]])
   while (nrow(complete_points) < n_points) {
-    range_list <- map(seq_along(index_list),
-                             ~pca_ranges[[index_list[.]]])
     new_slice <- make_slice(points, range_list, index_list)
     points <- new_slice$p
     old_vals <- new_slice$o
@@ -1088,11 +1088,13 @@ slice_gen <- function(ems, ranges, n_points, z, points, cutoff, opts) {
         }
         else
           index_list[i] <- index_list[i]+1
+        range_list[[i]] <- pca_ranges[[index_list[i]]]
       }
       else {
         if (points[i, index_list[i]] < old_vals[i])
           range_list[[i]][1] <- points[i, index_list[i]]
         else range_list[[i]][2] <- points[i, index_list[i]]
+        points[i, index_list[i]] <- old_vals[i]
       }
     }
   }
