@@ -13,7 +13,8 @@ emulator_plot(
   params = NULL,
   fixed_vals = NULL,
   nth = 1,
-  imp_breaks = NULL
+  imp_breaks = NULL,
+  include_legend = TRUE
 )
 }
 \arguments{
@@ -35,6 +36,8 @@ emulator_plot(
 
 \item{imp_breaks}{If plotting nth maximum implausibility, defines the levels at
 which to draw contours.}
+
+\item{include_legend}{For multiple plots, should a combined legend be appended?}
 }
 \value{
 A ggplot object, or collection thereof.

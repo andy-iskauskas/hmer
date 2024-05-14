@@ -296,7 +296,8 @@ imp_plot <- function(em, z, plotgrid = NULL, ppd = 30, cb = FALSE, nth = NULL,
 #'
 #' @import ggplot2
 #' @importFrom viridis scale_fill_viridis
-#' @importFrom GGally ggally_text ggally_blank ggmatrix
+#' @importFrom GGally ggally_text ggally_blank ggmatrix putPlot
+#' @importFrom stringr str_pad
 #'
 #' @param ems An \code{\link{Emulator}} object, or a list thereof.
 #' @param plot_type The statistic to plot (see description or examples).
@@ -308,6 +309,7 @@ imp_plot <- function(em, z, plotgrid = NULL, ppd = 30, cb = FALSE, nth = NULL,
 #' @param nth If plotting nth maximum implausibility, which level maximum to plot.
 #' @param imp_breaks If plotting nth maximum implausibility, defines the levels at
 #'                   which to draw contours.
+#' @param include_legend For multiple plots, should a combined legend be appended?
 #'
 #' @return A ggplot object, or collection thereof.
 #'
@@ -329,7 +331,7 @@ imp_plot <- function(em, z, plotgrid = NULL, ppd = 30, cb = FALSE, nth = NULL,
 #'
 emulator_plot <- function(ems, plot_type = 'exp', ppd = 30, targets = NULL,
                           cb = FALSE, params = NULL, fixed_vals = NULL,
-                          nth = 1, imp_breaks = NULL) {
+                          nth = 1, imp_breaks = NULL, include_legend = TRUE) {
   if (inherits(ems, "Emulator")){
     ranges <- ems$ranges
     single_em <- TRUE
@@ -413,10 +415,52 @@ emulator_plot <- function(ems, plot_type = 'exp', ppd = 30, targets = NULL,
           }
         }
       }
-      ggmatrix(plot_list, ncol = plot_cols, nrow = 2*plot_rows,
-               xlab = plots[[1]]$labels$x, ylab = plots[[1]]$labels$y,
-               title = title, yProportions = rep(c(0.05, 1), plot_rows),
-               progress = FALSE)
+      if (include_legend) {
+        plt_labs <- map(plots, ~.$plot_env$bks)
+        plt_labs_comb <- apply(do.call('cbind.data.frame', plt_labs), 1, function(x) {
+          paste0(str_pad(x, 4, side = 'right', pad = " "), collapse = "      ")
+        })
+        if (plot_type == 'exp')
+          plt_cols <- viridis(length(plt_labs[[1]]), option = "magma")
+        else
+          plt_cols <- viridis(length(plt_labs[[1]]), option = "plasma")
+        fake_dat <- expand.grid(x = seq(1, 5), y = seq(1, 5))
+        fake_dat$z <- (plt_labs[[1]][-1] + plt_labs[[1]][-length(plt_labs[[1]])])/2
+        p_temp <- ggplot(data = fake_dat, aes(x = x, y = y, z = z)) +
+          geom_contour_filled(colour = 'black', breaks = plt_labs[[1]]) +
+          scale_fill_manual(name = paste0("      ", map_chr(ems, "output_name"), collapse = ""),
+                            values = plt_cols, labels = plt_labs_comb) +
+          theme(legend.key.size = unit(0.5, 'cm'))
+          p_temp <- p_temp + guides(fill = guide_legend(ncol = 2))
+        the_legend <- grab_legend(p_temp)
+      }
+      if (include_legend && (length(plots) == 4 || length(plots) == 2)) {
+        plot_list <- append(plot_list, list(ggally_blank()), plot_cols)
+        if (length(plots) == 4) {
+          plot_list <- append(plot_list, list(ggally_blank()), 2*(plot_cols+1)-1)
+          plot_list <- append(plot_list, list(ggally_blank()), 3*(plot_cols+1)-1)
+        }
+        plot_list[[length(plot_list)+1]] <- ggally_blank()
+        main_plt <- ggmatrix(plot_list, ncol = plot_cols+1, nrow = 2*plot_rows,
+                 xlab = plots[[1]]$labels$x, ylab = plots[[1]]$labels$y,
+                 title = title, yProportions = rep(c(0.05, 1), plot_rows),
+                 progress = FALSE)
+      }
+      else {
+        main_plt <- ggmatrix(plot_list, ncol = plot_cols, nrow = 2*plot_rows,
+                 xlab = plots[[1]]$labels$x, ylab = plots[[1]]$labels$y,
+                 title = title, yProportions = rep(c(0.05, 1), plot_rows),
+                 progress = FALSE)
+      }
+      if (include_legend) {
+        if (length(plots) == 2)
+          main_plt <- putPlot(main_plt, the_legend, 2, 3)
+        else if (length(plots) == 3)
+          main_plt <- putPlot(main_plt, the_legend, 4, 2)
+        else if (length(plots) == 4)
+          main_plt <- putPlot(main_plt, the_legend, 4, 3)
+      }
+      return(main_plt)
     }
     if (plot_type == "exp") plot_title <- "Emulator Expectations"
     else if (plot_type == "var") plot_title <- "Emulator Variances"
