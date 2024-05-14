@@ -332,6 +332,8 @@ imp_plot <- function(em, z, plotgrid = NULL, ppd = 30, cb = FALSE, nth = NULL,
 emulator_plot <- function(ems, plot_type = 'exp', ppd = 30, targets = NULL,
                           cb = FALSE, params = NULL, fixed_vals = NULL,
                           nth = 1, imp_breaks = NULL, include_legend = TRUE) {
+  if (plot_type == "imp" || plot_type == "nimp")
+    include_legend = FALSE
   if (inherits(ems, "Emulator")){
     ranges <- ems$ranges
     single_em <- TRUE
@@ -418,7 +420,7 @@ emulator_plot <- function(ems, plot_type = 'exp', ppd = 30, targets = NULL,
       if (include_legend) {
         plt_labs <- map(plots, ~.$plot_env$bks)
         plt_labs_comb <- apply(do.call('cbind.data.frame', plt_labs), 1, function(x) {
-          paste0(str_pad(x, 4, side = 'right', pad = " "), collapse = "      ")
+          paste0(str_pad(round(x,4), 4, side = 'right', pad = " "), collapse = "      ")
         })
         if (plot_type == 'exp')
           plt_cols <- viridis(length(plt_labs[[1]]), option = "magma")
@@ -426,6 +428,7 @@ emulator_plot <- function(ems, plot_type = 'exp', ppd = 30, targets = NULL,
           plt_cols <- viridis(length(plt_labs[[1]]), option = "plasma")
         fake_dat <- expand.grid(x = seq(1, 5), y = seq(1, 5))
         fake_dat$z <- (plt_labs[[1]][-1] + plt_labs[[1]][-length(plt_labs[[1]])])/2
+        x <- y <- z <- NULL
         p_temp <- ggplot(data = fake_dat, aes(x = x, y = y, z = z)) +
           geom_contour_filled(colour = 'black', breaks = plt_labs[[1]]) +
           scale_fill_manual(name = paste0("      ", map_chr(ems, "output_name"), collapse = ""),

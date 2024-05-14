@@ -283,8 +283,8 @@ The `mult_sigma` and `set_hyperparams` functions create a new Emulator object, a
 The `hmer` package allows us to create plots analogous to those made by-hand in the one-dimensional case. The corresponding plots are contour plots over the input region.
 
 ```{r plot-2d-ems, fig.width = 7, fig.height = 4}
-emulator_plot(ems2d)
-emulator_plot(ems2d, plot_type = 'sd')
+emulator_plot(ems2d, include_legend = FALSE)
+emulator_plot(ems2d, plot_type = 'sd', include_legend = FALSE)
 ```
 
 The `emulator_plot` function can produce a number of things: the default is an expectation plot equivalent to the blue line in the one dimensional case. The `plot_type` command determines what is plotted: 'var' has it plot the variance and 'sd' the standard deviation, which play the part of the distance from blue line to red dotted lines in the one-dimensional case. These combined plots are used mainly for diagnostics - to obtain an expectation or variance plot with meaningful scale, we plot them one-by-one. As they are all `ggplot` objects, we can augment them after the fact.
