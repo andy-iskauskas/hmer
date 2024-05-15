@@ -434,7 +434,10 @@ emulator_plot <- function(ems, plot_type = 'exp', ppd = 30, targets = NULL,
           scale_fill_manual(name = paste0("      ", map_chr(ems, "output_name"), collapse = ""),
                             values = plt_cols, labels = plt_labs_comb) +
           theme(legend.key.size = unit(0.5, 'cm'))
+        if (length(plots) == 3)
           p_temp <- p_temp + guides(fill = guide_legend(ncol = 2))
+        else
+          p_temp <- p_temp + guides(fill = guide_legend(ncol = 1))
         the_legend <- grab_legend(p_temp)
       }
       if (include_legend && (length(plots) == 4 || length(plots) == 2)) {
@@ -446,7 +449,9 @@ emulator_plot <- function(ems, plot_type = 'exp', ppd = 30, targets = NULL,
         plot_list[[length(plot_list)+1]] <- ggally_blank()
         main_plt <- ggmatrix(plot_list, ncol = plot_cols+1, nrow = 2*plot_rows,
                  xlab = plots[[1]]$labels$x, ylab = plots[[1]]$labels$y,
-                 title = title, yProportions = rep(c(0.05, 1), plot_rows),
+                 title = title,
+                 xProportions = c(rep(1, plot_cols), 0.5),
+                 yProportions = rep(c(0.05, 1), plot_rows),
                  progress = FALSE)
       }
       else {
