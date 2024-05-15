@@ -4,7 +4,9 @@ This is a re-resubmission following manual check:
 * Tarball should now be <5Mb; local compilation had caused unnecessary bloat in figures (checked using `check_win_release()` and `check_win_devel()`).
 
 ## R CMD check results
-There were no ERRORs, WARNINGs, or NOTEs.
+1 NOTE: Possibly misspelled words in DESCRIPTION (Goldstein, Seheult): these are not mispelled.
+
+There were no ERRORs or WARNINGs.
 
 ## Downstream Dependencies
 There are no downstream dependencies.

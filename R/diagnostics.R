@@ -465,7 +465,7 @@ get_diagnostic <- function(emulator, targets = NULL, validation = NULL,
 #' argument controls this, and has three options: 'interval' (a horizontal interval); 'solid'
 #' (a solid grey box whose dimensions match the target region in both vertical and horizontal
 #' extent); and 'hatched' (similar to solid, but a semi-transparent box with hatching inside).
-#' Any such vizualisation has extent equal to the target plus/mius 4.5 times the target
+#' Any such vizualisation has extent equal to the target plus/minus 4.5 times the target
 #' uncertainty. By default, \code{target_viz = NULL}, indicating that no superposition is shown.
 #'
 #' @importFrom graphics abline arrows hist rect
@@ -1146,7 +1146,7 @@ structured_error_check <- function(ems, validation, compare_output = TRUE, thres
 #'
 #' Perform a set of diagnostics on emulators, changing them if needed.
 #'
-#' NOTE: Automated diagnostics are currently only supported for determinstic
+#' NOTE: Automated diagnostics are currently only supported for deterministic
 #' emulators.
 #'
 #' There are a number of different characteristics that emulators might possess

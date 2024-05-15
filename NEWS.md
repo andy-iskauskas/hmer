@@ -101,7 +101,7 @@ variance emulators.
 
 * Modification to `standard_errors` to highlight points of interest
 
-* Modifications made to faciliate support for custom emulators and implausibility measures (to come in a later update).
+* Modifications made to facilitate support for custom emulators and implausibility measures (to come in a later update).
 
 # hmer 1.0.1
 
