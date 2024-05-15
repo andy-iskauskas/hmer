@@ -4,7 +4,7 @@ This is a re-resubmission following manual check:
 * Tarball should now be <5Mb; local compilation had caused unnecessary bloat in figures (checked using `check_win_release()` and `check_win_devel()`).
 
 ## R CMD check results
-1 NOTE: Possibly misspelled words in DESCRIPTION (Goldstein, Seheult): these are not mispelled.
+1 NOTE: Possibly misspelled words in DESCRIPTION (Goldstein, Seheult): these are not misspelled.
 
 There were no ERRORs or WARNINGs.
 
