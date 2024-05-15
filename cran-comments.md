@@ -1,6 +1,7 @@
 ## Resubmission
-This is a resubmission following manual check:
-* The DOI in `idemc.R` has been fixed as requested: 10.48550/arXiv:1309.3520 -> 10.48550/arXiv.1309.3520
+This is a re-resubmission following manual check:
+* Added DOIs for representative references to history matching and emulation in DESCRIPTION
+* Tarball should now be <5Mb; local compilation had caused unnecessary bloat in figures (checked using `check_win_release()` and `check_win_devel()`).
 
 ## R CMD check results
 There were no ERRORs, WARNINGs, or NOTEs.
