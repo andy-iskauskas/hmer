@@ -1,3 +1,7 @@
+## Resubmission
+This is a resubmission following manual check:
+* The DOI in `idemc.R` has been fixed as requested: 10.48550/arXiv:1309.3520 -> 10.48550/arXiv.1309.3520
+
 ## R CMD check results
 There were no ERRORs, WARNINGs, or NOTEs.
 
@@ -10,4 +14,4 @@ There are no downstream dependencies.
 * `devtools::check_win_release()`
 * `devtools::check_win_devel()`
 * `use_github_actions()`
-* `rhub::check_for_cran`
+* `rhub::rhub_check()`

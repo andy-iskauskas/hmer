@@ -229,7 +229,7 @@ idemc_step <- function(ems, targets, points, point_imps, ladder, clusters,
 #' @seealso \code{\link{generate_new_design}} for more standard point generation methods
 #'
 #' @references
-#'     Vernon & Williamson (2013) \doi{10.48550/arXiv:1309.3520}
+#'     Vernon & Williamson (2013) \doi{10.48550/arXiv.1309.3520}
 #'
 #' @export
 #'

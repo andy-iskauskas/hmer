@@ -111,7 +111,7 @@ all rungs to determine final clusters.
 
 }
 \references{
-Vernon & Williamson (2013) \doi{10.48550/arXiv:1309.3520}
+Vernon & Williamson (2013) \doi{10.48550/arXiv.1309.3520}
 }
 \seealso{
 \code{\link{generate_new_design}} for more standard point generation methods
