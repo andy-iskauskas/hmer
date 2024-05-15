@@ -1,3 +1,20 @@
+# hmer 1.5.7
+
+## Bug fixes
+
+* `emulator_from_data` now safely terminates if users supply width-zero ranges, or if regression is a 'perfect fit' for data; behaviour of `check.ranges = TRUE` modified to ensure consistent ranges are calculated.
+* Calculation of ranges in `slice_sample` now stable against strange edge case behaviour.
+* Minor fixes to some misbehaving unit tests, and for some correlation functions in seldom-used situations (particularly `exp_sq`).
+
+## Enhancements
+
+* Modified `seek_good` and `importance_sample` to more efficiently propose points where the plausible set is already large.
+* `hit_by_wave` now accepts an `n.sig` parameter to allow user determination of what constitutes a match to observational data.
+* `plot_lattice` now accepts parameter subset plotting, aiding visualisation for large dimensional parameter spaces.
+* Combined legends can now be plotted when passing `emulator_plot` a small (between 2 and 4) list of emulators using the `include_legend` argument.
+* To ensure compatibility with some uses of `Proto_emulator`, `generate_new_design` can be forced to maintain emulator ordering rather than order for efficiency.
+* Code refactoring, including removal of extraneous calls to imported packages (particularly `purrr`); documentation updates.
+
 # hmer 1.5.5
 
 ## Major changes

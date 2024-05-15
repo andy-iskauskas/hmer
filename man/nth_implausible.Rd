@@ -56,7 +56,7 @@ match to; otherwise second-maximum implausibility is considered.
 
 If \code{sequential = TRUE} and a specific \code{cutoff} has been provided, then the
 emulators' implausibility will be evaluated one emulator at a time. If a point
-is judged non-implausible by more than \code{n} emulators, \code{FALSE} is
+is judged implausible by more than \code{n} emulators, \code{FALSE} is
 returned without evaluating any more. Due to R efficiencies, this is more efficient
 than the 'evaluate all' method once more than around 10 emulators are considered.
 
