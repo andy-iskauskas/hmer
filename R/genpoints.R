@@ -138,8 +138,8 @@ maximin_sample <- function(points, n, reps = 1000, nms) {
 #'
 #' The option \code{opts[["seek"]]} determines how many points should be chosen that
 #' have a higher probability of matching targets, as opposed to not missing targets. Due
-#' to the danger of such an approach if a representative space-filling design over the
-#' space, this value should not be too high and should be used sparingly at early waves;
+#' to the danger of such an approach,
+#' this value should not be too high and should be used sparingly at early waves;
 #' even at later waves, it is inadvisable to seek more than 10\% of the output points
 #' using this metric. The default is \code{seek = 0}, and can be provided as either
 #' a percentage of points desired (in the range [0,1]) or the fixed number of points.

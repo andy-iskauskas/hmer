@@ -636,12 +636,16 @@ emulator_from_data <- function(input_data, output_names, ranges,
     more_verbose <- (length(output_names) > 10)
   else
     more_verbose <- list(...)[['more_verbose']]
+  if (!is.null(list(...)[['add']]))
+    this_add <- list(...)[['add']]
+  else
+    this_add <- FALSE
   model_beta_mus <- model_u_sigmas <- model_u_corrs <- NULL
   if (emulator_type == "default") {
     if (is.null(specified_priors$func)) {
       if (verbose) cat("Fitting regression surfaces...\n") #nocov
       models <- map(data, ~get_coefficient_model(., ranges, names(.)[length(.)],
-                                                        order = order, verbose = more_verbose))
+                                                        order = order, verbose = more_verbose, add = this_add))
       output_names <- output_names[!map_lgl(models, is.null)]
       models <- models[!map_lgl(models, is.null)]
       if (length(models) == 0)
