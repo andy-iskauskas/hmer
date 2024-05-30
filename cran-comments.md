@@ -1,10 +1,10 @@
-## Resubmission
-This is a re-resubmission following manual check:
-* Added DOIs for representative references to history matching and emulation in DESCRIPTION
-* Tarball should now be <5Mb; local compilation had caused unnecessary bloat in figures (checked using `check_win_release()` and `check_win_devel()`).
+## Submission
+Submission including citation requested by JSS, hence the short time between v1.5.9 submission and v1.6.0.
 
 ## R CMD check results
-1 NOTE: Possibly misspelled words in DESCRIPTION (Goldstein, Seheult): these are not misspelled.
+2 NOTEs: 
+* Possibly misspelled words in DESCRIPTION (Goldstein, Seheult): these are not misspelled.
+* The DOI in the CITATION and DESCRIPTION is for a new JSS publication that will be registered after publication on CRAN.
 
 There were no ERRORs or WARNINGs.
 

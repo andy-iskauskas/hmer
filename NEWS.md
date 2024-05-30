@@ -1,3 +1,13 @@
+# hmer 1.6.0
+
+## Bug fixes
+* Behaviour of stepwise addition/deletion in `emulator_from_data` changed to avoid overfitting in edge cases
+* Fixed an issue in `hit_by_wave` when number of waves exceeded the number of targets
+
+## Minor changes
+* DESCRIPTION now includes JSS paper reference
+* Some updates to documentation and inclusion of background references, including DOIs.
+
 # hmer 1.5.7
 
 ## Bug fixes
