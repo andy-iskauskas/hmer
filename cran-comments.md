@@ -3,7 +3,7 @@ Submission including citation requested by JSS, hence the short time between v1.
 
 ## R CMD check results
 2 NOTEs: 
-* Possibly misspelled words in DESCRIPTION (Goldstein, Seheult): these are not misspelled.
+* Possibly misspelled words in DESCRIPTION (Iskauskas, Goldstein, Seheult): these are not misspelled.
 * The DOI in the CITATION and DESCRIPTION is for a new JSS publication that will be registered after publication on CRAN.
 
 There were no ERRORs or WARNINGs.
