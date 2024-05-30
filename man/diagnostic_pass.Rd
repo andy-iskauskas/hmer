@@ -33,7 +33,7 @@ A collection of modified emulators, potentially a subset of the original collect
 Perform a set of diagnostics on emulators, changing them if needed.
 }
 \details{
-NOTE: Automated diagnostics are currently only supported for determinstic
+NOTE: Automated diagnostics are currently only supported for deterministic
 emulators.
 
 There are a number of different characteristics that emulators might possess

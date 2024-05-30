@@ -92,7 +92,7 @@ lower implausibility rung.
 At a given step, one of mutation or crossover is performed, with probability
 of mutation being chosen determined by \code{pm}. If mutation is chosen, then
 \code{M} mutation moves are performed; else \code{(n+1)/2} crossover moves are
-performed on the \code{n} rungs. Exchange is always perfomed and \code{n+1} such
+performed on the \code{n} rungs. Exchange is always performed and \code{n+1} such
 moves are performed.
 
 The choice of 'implausibility ladder' and clusters can be determined a priori,

@@ -64,7 +64,7 @@ where it is most important that the emulator and simulator agree. The \code{targ
 argument controls this, and has three options: 'interval' (a horizontal interval); 'solid'
 (a solid grey box whose dimensions match the target region in both vertical and horizontal
 extent); and 'hatched' (similar to solid, but a semi-transparent box with hatching inside).
-Any such vizualisation has extent equal to the target plus/mius 4.5 times the target
+Any such vizualisation has extent equal to the target plus/minus 4.5 times the target
 uncertainty. By default, \code{target_viz = NULL}, indicating that no superposition is shown.
 }
 \references{

@@ -111,7 +111,7 @@ some percentage of the proposed points are retained and repeat. This approach te
 if the 'ladder' of cutoffs reaches the desired cutoff, or if the process asymptotes at
 a particular higher cutoff. The opts \code{ladder_tolerance} and \code{cutoff_tolerance}
 determine the minimum improvement required in consecutive cutoffs for the process to not
-be considered to be asymptoting and the level of closeness to the desired cutoff at whihc
+be considered to be asymptoting and the level of closeness to the desired cutoff at which
 we are prepared to stop, respectively. For instance, setting \code{ladder_tolerance} to
 0.1 and \code{cutoff_tolerance} to 0.01, with a cutoff of 3, will terminate the process
 if two consecutive cutoffs proposed are within 0.1 of each other, or when the points proposed

@@ -825,19 +825,17 @@ hit_by_wave <- function(waves, targets, input_names, measure = "mean",
     return(hit_data_df)
   }
   hit_data_df$wave <- seq_len(nrow(hit_data_df))-1
-  # plot.mat <- tidyr::pivot_longer(hit_data_df, cols = !wave)
   plot.mat <- reshape(hit_data_df, varying = seq_len(length(hit_data_df)-1),
           times = seq_len(length(hit_data_df)-1), idvar = "wave",
           direction = "long", v.names = "values") |>
     setNames(c("wave", "name", "value"))
-  plot.mat$wave <- factor(plot.mat$wave, levels = rev(seq_along(hit_data_df)-1))
+  plot.mat$wave <- factor(plot.mat$wave, levels = rev(seq_len(nrow(hit_data_df))-1))
   plot.mat$name <- factor(plot.mat$name-1, levels = 0:length(targets))
   if (!as.per) {
     hit_data_df_max <- max(map_dbl(hit_data, length))
     hit_data_df_scale <- data.frame(t(apply(hit_data_df[,!names(hit_data_df) == 'wave'], 1, function(x) ceiling(x*hit_data_df_max/sum(x))))) |>
       setNames(0:length(targets))
     hit_data_df_scale$wave <- hit_data_df$wave
-    #scale_additional <- tidyr::pivot_longer(hit_data_df_scale, cols = !wave)
     scale_additional <- reshape(hit_data_df_scale, varying = seq_len(length(hit_data_df_scale)-1),
                         times = seq_len(length(hit_data_df_scale)-1), idvar = "wave",
                         direction = "long", v.names = "values") |>

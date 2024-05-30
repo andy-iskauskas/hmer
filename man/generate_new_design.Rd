@@ -91,8 +91,8 @@ implausibility is used as the measure.
 
 The option \code{opts[["seek"]]} determines how many points should be chosen that
 have a higher probability of matching targets, as opposed to not missing targets. Due
-to the danger of such an approach if a representative space-filling design over the
-space, this value should not be too high and should be used sparingly at early waves;
+to the danger of such an approach,
+this value should not be too high and should be used sparingly at early waves;
 even at later waves, it is inadvisable to seek more than 10\% of the output points
 using this metric. The default is \code{seek = 0}, and can be provided as either
 a percentage of points desired (in the range [0,1]) or the fixed number of points.
@@ -112,7 +112,7 @@ some percentage of the proposed points are retained and repeat. This approach te
 if the 'ladder' of cutoffs reaches the desired cutoff, or if the process asymptotes at
 a particular higher cutoff. The opts \code{ladder_tolerance} and \code{cutoff_tolerance}
 determine the minimum improvement required in consecutive cutoffs for the process to not
-be considered to be asymptoting and the level of closeness to the desired cutoff at whihc
+be considered to be asymptoting and the level of closeness to the desired cutoff at which
 we are prepared to stop, respectively. For instance, setting \code{ladder_tolerance} to
 0.1 and \code{cutoff_tolerance} to 0.01, with a cutoff of 3, will terminate the process
 if two consecutive cutoffs proposed are within 0.1 of each other, or when the points proposed
