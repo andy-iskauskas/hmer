@@ -2,9 +2,9 @@
 Submission including citation requested by JSS, hence the short time between v1.5.9 submission and v1.6.0.
 
 ## R CMD check results
-2 NOTEs: 
-* Possibly misspelled words in DESCRIPTION (Iskauskas, Goldstein, Seheult): these are not misspelled.
-* The DOI in the CITATION and DESCRIPTION is for a new JSS publication that will be registered after publication on CRAN.
+1 NOTE: 
+* Possibly misspelled words in DESCRIPTION: surnames in references. These are not misspelled.
+* Found the following (possibly) invalid DOIS: The DOI in the CITATION and DESCRIPTION is for a new JSS publication that will be registered after publication on CRAN.
 
 There were no ERRORs or WARNINGs.
 
