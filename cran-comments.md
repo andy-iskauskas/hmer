@@ -15,6 +15,5 @@ There are no downstream dependencies.
 * Local MacOS install R 4.4.0
 * Local Windows 10 install R 4.4.0
 * `devtools::check_win_release()`
-* `devtools::check_win_devel()`
 * `use_github_actions()`
 * `rhub::rhub_check()`
