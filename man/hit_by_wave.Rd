@@ -12,7 +12,8 @@ hit_by_wave(
   plt = FALSE,
   as.per = TRUE,
   grid.plot = TRUE,
-  n.sig = 3
+  n.sig = 3,
+  by.hit = TRUE
 )
 }
 \arguments{
@@ -32,6 +33,9 @@ hit_by_wave(
 
 \item{n.sig}{If (val, sigma) targets provided, how many sigma away from the mean do we
 consider a match?}
+
+\item{by.hit}{Should the number of points hitting n targets be plotted, or number hitting
+each target?}
 }
 \value{
 Either a data.frame of results or a ggplot object plot
@@ -51,7 +55,9 @@ the results are instead presented visually, as a grid coloured by proportion of
 total points (if \code{grid.plot = TRUE}, the default) or as a series of discrete
 density lines, one per wave. The \code{as.per} argument determines whether the
 output values are raw or if they are calculated percentages of the total number
-of parameter sets for a given wave.
+of parameter sets for a given wave. The \code{by.hit} argument determines what is
+returned: if \code{by.hit = TRUE} then points are collated by how many targets they
+each hit; otherwise points are collated by which specific targets they hit.
 
 When the data arise from a stochastic model, and therefore parameter sets have
 multiple realisations, there are multiple ways to analyze the data (determined
@@ -66,6 +72,8 @@ the output, where the standard deviation is calculated over the realisations.
  # Plotting - line plot or raw figures
  hit_by_wave(SIRMultiWaveData, SIREmulators$targets, c('aSI', 'aIR', 'aSR'),
   plt = TRUE, as.per = FALSE, grid.plot = FALSE)
+ hit_by_wave(SIRMultiWaveData, SIREmulators$targets, c('aSI', 'aIR', 'aSR'),
+  plt = TRUE, as.per = FALSE, by.hit = FALSE)
 }
 \seealso{
 Other visualisation tools: 

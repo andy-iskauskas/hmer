@@ -716,7 +716,9 @@ diagnostic_wrap <- function(waves, targets, output_names = names(targets),
 #' total points (if \code{grid.plot = TRUE}, the default) or as a series of discrete
 #' density lines, one per wave. The \code{as.per} argument determines whether the
 #' output values are raw or if they are calculated percentages of the total number
-#' of parameter sets for a given wave.
+#' of parameter sets for a given wave. The \code{by.hit} argument determines what is
+#' returned: if \code{by.hit = TRUE} then points are collated by how many targets they
+#' each hit; otherwise points are collated by which specific targets they hit.
 #'
 #' When the data arise from a stochastic model, and therefore parameter sets have
 #' multiple realisations, there are multiple ways to analyze the data (determined
@@ -737,6 +739,8 @@ diagnostic_wrap <- function(waves, targets, output_names = names(targets),
 #' @param grid.plot If \code{plt = TRUE}, determines the type of plot.
 #' @param n.sig If (val, sigma) targets provided, how many sigma away from the mean do we
 #' consider a match?
+#' @param by.hit Should the number of points hitting n targets be plotted, or number hitting
+#' each target?
 #'
 #' @return Either a data.frame of results or a ggplot object plot
 #'
@@ -749,9 +753,11 @@ diagnostic_wrap <- function(waves, targets, output_names = names(targets),
 #'  # Plotting - line plot or raw figures
 #'  hit_by_wave(SIRMultiWaveData, SIREmulators$targets, c('aSI', 'aIR', 'aSR'),
 #'   plt = TRUE, as.per = FALSE, grid.plot = FALSE)
+#'  hit_by_wave(SIRMultiWaveData, SIREmulators$targets, c('aSI', 'aIR', 'aSR'),
+#'   plt = TRUE, as.per = FALSE, by.hit = FALSE)
 hit_by_wave <- function(waves, targets, input_names, measure = "mean",
-                        plt = FALSE, as.per = TRUE, grid.plot = TRUE, n.sig = 3) {
-  wave <- name <- value <- value_unsc <- NULL
+                    plt = FALSE, as.per = TRUE, grid.plot = TRUE,
+                    n.sig = 3, by.hit = TRUE) {
   target_hits <- function(result, targets, sum_func = "sum") {
     hits <- map_lgl(names(targets), function(t) {
       if (is.atomic(targets[[t]]))
@@ -765,13 +771,13 @@ hit_by_wave <- function(waves, targets, input_names, measure = "mean",
     check_overlap <- function(int1, int2) {
       if (int1[2] >= int2[1] && int1[2] <= int2[1]) return(TRUE)
       if (int1[1] <= int2[2] && int1[1] >= int2[1]) return(TRUE)
-      if (int2[2] >= int1[1] && int2[2] <= int1[1]) return(TRUE)
+      if (int2[2] >= int1[1] && int2[1] <= int1[1]) return(TRUE)
       if (int2[1] <= int1[2] && int2[1] >= int1[1]) return(TRUE)
       return(FALSE)
     }
     intervals <- map(names(targets), ~as.numeric(c(means[.] - sd/sqrt(reps)*sds[.], means[.] + sd/sqrt(reps)*sds[.]))) |> setNames(names(targets))
     hits <- map_lgl(names(targets), function(t) {
-      if (!is.atomic(targets[[t]]))
+      if (!is.atomic(targets[t]))
         targ_int <- c(targets[[t]]$val - n.sig*targets[[t]]$sigma, targets[[t]]$val + n.sig*targets[[t]]$sigma)
       else
         targ_int <- targets[[t]]
@@ -786,7 +792,7 @@ hit_by_wave <- function(waves, targets, input_names, measure = "mean",
   })
   duplicated <- FALSE
   if (any(map_lgl(wave_uids, ~length(unique(.)) != length(.)))) duplicated <- TRUE
-  if (duplicated == TRUE && measure != "real") {
+  if (duplicated && measure != "real") {
     waves_grouped <- map(waves, ~. |> group_by(across(all_of(input_names))))
     wave_means <- map(waves_grouped, ~. |> summarise(.groups = "keep", across(everything(), mean)))
     if (measure == "stoch") {
@@ -797,48 +803,63 @@ hit_by_wave <- function(waves, targets, input_names, measure = "mean",
       wave_reps <- NULL
       wave_sds <- NULL
     }
-    if (is.null(wave_reps)) {
-      hit_data <- map(wave_means, function(w) {
-        apply(w, 1, target_hits, targets)
-      })
-    }
+    if (is.null(wave_reps))
+      hit_data <- map(wave_means, function(w) apply(w, 1, target_hits, targets))
     else {
       hit_data <- map(seq_along(wave_means), function(i) {
         map_dbl(seq_len(nrow(wave_means[[i]])), function(j) {
-          target_overlaps(wave_means[[i]][j,], wave_sds[[i]][j,], wave_reps[[i]][j], targets)
+          target_overlaps(wave_means[[i]][j,], wave_sds[[i]][j,], wave_reps[[i]][j], targets, sum_func = ifelse(by.hit, "sum", "c"))
         })
       })
     }
   }
   else {
     hit_data <- map(waves, function(w) {
-      apply(w, 1, target_hits, targets)
+      apply(w, 1, target_hits, targets, sum_func = ifelse(by.hit, "sum", "c"))
     })
   }
-  hit_data_df <- do.call('rbind.data.frame',
-                         map(hit_data, function(h) map_dbl(0:length(targets), ~sum(h == .)))
-  ) |> setNames(0:length(targets))
-  if (as.per) hit_data_df <- sweep(hit_data_df, 1, apply(hit_data_df, 1, sum), "/")
+  if (by.hit) {
+    hit_data_df <- do.call('rbind.data.frame',
+                           map(hit_data, function(h) map_dbl(0:length(targets), ~sum(h == .)))
+    ) |> setNames(0:length(targets))
+  }
+  else {
+    hit_data_df <- do.call('rbind.data.frame',
+                           map(hit_data, function(h) apply(h, 1, sum))) |> setNames(names(targets))
+  }
+  if (as.per) hit_data_df <- sweep(hit_data_df, 1, map_dbl(waves, nrow), "/")
   if (!plt) {
     row.names(hit_data_df) <- 0:(length(waves)-1)
     if (as.per) return(signif(hit_data_df, 2)*100)
     return(hit_data_df)
   }
+  wave <- name <- value <- value_unsc <- NULL
   hit_data_df$wave <- seq_len(nrow(hit_data_df))-1
   plot.mat <- reshape(hit_data_df, varying = seq_len(length(hit_data_df)-1),
-          times = seq_len(length(hit_data_df)-1), idvar = "wave",
-          direction = "long", v.names = "values") |>
+                      times = seq_len(length(hit_data_df)-1), idvar = "wave",
+                      direction = "long", v.names = "values") |>
     setNames(c("wave", "name", "value"))
   plot.mat$wave <- factor(plot.mat$wave, levels = rev(seq_len(nrow(hit_data_df))-1))
-  plot.mat$name <- factor(plot.mat$name-1, levels = 0:length(targets))
+  if (by.hit)
+    plot.mat$name <- factor(plot.mat$name-1, levels = 0:length(targets))
+  else
+    plot.mat$name <- factor(names(targets)[plot.mat$name], levels = names(targets))
   if (!as.per) {
-    hit_data_df_max <- max(map_dbl(hit_data, length))
-    hit_data_df_scale <- data.frame(t(apply(hit_data_df[,!names(hit_data_df) == 'wave'], 1, function(x) ceiling(x*hit_data_df_max/sum(x))))) |>
-      setNames(0:length(targets))
+    if (by.hit) {
+      hit_data_df_max <- max(map_dbl(hit_data, length))
+      hit_data_df_scale <- data.frame(t(apply(hit_data_df[,!names(hit_data_df) == "wave"], 1, function(x) ceiling(x*hit_data_df_max/sum(x))))) |>
+        setNames(0:length(targets))
+    }
+    else {
+      hit_data_df_max <- max(map_dbl(hit_data, ncol))
+      hit_data_df_scale <- do.call('rbind.data.frame', purrr::map(seq_len(nrow(hit_data_df)), function(i) {
+        ceiling(hit_data_df[i,!names(hit_data_df) == "wave"] * hit_data_df_max/nrow(waves[[i]]))
+      })) |> setNames(names(targets))
+    }
     hit_data_df_scale$wave <- hit_data_df$wave
     scale_additional <- reshape(hit_data_df_scale, varying = seq_len(length(hit_data_df_scale)-1),
-                        times = seq_len(length(hit_data_df_scale)-1), idvar = "wave",
-                        direction = "long", v.names = "values") |>
+                                times = seq_len(length(hit_data_df_scale)-1), idvar = "wave",
+                                direction = "long", v.names = "values") |>
       setNames(c("wave", "name", "value"))
     holdout <- plot.mat$value
     plot.mat$value <- scale_additional$value
@@ -868,9 +889,20 @@ hit_by_wave <- function(waves, targets, input_names, measure = "mean",
     g <- ggplot(data = plot.mat, aes(x = name, y = value, group = wave, colour = wave)) +
     geom_line() +
     scale_colour_viridis(discrete = TRUE, name = "Wave")
-  g <- g + theme_minimal() +
-    labs(title = paste(ifelse(as.per, "Percentage", "Number"), "of Points Hitting # Outputs, by Wave"),
-         subtitle = subtit, x = "# Outputs", y = ifelse(grid.plot, "Wave", ifelse(as.per, "Percentage", "Number")))
-  if (grid.plot) g <- g + theme(legend.position = 'none')
+  g <- g + theme_minimal()
+  if (by.hit) {
+    g <- g + labs(title = paste(ifelse(as.per, "Percentage", "Number"), "of Points Hitting # Outputs, by Wave"),
+                  subtitle = subtit, x = "# Outputs", y = ifelse(grid.plot, "Wave", ifelse(as.per, "Percentage", "Number")))
+    if (grid.plot) g <- g + theme(legend.position = "none")
+  }
+  else {
+    g <- g + labs(title = paste(ifelse(as.per, "Percentage", "Number"), "of Points Hitting Each Output, by Wave"),
+                  subtitle = subtit, x = "Output", y = ifelse(grid.plot, "Wave", ifelse(as.per, "Percentage", "Number")))
+    if (grid.plot)
+      g <- g + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                     legend.position = "none")
+    else
+      g <- g + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+  }
   return(g)
 }
