@@ -1091,7 +1091,7 @@ points_of_concern <- function(ems, targets, validation, test = 'cd', ...) {
   points_dfs_em_idents <- unique(pt_em_corr)
   actual_points <- map(seq_along(points_dfs), function(i) {
     if (length(points_dfs_em_idents[[i]]) == length(ems)) return(points_dfs[[i]])
-    points_dfs[[i]][nth_implausible(ems[-points_dfs_em_idents[[i]]], points_dfs[[i]], targets, n = 1) < 3,]
+    points_dfs[[i]][nth_implausible(ems[-points_dfs_em_idents[[i]]], points_dfs[[i]], targets, n = 1, ordered = TRUE) < 3,]
   })
   actual_point_df <- do.call('rbind.data.frame', actual_points)
   if (nrow(actual_point_df) == 0) return(actual_point_df)

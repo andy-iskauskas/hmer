@@ -531,7 +531,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
   else {
     ranges <- convertRanges(ranges)
   }
-  if (is.null(ranges) || any(sapply(ranges, diff) == 0)) stop("Ranges either not specified, or misspecified.")
+  if (is.null(ranges) || any(sapply(ranges, diff) <= 0)) stop("Ranges either not specified, or misspecified.")
   if (any(grepl("\u00a3", names(ranges)))) {
     stop("Character \u00a3 not permitted in input names - please rename.")
   }
@@ -612,6 +612,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
         }
       ),
     names(ranges))
+    ranges <- convertRanges(ranges)
   }
   not_enough_points <- map_lgl(input_data, ~nrow(.) < 10*length(ranges))
   if (verbose && any(not_enough_points)) {
