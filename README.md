@@ -51,6 +51,9 @@ library(hmer)
 #> Registered S3 method overwritten by 'GGally':
 #>   method from   
 #>   +.gg   ggplot2
+```
+
+``` r
 ## Train a set of emulators to data
 ems <- emulator_from_data(input_data = SIRSample$training,
                           output_names = names(SIREmulators$targets),
