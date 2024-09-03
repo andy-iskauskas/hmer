@@ -41,7 +41,8 @@ Imports:
   cluster,
   pdist,
   ggbeeswarm,
-  stringr
+  stringr,
+  jsonlite
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
