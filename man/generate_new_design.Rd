@@ -12,6 +12,7 @@ generate_new_design(
   cutoff = 3,
   plausible_set,
   verbose = interactive(),
+  thin = TRUE,
   opts = NULL,
   ...
 )
@@ -31,6 +32,8 @@ on previous design points.}
 \item{plausible_set}{An optional set of known non-implausible points, to avoid LHD sampling.}
 
 \item{verbose}{Should progress statements be printed to the console?}
+
+\item{thin}{Should maximin sampling be applied as part of the proposal stage?}
 
 \item{opts}{A named list of opts as described.}
 

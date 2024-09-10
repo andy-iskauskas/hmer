@@ -8,7 +8,7 @@ lms <- purrr::map(names(targets),
                         trace = 0))
 relev_lm <- lms[[1]]
 pf <- function(x) predict(relev_lm, x)
-vf <- function(x) {
+vf <- function(x, xp = NULL, full = FALSE) {
   pred <- predict(relev_lm, x, se.fit = TRUE)
   return(pred$se.fit^2 + pred$residual.scale^2)
 }
@@ -16,12 +16,10 @@ ifunc <- function(x, z, cutoff) return(x-z)
 
 test_that("Basic proto_emulator behaviour works", {
   pe1 <- Proto_emulator$new(
-    ranges, targets, pf, vf
-  )
+    ranges, targets, pf, vf)
   expect_true("EmProto" %in% class(pe1))
   pe2 <- Proto_emulator$new(
-    ranges, targets, pf, vf, ifunc
-  )
+    ranges, targets, pf, vf, ifunc)
   expect_true("EmProto" %in% class(pe2))
 })
 
@@ -78,7 +76,7 @@ vpe <- purrr::map(seq_along(lms), function(l) {
     ranges,
     names(targets)[l],
     function(x) predict(lms[[l]], x),
-    function(x) {
+    function(x, xp = NULL, full = FALSE) {
       pred <- predict(lms[[l]], x, se.fit = TRUE)
       return(pred$se.fit^2 + pred$residual.scale^2)
     },
@@ -226,7 +224,7 @@ test_that("Active variable handling", {
 
 test_that("Additional argument handling", {
   pf_arg <- function(x, arg_add) {get(arg_add); arg_add; predict(relev_lm, x)}
-  vf_arg <- function(x, arg_add) {get(arg_add); arg_add; vf(x)}
+  vf_arg <- function(x, xp = NULL, full = FALSE, arg_add) {get(arg_add); arg_add; vf(x)}
   im_arg <- function(x, z, cutoff, arg_add) ifunc(x, z, cutoff)
   expect_error(
     Proto_emulator$new(

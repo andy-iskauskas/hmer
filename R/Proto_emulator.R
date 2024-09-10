@@ -53,15 +53,26 @@ Proto_emulator <- R6::R6Class(
       if (!is.function(variance_func)) stop("Variance 'function' does not appear to be a function.")
       if (length(formals(variance_func)) < 1) stop("Variance function requires at least one argument.")
       args <- formalArgs(variance_func)
+      check_args = c('x', 'xp', 'full')
       if (args[1] != 'x') stop("First argument to 'variance_func' must be 'x'")
-      if (length(args) > 1) {
-        argsOK <- args[-1] %in% names(self$add_args)
+      if (length(args) < 2 || args[2] != 'xp') {
+        warning("No option for second data.frame provided.")
+        check_args <- check_args[check_args != 'xp']
+      }
+      if (length(args) < length(check_args) || (args[3] != 'full' && args[2] != 'full')) {
+        warning("No option to obtain full covariance matrix.")
+        check_args <- check_args[check_args != 'full']
+      }
+      if (length(args) > length(check_args)) {
+        argsOK <- args %in% c(names(self$add_args), check_args)
         if (any(!argsOK)) stop(paste0("'variance_func' requires missing '",
-                                      paste0(args[-1][!argsOK], collapse = ", "),
+                                      paste0(args[!argsOK], collapse = ", "),
                                       "' object(s) to be passed to 'Proto_emulator'"))
         tryCatch(
-          do.call(variance_func, c(list(x = testPoint),
-                                   self$add_args[match(args[-1], names(self$add_args))])),
+          {blist <- list(x = testPoint, xp = NULL, full = FALSE)
+          blist <- blist[which(names(blist) %in% check_args)]
+          do.call(variance_func, c(blist,
+                                   self$add_args[match(args[!args %in% check_args], names(self$add_args))]))},
           error = function(e) {
             stop(paste("Variance function failing to evaluate at a point:", e))
           }
@@ -111,13 +122,15 @@ Proto_emulator <- R6::R6Class(
         return(self$predf(x))
       }
     },
-    get_cov = function(x) {
+    get_cov = function(x, xp = NULL, full = FALSE) {
       args <- formalArgs(self$varf)
+      check_args <- c('x', 'xp', 'full')
+      which_in_args <- which(check_args %in% args)
       if (length(args) > 1) {
         return(do.call(self$varf,
-                       c(list(x = x), self$add_args[match(args[-1], names(self$add_args))])))
+                       c(list(x = x, xp = xp, full = full)[which_in_args], self$add_args[match(args[!args %in% check_args], names(self$add_args))])))
       } else {
-        return(self$varf(x))
+        return(do.call(self$varf, list(x = x, xp = xp, full = full)[which_in_args]))
       }
     },
     implausibility = function(x, z, cutoff = NULL) {
