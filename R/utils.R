@@ -600,10 +600,22 @@ import_emulator_from_json <- function(filename = NULL, details = NULL) {
   input_data <- details$data
   if (!is.null(details[['em']])) {
     in_em_details <- details$em
+    if (any(purrr::map_lgl(names(in_em_details$in.ranges), ~any(grepl(., in_em_details$basis.f, fixed = TRUE))))) {
+      these_range_names <- names(in_em_details$in.ranges)
+      subbed_funcs <- lapply(in_em_details$basis.f, function(x) sub("\\s", " * ", x))
+      for (i in seq_along(these_range_names)) {
+        subbed_funcs <- lapply(subbed_funcs, function(x) sub(these_range_names[i], paste0("x[[", i, "]]"), x, fixed = TRUE))
+      }
+      function_matrix <- matrix(data = "", nrow = length(subbed_funcs), ncol = 2)
+      function_matrix[,2] <- paste0("return(", subbed_funcs, ")")
+      function_matrix[,1] <- rep("function(x)", length(subbed_funcs))
+      in_em_details$basis.f <- function_matrix
+    }
     beta_funcs <- c(unlist(apply(in_em_details$basis.f, 1, function(y) {
       eval(parse(text = paste0("function(x)", sub("return\\((*.))\\)", "\\1", y[2]))))
     })))
     in_data <- input_data[input_data$uid %in% in_em_details$input.uid,]
+    in_em_details$corr.name <- sub("([A-Z])", paste0("_", "\\L\\1"), perl = TRUE, in_em_details$corr.name)
     em <- emulator_from_data(in_data, in_em_details$out.name, in_em_details$in.ranges,
                              discrepancies = list(in_em_details$emulator.discrepancies),
                              specified_priors = list(func = list(beta_funcs), beta = list(list(mu = in_em_details$basis.beta)),

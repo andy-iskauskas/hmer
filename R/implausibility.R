@@ -1,7 +1,7 @@
 # Code to check emulator implausibilities sequentially
 sequential_imp <- function(ems, x, z, n = 1, cutoff = 3) {
-  t_ems <- ems
   results <- map_lgl(seq_len(nrow(x)), function(a) {
+    t_ems <- ems
     current_fails <- 0
     i <- 1
     while (i <= length(t_ems)) {
