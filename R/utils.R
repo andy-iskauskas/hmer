@@ -607,7 +607,7 @@ import_emulator_from_json <- function(filename = NULL, details = NULL) {
         subbed_funcs <- lapply(subbed_funcs, function(x) sub(these_range_names[i], paste0("x[[", i, "]]"), x, fixed = TRUE))
       }
       function_matrix <- matrix(data = "", nrow = length(subbed_funcs), ncol = 2)
-      function_matrix[,2] <- paste0("return(", subbed_funcs, ")")
+      function_matrix[,2] <- paste0("return( ", subbed_funcs, " )")
       function_matrix[,1] <- rep("function(x)", length(subbed_funcs))
       in_em_details$basis.f <- function_matrix
     }
