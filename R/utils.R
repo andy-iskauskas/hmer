@@ -586,6 +586,7 @@ export_emulator_to_json <- function(ems, inputs = NULL, filename = NULL, output.
 #' code given in the companion export function.
 #'
 #' @importFrom jsonlite fromJSON
+#' @importFrom dplyr mutate_all
 #'
 #' @param filename Either a file location of a saved JSON file, or the string corresponding to it
 #' @param details Mainly internal; any already reconstructed emulators and their input data
@@ -596,7 +597,8 @@ export_emulator_to_json <- function(ems, inputs = NULL, filename = NULL, output.
 #'
 #' @export
 import_emulator_from_json <- function(filename = NULL, details = NULL) {
-  if (!is.null(filename)) details <- jsonlite::fromJSON(filename)
+  if (!is.null(filename))
+    details <- jsonlite::fromJSON(filename)
   input_data <- details$data
   if (!is.null(details[['em']])) {
     in_em_details <- details$em
@@ -616,7 +618,7 @@ import_emulator_from_json <- function(filename = NULL, details = NULL) {
     })))
     in_data <- input_data[input_data$uid %in% in_em_details$input.uid,]
     in_em_details$corr.name <- sub("([A-Z])", paste0("_", "\\L\\1"), perl = TRUE, in_em_details$corr.name)
-    em <- emulator_from_data(in_data, in_em_details$out.name, in_em_details$in.ranges,
+    em <- emulator_from_data(mutate_all(in_data[,c(names(in_em_details$in.ranges), in_em_details$out.name)], as.numeric), in_em_details$out.name, in_em_details$in.ranges,
                              discrepancies = list(in_em_details$emulator.discrepancies),
                              specified_priors = list(func = list(beta_funcs), beta = list(list(mu = in_em_details$basis.beta)),
                                                      u = list(list(sigma = in_em_details$corr.sigma,
