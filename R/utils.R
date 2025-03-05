@@ -634,6 +634,76 @@ import_emulator_from_json <- function(filename = NULL, details = NULL) {
   return(em)
 }
 
+#' Determine Principle Outputs
+#'
+#' Given model outputs, determine those which are most informative for emulation.
+#'
+#' For models with large numbers of outputs, it may not be useful or meaningful
+#' to emulate every output at every wave; particularly at early waves, the main
+#' effects can often be explained by a small number of model outputs. This
+#' function determines those outputs which contribute most highly to the model
+#' variation across the space.
+#'
+#' Two cut-off points for informative outputs are available: \code{max_vars}
+#' allows one to limit the number of outputs emulated, while \code{var_cut}
+#' will continue to select outputs until a given proportion of variation has
+#' been explained. By default, no maximum number of variables is imposed and
+#' the desired variation explained is 95% of the total.
+#'
+#' The output is a list of two elements: the first, a set of variable names
+#' ordered by variance explained (the first being the most informative); the
+#' second a record of the cumulative variance explained upon inclusion of each
+#' of the outputs.
+#'
+#' @param data The model outputs
+#' @param max_vars The maximum number of outputs allowed in the output
+#' @param var_cut The desired proportion of variance explained
+#'
+#' @returns A list \code{list(ordered_variables, cumulative_variance)}
+#'
+#' @examples
+#' # Simple example using SIR data
+#' sir_data <- rbind.data.frame(SIRSample$training, SIRSample$validation)
+#' # Selects nS, nR as informative
+#' prin_vars(sir_data)
+#' # Pick only the first: max_vars overrides var_cut
+#' prin_vars(sir_data, max_vars = 1, var_cut = 1)
+#'
+#'
+#' @export
+prin_vars <- function(data, max_vars = length(data), var_cut = 0.95) {
+  selected_vars <- c()
+  num_vars <- length(data)
+  aggreg_r2 <- c()
+  tr <- c()
+  cum_var <- c()
+  if (!is.null(var_cut) && is.numeric(var_cut)) {
+    if (var_cut < 0 || var_cut > 1)
+      var_cut <- 1
+  }
+  conditioned_cor <- cor(data)
+  all_vars = names(data)
+  unselected_vars = names(data)
+  for (i in seq_len(max_vars)) {
+    agg_r2 <- rowSums(conditioned_cor^2)
+    max_r2 <- which.max(agg_r2)
+    aggreg_r2 <- c(aggreg_r2, agg_r2[max_r2])
+    selected_vars = c(selected_vars, all_vars[max_r2])
+    all_vars <- all_vars[-max_r2]
+    S22 <- conditioned_cor[-max_r2, -max_r2]
+    S21 <- conditioned_cor[-max_r2, max_r2]
+    conditioned_cor <- S22 - outer(S21, S21, "*")/conditioned_cor[max_r2, max_r2]
+    new_tr <- sum(diag(conditioned_cor))
+    tr <- c(tr, new_tr)
+    cum_var <- c(cum_var, 1 - new_tr/num_vars)
+    if (!is.null(var_cut) && is.numeric(var_cut)) {
+      if (cum_var[length(cum_var)] >= var_cut)
+        break
+    }
+  }
+  return(list(ordered_variables = selected_vars, cumulative_variance = cum_var))
+}
+
 # Pre-submission questions for CRAN submission
 release_questions <- function() { # nocov start
   c(
