@@ -40,7 +40,8 @@ HierarchicalEmulator <- R6Class(
         self$disc$internal <- ifelse(!is.null(discs$internal), discs$internal, 0)
         self$disc$external <- ifelse(!is.null(discs$external), discs$external, 0)
       }
-      self$beta_u_cov <- function(x) rep(0, length(self$beta_mu))
+      #self$beta_u_cov <- function(x) rep(0, length(self$beta_mu))
+      self$beta_u_cov <- NULL
       if (is.null(ranges)) stop("Ranges for the parameters must be specified.")
       self$ranges <- ranges
       if (!is.null(data)) {
@@ -101,23 +102,28 @@ HierarchicalEmulator <- R6Class(
       else
         beta_part <- predict(self$model, data.frame(x))
       x <- data.matrix(x)
-      bu <- t(apply(x, 1, self$beta_u_cov))
+      if (is.null(self$beta_u_cov)) bu <- matrix(0, nrow = nrow(x), ncol = length(self$beta_mu))
+      else bu <- t(apply(x, 1, self$beta_u_cov))
       u_part <- apply(x, 1, self$u_mu)
       if (!is.null(self$in_data)) {
         if (is.null(c_data))
           c_data <- t(self$corr$get_corr(x, self$in_data, self$active_vars))
         if (is.numeric(self$u_sigma)) {
-          if (length(self$beta_mu) == 1)
+          if (length(self$beta_mu) == 1) {
+            if (is.null(self$beta_u_cov)) bu <- t(bu)
             u_part <- t(u_part + (t(bu) %*% t(private$design_matrix) +
                                     self$u_sigma^2 * c_data) %*%
                           private$u_exp_modifier)
-          else
+          }
+          else {
             u_part <- u_part + (bu %*% t(private$design_matrix) +
                                   self$u_sigma^2 * c_data) %*%
               private$u_exp_modifier
+          }
         }
         else {
-          if (length(self$beta_mu) == 1)
+          if (length(self$beta_mu) == 1) {
+            if (is.null(self$beta_u_cov)) bu <- t(bu)
             u_part <- t(u_part + (t(bu) %*% t(private$design_matrix) +
                                     sweep(
                                       sweep(
@@ -129,6 +135,7 @@ HierarchicalEmulator <- R6Class(
                                         x, 1,
                                         self$u_sigma), "*")) %*%
                           private$u_exp_modifier)
+          }
           else
             u_part <- u_part + (bu %*% t(private$design_matrix) +
                                   sweep(
@@ -172,15 +179,8 @@ HierarchicalEmulator <- R6Class(
           function(y) map_dbl(self$basis_f, exec, y))
       else g_x <- NULL
       x <- data.matrix(x)
-      if (nrow(x) > 1) {
-        test_bupart_x <- apply(x[1:2,], 1, self$beta_u_cov)
-        if (all(test_bupart_x == 0))
-          bupart_x <- matrix(0, nrow = ncol(x), ncol = nrow(x))
-        else
-          bupart_x <- apply(x, 1, self$beta_u_cov)
-      }
-      else
-        bupart_x <- apply(x, 1, self$beta_u_cov)
+      if (is.null(self$beta_u_cov)) bupart_x <- matrix(0, nrow = length(self$beta_mu), ncol = nrow(x))
+      else bupart_x <- apply(x, 1, self$beta_u_cov)
       null_flag <- FALSE
       if (is.null(xp)) {
         null_flag <- TRUE
@@ -198,15 +198,8 @@ HierarchicalEmulator <- R6Class(
             function(y) map_dbl(self$basis_f, exec, y))
         else g_xp <- NULL
         xp <- data.matrix(xp)
-        if (nrow(xp) > 1) {
-          test_bupart_xp <- apply(xp[1:2,], 1, self$beta_u_cov)
-          if (all(test_bupart_xp == 0))
-            bupart_xp <- matrix(0, nrow = ncol(xp), ncol = nrow(xp))
-          else
-            bupart_xp <- apply(xp, 1, self$beta_u_cov)
-        }
-        else
-          bupart_xp <- apply(xp, 1, self$beta_u_cov)
+        if (is.null(self$beta_u_cov)) bupart_xp <- matrix(0, nrow = length(self$beta_mu), ncol = nrow(xp))
+        else bupart_xp <- apply(xp, 1, self$beta_u_cov)
       }
       if (full || nrow(x) != nrow(xp)) {
         x_xp_c <- self$corr$get_corr(xp, x, self$active_vars)
@@ -268,11 +261,11 @@ HierarchicalEmulator <- R6Class(
               bupart_x <- bupart_x -
                 private$beta_u_cov_modifier %*%
                 (private$design_matrix %*% bupart_x + t(c_x))
-              bupart_xp <- if(null_flag)
-                bupart_x
-              else
-                bupart_xp - private$beta_u_cov_modifier %*%
+              if(null_flag) bupart_xp <- bupart_x
+              else {
+                bupart_xp <- bupart_xp - private$beta_u_cov_modifier %*%
                 (private$design_matrix %*% bupart_xp + t(c_xp))
+              }
             }
           }
           if (is.null(nrow(g_x))) {
@@ -349,11 +342,11 @@ HierarchicalEmulator <- R6Class(
             bupart_x <- bupart_x -
               private$beta_u_cov_modifier %*%
               (private$design_matrix %*% bupart_x + t(c_x))
-            bupart_xp <- if(null_flag)
-              bupart_x
-            else
-              bupart_xp - private$beta_u_cov_modifier %*%
+            if(null_flag) bupart_xp <- bupart_x
+            else {
+              bupart_xp <- bupart_xp - private$beta_u_cov_modifier %*%
               (private$design_matrix %*% bupart_xp + t(c_xp))
+            }
           }
         }
         if (!all(bupart_x == 0)) {
@@ -602,7 +595,10 @@ HierarchicalEmulator <- R6Class(
             self$u_sigma(map_dbl(self$ranges, mean))^2, "\n")
       cat("\t Expectation: ", self$u_mu(rep(0, length(ranges))), "\n")
       self$corr$print(prepend = "\t")
-      cat("Mixed covariance: ", self$beta_u_cov(rep(0, length(ranges))), "\n")
+      if (is.null(self$beta_u_cov))
+        cat("Mixed covariance: None")
+      else
+        cat("Mixed covariance: ", self$beta_u_cov(rep(0, length(ranges))), "\n")
     }
   )
 )

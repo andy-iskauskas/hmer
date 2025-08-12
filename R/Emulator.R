@@ -61,7 +61,8 @@ Emulator <- R6Class(
         self$disc$external <- ifelse(!is.null(discs$external),
                                      discs$external, 0)
       }
-      self$beta_u_cov <- function(x) rep(0, length(self$beta_mu))
+      #self$beta_u_cov <- function(x) rep(0, length(self$beta_mu))
+      self$beta_u_cov <- NULL
       if (!is.null(data)) {
         self$in_data <- data.matrix(eval_funcs(scale_input,
                                                data[,names(self$ranges)],
@@ -122,23 +123,27 @@ Emulator <- R6Class(
         beta_part <- predict(self$model, x)
       }
       x <- data.matrix(x)
-      bu <- t(apply(x, 1, self$beta_u_cov))
+      if (is.null(self$beta_u_cov)) bu <- matrix(0, nrow = nrow(x), ncol = length(self$beta_mu))
+      else bu <- t(apply(x, 1, self$beta_u_cov))
       u_part <- apply(x, 1, self$u_mu)
       if (!is.null(self$in_data)) {
         if (is.null(c_data))
           c_data <- self$corr$get_corr(self$in_data, x, self$active_vars)
         if (is.numeric(self$u_sigma)) {
-          if (length(self$beta_mu) == 1)
+          if (length(self$beta_mu) == 1) {
+            if (is.null(self$beta_u_cov)) bu <- t(bu)
             u_part <- t(u_part + (t(bu) %*% t(private$design_matrix) +
                                     self$u_sigma^2 * c_data) %*%
                           private$u_exp_modifier)
+          }
           else
             u_part <- u_part + (bu %*% t(private$design_matrix) +
                                   self$u_sigma^2 * c_data) %*%
               private$u_exp_modifier
         }
         else {
-          if (length(self$beta_mu) == 1)
+          if (length(self$beta_mu) == 1) {
+            if (is.null(self$beta_u_cov)) bu <- t(bu)
             u_part <- t(u_part + (t(bu) %*% t(private$design_matrix) +
                                     sweep(
                                       sweep(
@@ -148,6 +153,7 @@ Emulator <- R6Class(
                                           self$u_sigma), "*"), 1,
                                       apply(x, 1, self$u_sigma), "*")) %*%
                           private$u_exp_modifier)
+          }
           else
             u_part <- u_part + (bu %*% t(private$design_matrix) +
                                   sweep(
@@ -184,7 +190,8 @@ Emulator <- R6Class(
           map_dbl(self$basis_f, exec, y))
       else g_x <- NULL
       x <- data.matrix(x)
-      bupart_x <- apply(x, 1, self$beta_u_cov)
+      if (is.null(self$beta_u_cov)) bupart_x <- matrix(0, nrow = length(self$beta_mu), ncol = nrow(x))
+      else bupart_x <- apply(x, 1, self$beta_u_cov)
       null_flag <- FALSE
       if (is.null(xp)) {
         null_flag <- TRUE
@@ -202,7 +209,8 @@ Emulator <- R6Class(
                       function(y) map_dbl(self$basis_f, exec, y))
         else g_xp <- NULL
         xp <- data.matrix(xp)
-        bupart_xp <- apply(xp, 1, self$beta_u_cov)
+        if (is.null(self$beta_u_cov)) bupart_xp <- matrix(0, nrow = length(self$beta_mu), ncol = nrow(xp))
+        else bupart_xp <- apply(xp, 1, self$beta_u_cov)
       }
       if (full || nrow(x) != nrow(xp)) {
         x_xp_c <- self$corr$get_corr(xp, x, self$active_vars)
@@ -409,7 +417,8 @@ Emulator <- R6Class(
         nrow = nrow(x))
       g <- g/range_scale
       x <- data.matrix(x)
-      bu <- t(apply(x, 1, self$beta_u_cov))
+      if (is.null(self$beta_u_cov)) bu <- matrix(0, nrow = nrow(x), ncol = length(self$beta_mu))
+      else bu <- t(apply(x, 1, self$beta_u_cov))
       if (length(self$beta_mu) == 1) beta_part <- g * self$beta_mu
       else beta_part <- g %*% self$beta_mu
       u_part <- apply(x, 1, self$u_mu)
@@ -418,18 +427,21 @@ Emulator <- R6Class(
                                          p_ind, actives = self$active_vars))
         c_data <- matrix(c_data/range_scale, nrow = nrow(x))
         if (is.numeric(self$u_sigma)) {
-          if (length(self$beta_mu) == 1)
+          if (length(self$beta_mu) == 1) {
+            if (is.null(self$beta_u_cov)) bu <- t(bu)
             u_part <- c(t(u_part + (t(bu) %*%
                                       t(private$design_matrix) +
                                       self$u_sigma^2 * c_data) %*%
                             private$u_exp_modifier))
+          }
           else
             u_part <- u_part + (bu %*% t(private$design_matrix) +
                                   self$u_sigma^2 * c_data) %*%
               private$u_exp_modifier
         }
         else {
-          if (length(self$beta_mu) == 1)
+          if (length(self$beta_mu) == 1) {
+            if (is.null(self$beta_u_cov)) bu <- t(bu)
             u_part <- c(t(u_part + (t(bu) %*%
                                       t(private$design_matrix) +
                                       sweep(
@@ -440,6 +452,7 @@ Emulator <- R6Class(
                                             self$u_sigma), "*"), 1,
                                         apply(x, 1, self$u_sigma), "*")) %*%
                             private$u_exp_modifier))
+          }
           else
             u_part <- u_part +
               (bu %*% t(private$design_matrix) + sweep(
@@ -513,7 +526,8 @@ Emulator <- R6Class(
                                        ~eval(., envir = x[y,]))))),
           nrow = nrow(x)))
       x <- data.matrix(x)
-      bupart_x <- apply(x, 1, self$beta_u_cov)
+      if (is.null(self$beta_u_cov)) bupart_x <- matrix(0, nrow = length(self$beta_mu), ncol = nrow(x))
+      else bupart_x <- apply(x, 1, self$beta_u_cov)
       null_flag <- FALSE
       if (is.null(xp)) {
         null_flag <- TRUE
@@ -536,7 +550,8 @@ Emulator <- R6Class(
                                          ~eval(., envir = xp[y,]))))),
             nrow = nrow(xp)))
         xp <- data.matrix(xp)
-        bupart_xp <- apply(xp, 1, self$beta_u_cov)
+        if (is.null(self$beta_u_cov)) bupart_xp <- matrix(0, nrow = length(self$beta_mu), ncol = nrow(xp))
+        else bupart_xp <- apply(xp, 1, self$beta_u_cov)
       }
       g_x <- g_x/range_scale1
       gp_x <- gp_x/range_scale2
@@ -846,7 +861,10 @@ Emulator <- R6Class(
             self$u_sigma(map_dbl(self$ranges, mean))^2, "\n")
       cat("\t Expectation: ", self$u_mu(rep(0, length(ranges))), "\n")
       self$corr$print(prepend = "\t")
-      cat("Mixed covariance: ", self$beta_u_cov(rep(0, length(ranges))), "\n")
+      if (is.null(self$beta_u_cov))
+        cat("Mixed covariance: None \n")
+      else
+        cat("Mixed covariance: ", self$beta_u_cov(rep(0, length(ranges))), "\n")
     },
     plot = function(...) {
       emulator_plot(self, ...)
