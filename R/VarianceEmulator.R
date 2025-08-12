@@ -172,7 +172,15 @@ HierarchicalEmulator <- R6Class(
           function(y) map_dbl(self$basis_f, exec, y))
       else g_x <- NULL
       x <- data.matrix(x)
-      bupart_x <- apply(x, 1, self$beta_u_cov)
+      if (nrow(x) > 1) {
+        test_bupart_x <- apply(x[1:2,], 1, self$beta_u_cov)
+        if (all(test_bupart_x == 0))
+          bupart_x <- matrix(0, nrow = ncol(x), ncol = nrow(x))
+        else
+          bupart_x <- apply(x, 1, self$beta_u_cov)
+      }
+      else
+        bupart_x <- apply(x, 1, self$beta_u_cov)
       null_flag <- FALSE
       if (is.null(xp)) {
         null_flag <- TRUE
@@ -190,7 +198,15 @@ HierarchicalEmulator <- R6Class(
             function(y) map_dbl(self$basis_f, exec, y))
         else g_xp <- NULL
         xp <- data.matrix(xp)
-        bupart_xp <- apply(xp, 1, self$beta_u_cov)
+        if (nrow(xp) > 1) {
+          test_bupart_xp <- apply(xp[1:2,], 1, self$beta_u_cov)
+          if (all(test_bupart_xp == 0))
+            bupart_xp <- matrix(0, nrow = ncol(xp), ncol = nrow(xp))
+          else
+            bupart_xp <- apply(xp, 1, self$beta_u_cov)
+        }
+        else
+          bupart_xp <- apply(xp, 1, self$beta_u_cov)
       }
       if (full || nrow(x) != nrow(xp)) {
         x_xp_c <- self$corr$get_corr(xp, x, self$active_vars)
