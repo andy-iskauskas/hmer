@@ -240,11 +240,22 @@ Emulator <- R6Class(
             u_part <- u_part - self$u_sigma^4 * c_x %*%
               (private$data_corrs - private$u_var_modifier) %*% t(c_xp)
             if (!all(private$beta_u_cov_modifier == 0)) {
-              bupart_x <- bupart_x - private$beta_u_cov_modifier %*%
-                (private$design_matrix %*% bupart_x + self$u_sigma^2 * t(c_x))
-              bupart_xp <- if (null_flag) bupart_x else bupart_xp -
-                private$beta_u_cov_modifier %*%
-                (private$design_matrix %*% bupart_xp + self$u_sigma^2 * t(c_xp))
+              if (is.null(self$beta_u_cov))
+                bupart_x <- -private$beta_u_cov_modifier %*%
+                  (self$u_sigma^2 * t(c_x))
+              else
+                bupart_x <- bupart_x - private$beta_u_cov_modifier %*%
+                  (private$design_matrix %*% bupart_x + self$u_sigma^2 * t(c_x))
+              if (null_flag) bupart_xp <- bupart_x
+              else {
+                if (is.null(self$beta_u_cov))
+                  bupart_xp <- -private$beta_u_cov_modifier %*%
+                    (self$u_sigma^2 * t(c_xp))
+                else
+                  bupart_xp <- bupart_xp -
+                    private$beta_u_cov_modifier %*%
+                    (private$design_matrix %*% bupart_xp + self$u_sigma^2 * t(c_xp))
+              }
             }
           }
           else {
@@ -263,11 +274,20 @@ Emulator <- R6Class(
             u_part <- u_part - c_x %*% (private$data_corrs -
                                           private$u_var_modifier) %*% t(c_xp)
             if (!all(private$beta_u_cov_modifier == 0)) {
-              bupart_x <- bupart_x - private$beta_u_cov_modifier %*%
-                (private$design_matrix %*% bupart_x + t(c_x))
-              bupart_xp <- if(null_flag) bupart_x else bupart_xp -
-                private$beta_u_cov_modifier %*%
-                (private$design_matrix %*% bupart_xp + t(c_xp))
+              if (is.null(self$beta_u_cov))
+                bupart_x <- -private$beta_u_cov_modifier %*% t(c_x)
+              else
+                bupart_x <- bupart_x - private$beta_u_cov_modifier %*%
+                  (private$design_matrix %*% bupart_x + t(c_x))
+              if (null_flag) bupart_xp <- bupart_x
+              else {
+                if (is.null(self$beta_u_cov))
+                  bupart_xp <- -private$beta_u_cov_modifier %*% t(c_xp)
+                else
+                  bupart_xp <- bupart_xp -
+                      private$beta_u_cov_modifier %*%
+                      (private$design_matrix %*% bupart_xp + t(c_xp))
+              }
             }
           }
           if (is.null(nrow(g_x))) {
@@ -340,12 +360,21 @@ Emulator <- R6Class(
             rowSums((c_x %*%
                        (private$data_corrs - private$u_var_modifier)) * c_xp)
           if (!all(private$beta_u_cov_modifier == 0)) {
-            bupart_x <- bupart_x -
-              private$beta_u_cov_modifier %*%
-              (private$design_matrix %*% bupart_x + t(c_x))
-            bupart_xp <- if(null_flag) bupart_x else bupart_xp -
-              private$beta_u_cov_modifier %*%
-              (private$design_matrix %*% bupart_xp + t(c_xp))
+            if (is.null(self$beta_u_cov))
+              bupart_x <- -private$beta_u_cov_modifier %*% t(c_x)
+            else
+              bupart_x <- bupart_x -
+                private$beta_u_cov_modifier %*%
+                (private$design_matrix %*% bupart_x + t(c_x))
+            if (null_flag) bupart_xp <- bupart_x
+            else {
+              if (is.null(self$beta_u_cov))
+                bupart_xp <- -private$beta_u_cov_modifier %*% t(c_xp)
+              else
+                bupart_xp <- bupart_xp -
+                  private$beta_u_cov_modifier %*%
+                  (private$design_matrix %*% bupart_xp + t(c_xp))
+            }
           }
         }
         if (!all(bupart_x == 0)) {

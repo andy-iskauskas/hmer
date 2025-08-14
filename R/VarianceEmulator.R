@@ -110,42 +110,71 @@ HierarchicalEmulator <- R6Class(
           c_data <- t(self$corr$get_corr(x, self$in_data, self$active_vars))
         if (is.numeric(self$u_sigma)) {
           if (length(self$beta_mu) == 1) {
-            if (is.null(self$beta_u_cov)) bu <- t(bu)
-            u_part <- t(u_part + (t(bu) %*% t(private$design_matrix) +
-                                    self$u_sigma^2 * c_data) %*%
-                          private$u_exp_modifier)
+            if (is.null(self$beta_u_cov))
+              u_part <- t(u_part + (self$u_sigma^2 * c_data) %*% private$u_exp_modifier)
+            else
+              u_part <- t(u_part + (t(bu) %*% t(private$design_matrix) +
+                                      self$u_sigma^2 * c_data) %*%
+                            private$u_exp_modifier)
           }
           else {
-            u_part <- u_part + (bu %*% t(private$design_matrix) +
-                                  self$u_sigma^2 * c_data) %*%
-              private$u_exp_modifier
+            if (is.null(self$beta_u_cov))
+              u_part <- u_part + (self$u_sigma^2 * c_data) %*% private$u_exp_modifier
+            else
+              u_part <- u_part + (bu %*% t(private$design_matrix) +
+                                    self$u_sigma^2 * c_data) %*%
+                private$u_exp_modifier
           }
         }
         else {
           if (length(self$beta_mu) == 1) {
-            if (is.null(self$beta_u_cov)) bu <- t(bu)
-            u_part <- t(u_part + (t(bu) %*% t(private$design_matrix) +
+            if (is.null(self$beta_u_cov))
+              u_part <- t(u_part + (
+                                      sweep(
+                                        sweep(
+                                          c_data, 2,
+                                          apply(
+                                            self$in_data, 1,
+                                            self$u_sigma), "*"), 1,
+                                        apply(
+                                          x, 1,
+                                          self$u_sigma), "*")) %*%
+                            private$u_exp_modifier)
+            else
+              u_part <- t(u_part + (t(bu) %*% t(private$design_matrix) +
+                                      sweep(
+                                        sweep(
+                                          c_data, 2,
+                                          apply(
+                                            self$in_data, 1,
+                                            self$u_sigma), "*"), 1,
+                                        apply(
+                                          x, 1,
+                                          self$u_sigma), "*")) %*%
+                            private$u_exp_modifier)
+          }
+          else {
+            if (is.null(self$beta_u_cov))
+              u_part <- u_part + (
                                     sweep(
                                       sweep(
                                         c_data, 2,
                                         apply(
                                           self$in_data, 1,
                                           self$u_sigma), "*"), 1,
-                                      apply(
-                                        x, 1,
-                                        self$u_sigma), "*")) %*%
-                          private$u_exp_modifier)
-          }
-          else
-            u_part <- u_part + (bu %*% t(private$design_matrix) +
-                                  sweep(
+                                      apply(x, 1, self$u_sigma), "*")) %*%
+                private$u_exp_modifier
+            else
+              u_part <- u_part + (bu %*% t(private$design_matrix) +
                                     sweep(
-                                      c_data, 2,
-                                      apply(
-                                        self$in_data, 1,
-                                        self$u_sigma), "*"), 1,
-                                    apply(x, 1, self$u_sigma), "*")) %*%
-              private$u_exp_modifier
+                                      sweep(
+                                        c_data, 2,
+                                        apply(
+                                          self$in_data, 1,
+                                          self$u_sigma), "*"), 1,
+                                      apply(x, 1, self$u_sigma), "*")) %*%
+                private$u_exp_modifier
+          }
         }
       }
       if (length(self$beta_mu) == 1) out_val <- c(beta_part + u_part)
@@ -231,14 +260,22 @@ HierarchicalEmulator <- R6Class(
           if (is.numeric(self$u_sigma)) {
             u_part <- u_part - self$u_sigma^4 * c_x %*%
               (private$data_corrs - private$u_var_modifier) %*% t(c_xp)
-            bupart_x <- bupart_x -
-              private$beta_u_cov_modifier %*%
-              (private$design_matrix %*% bupart_x + self$u_sigma^2 * t(c_x))
-            bupart_xp <- if (null_flag)
-              bupart_x
+            if (is.null(self$beta_u_cov))
+              bupart_x <- -private$beta_u_cov_modifier %*%
+                (self$u_sigma^2 * t(c_x))
             else
-              bupart_xp - private$beta_u_cov_modifier %*%
-              (private$design_matrix %*% bupart_xp + self$u_sigma^2 * t(c_xp))
+              bupart_x <- bupart_x -
+                private$beta_u_cov_modifier %*%
+                (private$design_matrix %*% bupart_x + self$u_sigma^2 * t(c_x))
+            if (null_flag) bupart_xp <- bupart_x
+            else {
+              if (is.null(self$beta_u_cov))
+                bupart_xp <- -private$beta_u_cov_modifier %*%
+                  (self$u_sigma^2 * t(c_xp))
+              else
+                bupart_xp <- bupart_xp - private$beta_u_cov_modifier %*%
+                  (private$design_matrix %*% bupart_xp + self$u_sigma^2 * t(c_xp))
+            }
           }
           else {
             c_x <- sweep(
@@ -258,13 +295,19 @@ HierarchicalEmulator <- R6Class(
             u_part <- u_part - c_x %*%
               (private$data_corrs - private$u_var_modifier) %*% t(c_xp)
             if (!all(private$beta_u_cov_modifier == 0)) {
-              bupart_x <- bupart_x -
-                private$beta_u_cov_modifier %*%
-                (private$design_matrix %*% bupart_x + t(c_x))
+              if (is.null(self$beta_u_cov))
+                bupart_x <- -private$beta_u_cov_modifier %*% t(c_x)
+              else
+                bupart_x <- bupart_x -
+                  private$beta_u_cov_modifier %*%
+                  (private$design_matrix %*% bupart_x + t(c_x))
               if(null_flag) bupart_xp <- bupart_x
               else {
-                bupart_xp <- bupart_xp - private$beta_u_cov_modifier %*%
-                (private$design_matrix %*% bupart_xp + t(c_xp))
+                if (is.null(self$beta_u_cov))
+                  bupart_xp <- -private$beta_u_cov_modifier %*% t(c_xp)
+                else
+                  bupart_xp <- bupart_xp - private$beta_u_cov_modifier %*%
+                  (private$design_matrix %*% bupart_xp + t(c_xp))
               }
             }
           }
@@ -339,13 +382,19 @@ HierarchicalEmulator <- R6Class(
             rowSums(
               (c_x %*% (private$data_corrs - private$u_var_modifier)) * c_xp)
           if (!all(private$beta_u_cov_modifier == 0)) {
-            bupart_x <- bupart_x -
-              private$beta_u_cov_modifier %*%
-              (private$design_matrix %*% bupart_x + t(c_x))
+            if (is.null(self$beta_u_cov))
+                bupart_x <- -private$beta_u_cov_modifier %*% t(c_x)
+            else
+              bupart_x <- bupart_x -
+                private$beta_u_cov_modifier %*%
+                (private$design_matrix %*% bupart_x + t(c_x))
             if(null_flag) bupart_xp <- bupart_x
             else {
-              bupart_xp <- bupart_xp - private$beta_u_cov_modifier %*%
-              (private$design_matrix %*% bupart_xp + t(c_xp))
+              if (is.null(self$beta_u_cov))
+                bupart_xp <- -private$beta_u_cov_modifier %*% t(c_xp)
+              else
+                bupart_xp <- bupart_xp - private$beta_u_cov_modifier %*%
+                (private$design_matrix %*% bupart_xp + t(c_xp))
             }
           }
         }
