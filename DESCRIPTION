@@ -40,7 +40,6 @@ Imports:
   isoband,
   cluster,
   pdist,
-  ggbeeswarm,
   stringr,
   jsonlite
 License: MIT + file LICENSE

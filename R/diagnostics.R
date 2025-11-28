@@ -1279,6 +1279,9 @@ diagnostic_pass <- function(ems, targets, validation, check_output = FALSE, verb
         new_sample <- sample(nrow(all_data), nrow(old_training))
         new_train <- all_data[new_sample,]
         validation_per_em[[i]] <- all_data[-new_sample,]
+        if (!all(ems[[i]]$beta_sigma == 0))
+          return(emulator_from_data(new_train, ems[[i]]$output_name, ems[[i]]$ranges, verbose = FALSE, beta.var = TRUE)[[1]])
+        else
         return(emulator_from_data(new_train, ems[[i]]$output_name, ems[[i]]$ranges, verbose = FALSE)[[1]])
       }
       else return(ems[[i]])

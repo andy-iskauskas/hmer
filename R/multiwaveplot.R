@@ -584,9 +584,10 @@ simulator_plot <- function(wave_points, z, zero_in = TRUE, palette = NULL,
       # obs <- uncount(obs, length(unique(pivoted$wave))) |>
       #   mutate(wave = factor(0:(length(unique(pivoted$wave)) - 1)))
       g <- ggplot(data = pivoted, aes(x = wave, y = value)) +
-        ggbeeswarm::geom_beeswarm(aes(colour = wave, group = wave)) +
+        geom_violin(aes(fill = wave, group = wave), colour = "black") +
+        #ggbeeswarm::geom_beeswarm(aes(colour = wave, group = wave)) +
         scale_colour_manual(values = pal, name = legend_title) +
-        geom_point(data = obs, aes(x = wave, y = (min+max)/2)) +
+        geom_point(data = obs, aes(x = wave, y = (min+max)/2), colour = barcol) +
         geom_errorbar(data = obs,
                       aes(y = (min+max)/2, ymax = max, ymin = min),
                       width = 0.1, linewidth = 1.25, colour = barcol) +
