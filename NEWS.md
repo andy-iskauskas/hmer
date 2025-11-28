@@ -1,3 +1,22 @@
+# hmer 1.6.2
+
+## Bug fixes
+* Fixed edge-case in diagnostics where emulators could be reordered incorrectly
+* Fixed problem where covariance terms were set to zero in variance emulator construction
+* Removal of ggbeeswarm dependency ahead of package archival.
+
+## Minor changes
+* Modifications to line and lhs sampling in `generate_new_design` for stability
+* `diagnostic_pass` now respects `beta.var = TRUE` if it retrains emulators
+* `hit_by_wave` can now plot number of hits by relative to individual targets of a collection
+* General optimisation, particularly leveraging certain prior specifications for emulators (for example, if no prior correlation between `beta` and `u` exists)
+* `Proto_emulator` now accepts full covariance matrix returns and handles them appropriately.
+
+## Major changes
+* `import_emulator_from_json` and `export_emulator_to_json` added, to allow lightweight export/import for use with other systems
+* Principal outputs for emulation can be determined using `prin_vars`, for high-dimensional output spaces
+* Maximin sampling used in point generation has been given its own function, `maximin_sample`. `generate_new_design` can accordingly be told to skip the point thinning via `thin = FALSE`.
+
 # hmer 1.6.0
 
 ## Bug fixes
