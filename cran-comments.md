@@ -2,7 +2,7 @@
 
 ## R CMD check results
 
-There were no ERRORs or WARNINGs.
+There were no ERRORs, WARNINGs, or NOTEs.
 
 ## Downstream Dependencies
 There are no downstream dependencies.
@@ -11,5 +11,6 @@ There are no downstream dependencies.
 * Local MacOS install R 4.5.2
 * Local Windows 10 install R 4.5.2
 * `devtools::check_win_release()`
+* `devtools::check_win_devel()`
 * `use_github_actions()`
 * `rhub::rhub_check()`
