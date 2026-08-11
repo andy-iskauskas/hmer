@@ -791,6 +791,12 @@ validation_diagnostics <- function(emulators, targets = NULL,
         diag_results[[i]][[j]], names(diag_results)[[i]], targets, ...)
     }
   }
+  if (length(unique(map_dbl(fail_point_list, ncol))) != 1) {
+    all_input_names <- unique(do.call('c', map(fail_point_list, names)))
+    for (i in seq_along(fail_point_list))
+      if (nrow(fail_point_list[[i]]) != 0)
+        fail_point_list[[i]][,all_input_names[!(all_input_names %in% names(fail_point_list[[i]]))]] <- NaN
+  }
   failed_points <- unique(do.call('rbind', fail_point_list))
   return(failed_points)
 }

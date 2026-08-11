@@ -354,7 +354,8 @@ collect_emulators <- function(emulators, targets = NULL, cutoff = 3,
           targets[[i]] <- list(val = targets[[i]], sigma = 0.05*targets[[i]])
         }
       }
-      maximal_ranges <- map(emulators, "ranges")[[which.max(map_dbl(emulators, ~length(.$ranges)))]]
+      #maximal_ranges <- map(emulators, "ranges")[[which.max(map_dbl(emulators, ~length(.$ranges)))]]
+      maximal_ranges <- getRanges(emulators, FALSE)
       sample_points <- do.call('cbind.data.frame', map(maximal_ranges, ~runif(sample_size, min = .[[1]], max = .[[2]]))) |> setNames(names(maximal_ranges))
       if (length(cutoff) == 1) cutoff <- rep(cutoff, length(emulators))
       em_imps <- do.call('cbind', map(seq_along(emulators), ~emulators[[.]]$implausibility(sample_points, targets[[emulators[[.]]$output_name]], cutoff = cutoff[[.]])))
@@ -436,14 +437,31 @@ getRanges <- function(emulators, minimal = TRUE) {
     emulators <- c(emulators$mode1$expectation, emulators$mode2$expectation)
   range_lengths <- map_dbl(emulators, ~length(.$ranges))
   if (length(unique(range_lengths)) != 1) {
-    emulators <- emulators[range_lengths == max(range_lengths)]
+    #emulators <- emulators[range_lengths == max(range_lengths)]
+    range_names <- unique(do.call('c', map(emulators, ~names(.$ranges))))
+    range_widths <- data.frame(
+      do.call(
+        'rbind', map(emulators, function(em) {
+          map(range_names, function(nm) {
+            if (nm %in% names(em$ranges)) return(diff(em$ranges[[nm]]))
+            return(NA)
+          })
+        })
+      )
+    ) |> setNames(range_names)
+    which_choose <- if (minimal)
+      apply(range_widths, 2, which.min)
+    else
+      apply(range_widths, 2, which.max)
   }
-  range_widths <- data.frame(
-    do.call(
-      'rbind', map(emulators, ~map(.$ranges, diff))))
-  which_choose <- if (minimal)
-    apply(range_widths, 2, which.min)
-  else apply(range_widths, 2, which.max)
+  else {
+    range_widths <- data.frame(
+      do.call(
+        'rbind', map(emulators, ~map(.$ranges, diff))))
+    which_choose <- if (minimal)
+      apply(range_widths, 2, which.min)
+    else apply(range_widths, 2, which.max)
+  }
   return(setNames(map(names(range_widths),
                              ~emulators[[which_choose[[.]]]]$ranges[[.]]),
                   names(range_widths)))
