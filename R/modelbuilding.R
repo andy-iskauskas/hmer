@@ -514,11 +514,25 @@ emulator_from_data <- function(input_data, output_names, ranges,
       stop("output_names do not match data. Check data.frame.")
     if (!is.null(targets) && length(intersect(names(targets), output_names) == length(output_names))) {
       do_preflight <- preflight(input_data, targets[output_names], verbose = verbose, na.rm = na.rm)
-      if (do_preflight && verbose) {
+      if (length(do_preflight) > 0 && verbose) {
         cat("Some outputs may not be adequately emulated", #nocov start
             "due to consistent over/underestimation of outputs in training data.\n")
         cat("Consider looking at the outputs (e.g. using behaviour_plot);",
             "some outputs may require extra runs and/or transformation applied.\n") #nocov end
+        preflight_crash <- list(...)[['preflight.ground']]
+        if (!is.null(preflight_crash) && preflight_crash) {
+          # Doesn't work if only one output fails!
+          cat("Removing outputs which are unlikely to be adequately emulated...\n")
+          output_names <- setdiff(output_names, do_preflight)
+          if (length(do_preflight) == 1)
+            print(simulator_plot(list(input_data), targets[do_preflight]))
+          else
+            print(wave_values(list(input_data), targets, do_preflight))
+          if (length(output_names) == 0) {
+            cat("No outputs suitable for emulation. Terminating.\n")
+            return(NULL)
+          }
+        }
       }
     }
   }
@@ -683,7 +697,18 @@ emulator_from_data <- function(input_data, output_names, ranges,
         model_beta_sigmas <- map(model_basis_funcs, ~diag(0, nrow = length(.)))
       }
     }
-    if (!is.null(specified_priors$delta)) model_deltas <- specified_priors$delta
+    if (!is.null(specified_priors$delta)) {
+      model_deltas <- specified_priors$delta
+      if (length(model_basis_funcs) %% length(model_deltas) != 0) {
+        warning("Length of prior specifications for nuggets is not a multiple of the number of emulators.
+                Taking the first element of specified_priors$delta.")
+        model_deltas <- specified_priors$delta[1]
+      }
+      else {
+        model_deltas <- rep(specified_priors$delta, times = length(model_basis_funcs)/length(specified_priors$delta))
+      }
+      if (length(model_deltas) == 1) model_deltas <- rep(model_deltas, length(model_basis_funcs))
+    }
     else model_deltas <- NULL
     if (!(is.null(specified_priors$u) || any(map_lgl(specified_priors$u, ~is.null(.$sigma) || is.null(.$corr))))) {
       model_u_sigmas <- map(specified_priors$u, "sigma")
@@ -756,7 +781,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
                               corr_name = corr_name,
                               hp_range = theta_ranges[[.]],
                               beta = model_beta_mus[[.]],
-                              delta = model_deltas,
+                              delta = model_deltas[[.]],
                               verbose = more_verbose
                             ))
       else
@@ -768,7 +793,7 @@ emulator_from_data <- function(input_data, output_names, ranges,
                               corr_name = corr_name,
                               hp_range = theta_ranges[[.]],
                               beta = model_beta_mus[[.]],
-                              delta = model_deltas,
+                              delta = model_deltas[[.]],
                               verbose = more_verbose
                             ))
       if (is.null(model_u_sigmas)) model_u_sigmas <-
@@ -779,7 +804,8 @@ emulator_from_data <- function(input_data, output_names, ranges,
             }
           )
       if (is.null(model_beta_mus)) model_beta_mus <- map(specs, ~.$beta)
-      if (is.null(model_u_corrs)) model_u_corrs <- map(specs, ~Correlator$new(corr_name, hp = .$hp, nug = .$delta))
+      if (is.null(model_u_corrs)) model_u_corrs <- map(seq_along(specs), ~Correlator$new(corr_name, hp = specs[[.]]$hp,
+                                                                              nug = ifelse(!is.null(model_deltas), model_deltas[.], specs[[.]]$delta)))
     }
     model_us <- map(seq_along(model_u_corrs),
                            ~list(sigma = model_u_sigmas[[.]], corr = model_u_corrs[[.]]))

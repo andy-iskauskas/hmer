@@ -146,7 +146,9 @@ behaviour_plot <- function(ems, points, model = missing(ems), out_names = unique
 #'  space_removed(SIREmulators$ems, SIREmulators$targets, ppd = 5)
 #'  space_removed(SIREmulators$ems$nS, SIREmulators$targets,
 #'   ppd = 5, u_mod = seq(0.75, 1.25, by = 0.25), intervals = seq(2, 6, by = 0.1))
-space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1), intervals = seq(0, 10, length.out = 200), modified = 'obs', maxpoints = 50000) {
+space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1),
+                          intervals = seq(0, 10, length.out = 200), modified = 'obs', maxpoints = 50000,
+                          nth = 1) {
   value <- name <- cutoff <- NULL
   if (inherits(ems, "Emulator"))
     ems <- setNames(list(ems), ems$output_name)
@@ -184,7 +186,7 @@ space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1
           targets_2[[j]] <- list(val = targets[[j]]$val, sigma = i * targets[[j]]$sigma)
         }
       }
-      m_imps <- nth_implausible(ems, ptgrid, targets_2)
+      m_imps <- nth_implausible(ems, ptgrid, targets_2, n = nth)
       coff <- map_dbl(intervals, ~1-length(m_imps[m_imps <= .])/length(m_imps))
       imp_array[, match(i, u_mod)] <- coff
     }
@@ -201,7 +203,7 @@ space_removed <- function(ems, targets, ppd = 10, u_mod = seq(0.8, 1.2, by = 0.1
           ems_2[[j]]$disc <- lapply(ems[[j]]$disc, function(a) a * i)
         }
       }
-      m_imps <- nth_implausible(ems_2, ptgrid, targets)
+      m_imps <- nth_implausible(ems_2, ptgrid, targets, n = nth)
       coff <- map_dbl(intervals, ~1-length(m_imps[m_imps <= .])/length(m_imps))
       imp_array[, match(i, u_mod)] <- coff
     }

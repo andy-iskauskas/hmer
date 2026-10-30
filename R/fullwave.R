@@ -26,7 +26,7 @@
 preflight <- function(data, targets, coff = 0.95, verbose = interactive(), na.rm = FALSE, ...) {
   if (na.rm) data <- data[apply(
     data, 1, function(x) !any(is.na(x))),]
-  potential_problem <- FALSE
+  potential_problem <- c()
   applicable_targets <- intersect(names(data), names(targets))
   d_abridge <- data[,applicable_targets]
   targets <- targets[applicable_targets]
@@ -42,14 +42,15 @@ preflight <- function(data, targets, coff = 0.95, verbose = interactive(), na.rm
   for (i in names(hom)) {
     if (all(hom[,i] == 0)) {
       if (all(data[,i] < targets[[i]][1])) {
-        potential_problem <- TRUE
+        potential_problem <- c(potential_problem, i)
         if (verbose) cat("Target", i, "consistently underestimated.\n") #nocov
+        hom[,i] <- NULL
       }
-      else {
-        potential_problem <- TRUE
+      else if (all(data[,i] > targets[[i]][2])) {
+        potential_problem <- c(potential_problem, i)
         if (verbose) cat("Target", i, "consistently overestimated.\n") #nocov
+        hom[,i] <- NULL
       }
-      hom[,i] <- NULL
     }
   }
   missing_all <- (seq_len(nrow(hom)))[apply(hom, 1, function(x) all(x == 0))]
@@ -57,7 +58,8 @@ preflight <- function(data, targets, coff = 0.95, verbose = interactive(), na.rm
   checkPairs <- function(df) {
     for (i in 1:(length(df)-1)) {
       for (j in (i+1):length(df)) {
-        cval <- cor(df[,c(i,j)])[1,2]
+        cval <- suppressWarnings(cor(df[,c(i,j)])[1,2])
+        if (is.na(cval)) cval <- 0
         if (cval < -coff) {
           if (verbose) cat("Strong negative correlation between points satisfying", #nocov
                             names(df)[i], "and", names(df)[j], "\n") #nocov
@@ -69,14 +71,14 @@ preflight <- function(data, targets, coff = 0.95, verbose = interactive(), na.rm
       }
     }
   }
-
   checkTriples <- function(df) {
     for (i in 1:(length(df)-1)) {
       for (j in (i+1):length(df)) {
         log_and <- as.numeric(df[,i] & df[,j])
         if (all(log_and == 0) || all(log_and == 1)) next
         for (k in (seq_along(df))[-c(i,j)]) {
-          cval <- cor(log_and, df[,k])
+          cval <- suppressWarnings(cor(log_and, df[,k]))
+          if (is.na(cval)) cval <- 0
           if (cval < -coff) {
             if (verbose)
               cat("Strong negative correlation between points satisfying (", #nocov start

@@ -232,7 +232,7 @@ residual_diag <- function(emulator, histogram = FALSE, ...) {
 #'  space_removal(SIREmulators$ems, SIREmulators$targets,
 #'   rbind(SIRSample$training, SIRSample$validation), individual = FALSE)
 space_removal <- function(ems, targets, points = NULL, ppd = NULL,
-                          cutoff = 3, individual = TRUE) {
+                          cutoff = 3, individual = TRUE, nth = 1) {
   if (is.null(points)) {
     if (is.null(ppd)) {
       if (inherits(ems[[1]], "EmProto"))
@@ -268,7 +268,7 @@ space_removal <- function(ems, targets, points = NULL, ppd = NULL,
       map_chr(ems, ~.$output_name))
     return(1-apply(imps, 2, sum)/nrow(points))
   }
-  nth_imps <- nth_implausible(ems, points, targets, cutoff = cutoff)
+  nth_imps <- nth_implausible(ems, points, targets, cutoff = cutoff, n = nth)
   return(1-sum(nth_imps)/nrow(points))
 }
 
@@ -953,6 +953,10 @@ individual_errors <- function(em, validation, errtype = "normal",
 #'
 classification_diag <- function(emulator, targets, validation, cutoff = 3,
                                 plt = interactive()) {
+  if (!is.null(validation)) {
+    validation <- validation[complete.cases(validation),]
+    if (nrow(validation) == 0) validation <- NULL
+  }
   analyze_diagnostic(get_diagnostic(emulator, targets, validation, 'ce'),
                      emulator$output_name, targets, plt, cutoff)
 }
@@ -982,6 +986,10 @@ classification_diag <- function(emulator, targets, validation, cutoff = 3,
 #'
 comparison_diag <- function(emulator, targets, validation, sd = 3,
                             plt = interactive()) {
+  if (!is.null(validation)) {
+    validation <- validation[complete.cases(validation),]
+    if (nrow(validation) == 0) validation <- NULL
+  }
   analyze_diagnostic(get_diagnostic(emulator, targets, validation, 'cd', sd),
                      emulator$output_name, targets, plt)
 }
@@ -1010,6 +1018,10 @@ comparison_diag <- function(emulator, targets, validation, sd = 3,
 #'
 standard_errors <- function(emulator, targets = NULL, validation = NULL,
                             plt = interactive()) {
+  if (!is.null(validation)) {
+    validation <- validation[complete.cases(validation),]
+    if (nrow(validation) == 0) validation <- NULL
+  }
   analyze_diagnostic(get_diagnostic(emulator, targets, validation, 'se'),
                      emulator$output_name, targets, plt)
 }
