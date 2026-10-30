@@ -10,7 +10,8 @@ space_removal(
   points = NULL,
   ppd = NULL,
   cutoff = 3,
-  individual = TRUE
+  individual = TRUE,
+  nth = 1
 )
 }
 \arguments{
@@ -26,6 +27,8 @@ points per parameter dimension.}
 \item{cutoff}{The cutoff value for implausibility}
 
 \item{individual}{If true, gives emulator-by-emulator results; otherwise works with maximum implausibility}
+
+\item{nth}{If individual = FALSE, determines level of nth implausibility to calculate (default 1)}
 }
 \value{
 A numeric corresponding to the proportions of points removed.

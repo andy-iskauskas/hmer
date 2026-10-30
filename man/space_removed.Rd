@@ -11,7 +11,8 @@ space_removed(
   u_mod = seq(0.8, 1.2, by = 0.1),
   intervals = seq(0, 10, length.out = 200),
   modified = "obs",
-  maxpoints = 50000
+  maxpoints = 50000,
+  nth = 1
 )
 }
 \arguments{
@@ -28,6 +29,8 @@ space_removed(
 \item{modified}{The statistic to modify: obs, disc, var or hp (see above)}
 
 \item{maxpoints}{The maximum number of points to evaluate at}
+
+\item{nth}{The level of nth implausibility to calculate (default 1)}
 }
 \value{
 A ggplot object
@@ -64,20 +67,20 @@ points deemed non-implausible is checked at a set of implausibility cutoffs defi
 \seealso{
 \code{\link{space_removal}} for a numeric representation of space removed.
 
-Other visualisation tools: 
-\code{\link{behaviour_plot}()},
-\code{\link{diagnostic_wrap}()},
-\code{\link{effect_strength}()},
-\code{\link{emulator_plot}()},
-\code{\link{hit_by_wave}()},
-\code{\link{output_plot}()},
-\code{\link{plot_actives}()},
-\code{\link{plot_lattice}()},
-\code{\link{plot_wrap}()},
-\code{\link{simulator_plot}()},
-\code{\link{validation_pairs}()},
-\code{\link{wave_dependencies}()},
-\code{\link{wave_points}()},
-\code{\link{wave_values}()}
+Other visualisation tools:
+\code{\link[=behaviour_plot]{behaviour_plot()}},
+\code{\link[=diagnostic_wrap]{diagnostic_wrap()}},
+\code{\link[=effect_strength]{effect_strength()}},
+\code{\link[=emulator_plot]{emulator_plot()}},
+\code{\link[=hit_by_wave]{hit_by_wave()}},
+\code{\link[=output_plot]{output_plot()}},
+\code{\link[=plot_actives]{plot_actives()}},
+\code{\link[=plot_lattice]{plot_lattice()}},
+\code{\link[=plot_wrap]{plot_wrap()}},
+\code{\link[=simulator_plot]{simulator_plot()}},
+\code{\link[=validation_pairs]{validation_pairs()}},
+\code{\link[=wave_dependencies]{wave_dependencies()}},
+\code{\link[=wave_points]{wave_points()}},
+\code{\link[=wave_values]{wave_values()}}
 }
 \concept{visualisation tools}

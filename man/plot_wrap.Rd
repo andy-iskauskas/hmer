@@ -30,20 +30,20 @@ bounds of the plots calculated with respect to the parameter ranges provided.
 
 }
 \seealso{
-Other visualisation tools: 
-\code{\link{behaviour_plot}()},
-\code{\link{diagnostic_wrap}()},
-\code{\link{effect_strength}()},
-\code{\link{emulator_plot}()},
-\code{\link{hit_by_wave}()},
-\code{\link{output_plot}()},
-\code{\link{plot_actives}()},
-\code{\link{plot_lattice}()},
-\code{\link{simulator_plot}()},
-\code{\link{space_removed}()},
-\code{\link{validation_pairs}()},
-\code{\link{wave_dependencies}()},
-\code{\link{wave_points}()},
-\code{\link{wave_values}()}
+Other visualisation tools:
+\code{\link[=behaviour_plot]{behaviour_plot()}},
+\code{\link[=diagnostic_wrap]{diagnostic_wrap()}},
+\code{\link[=effect_strength]{effect_strength()}},
+\code{\link[=emulator_plot]{emulator_plot()}},
+\code{\link[=hit_by_wave]{hit_by_wave()}},
+\code{\link[=output_plot]{output_plot()}},
+\code{\link[=plot_actives]{plot_actives()}},
+\code{\link[=plot_lattice]{plot_lattice()}},
+\code{\link[=simulator_plot]{simulator_plot()}},
+\code{\link[=space_removed]{space_removed()}},
+\code{\link[=validation_pairs]{validation_pairs()}},
+\code{\link[=wave_dependencies]{wave_dependencies()}},
+\code{\link[=wave_points]{wave_points()}},
+\code{\link[=wave_values]{wave_values()}}
 }
 \concept{visualisation tools}

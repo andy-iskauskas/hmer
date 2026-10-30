@@ -11,7 +11,7 @@
 #' @param is.variance Is the emulator a mean or variance emulator?
 #' @param boots The number of samples for bootstrapping (if required)
 #'
-#' @importFrom stats sd
+#' @importFrom stats sd complete.cases
 #' @importFrom rlang hash
 #'
 #' @keywords internal
@@ -220,6 +220,7 @@ residual_diag <- function(emulator, histogram = FALSE, ...) {
 #'            points per parameter dimension.
 #' @param cutoff The cutoff value for implausibility
 #' @param individual If true, gives emulator-by-emulator results; otherwise works with maximum implausibility
+#' @param nth If individual = FALSE, determines level of nth implausibility to calculate (default 1)
 #'
 #' @return A numeric corresponding to the proportions of points removed.
 #'

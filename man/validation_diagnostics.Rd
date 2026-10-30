@@ -66,14 +66,14 @@ validation_diagnostics(SIREmulators$ems, SIREmulators$targets, SIRSample$validat
 validation_diagnostics(SIREmulators$ems, SIREmulators$targets, k = 3)
 }
 \seealso{
-Other diagnostic functions: 
-\code{\link{analyze_diagnostic}()},
-\code{\link{classification_diag}()},
-\code{\link{comparison_diag}()},
-\code{\link{get_diagnostic}()},
-\code{\link{individual_errors}()},
-\code{\link{residual_diag}()},
-\code{\link{standard_errors}()},
-\code{\link{summary_diag}()}
+Other diagnostic functions:
+\code{\link[=analyze_diagnostic]{analyze_diagnostic()}},
+\code{\link[=classification_diag]{classification_diag()}},
+\code{\link[=comparison_diag]{comparison_diag()}},
+\code{\link[=get_diagnostic]{get_diagnostic()}},
+\code{\link[=individual_errors]{individual_errors()}},
+\code{\link[=residual_diag]{residual_diag()}},
+\code{\link[=standard_errors]{standard_errors()}},
+\code{\link[=summary_diag]{summary_diag()}}
 }
 \concept{diagnostic functions}

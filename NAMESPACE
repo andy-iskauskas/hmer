@@ -52,84 +52,111 @@ export(wave_dependencies)
 export(wave_points)
 export(wave_values)
 import(ggplot2)
-importFrom(GGally,ggally_blank)
-importFrom(GGally,ggally_densityDiag)
-importFrom(GGally,ggally_text)
-importFrom(GGally,ggmatrix)
-importFrom(GGally,ggpairs)
-importFrom(GGally,grab_legend)
-importFrom(GGally,putPlot)
-importFrom(GGally,wrap)
+importFrom(GGally,
+  ggally_blank,
+  ggally_densityDiag,
+  ggally_text,
+  ggmatrix,
+  ggpairs,
+  grab_legend,
+  putPlot,
+  wrap
+)
 importFrom(MASS,ginv)
 importFrom(R6,R6Class)
-importFrom(cluster,daisy)
-importFrom(cluster,fanny)
-importFrom(dplyr,across)
-importFrom(dplyr,all_of)
-importFrom(dplyr,group_by)
-importFrom(dplyr,group_rows)
-importFrom(dplyr,mutate)
-importFrom(dplyr,mutate_all)
-importFrom(dplyr,summarise)
-importFrom(ggplot2,aes)
-importFrom(ggplot2,geom_errorbar)
-importFrom(ggplot2,geom_line)
-importFrom(ggplot2,geom_point)
-importFrom(ggplot2,ggplot)
-importFrom(ggplot2,labs)
-importFrom(grDevices,dev.off)
-importFrom(grDevices,png)
-importFrom(grDevices,rgb)
-importFrom(graphics,abline)
-importFrom(graphics,arrows)
-importFrom(graphics,hist)
-importFrom(graphics,par)
-importFrom(graphics,plot)
-importFrom(graphics,rect)
-importFrom(jsonlite,fromJSON)
-importFrom(jsonlite,minify)
-importFrom(jsonlite,prettify)
-importFrom(jsonlite,toJSON)
+importFrom(cluster,
+  daisy,
+  fanny
+)
+importFrom(dplyr,
+  across,
+  all_of,
+  group_by,
+  group_rows,
+  mutate,
+  mutate_all,
+  summarise
+)
+importFrom(ggplot2,
+  aes,
+  geom_errorbar,
+  geom_line,
+  geom_point,
+  ggplot,
+  labs
+)
+importFrom(grDevices,
+  dev.off,
+  png,
+  rgb
+)
+importFrom(graphics,
+  abline,
+  arrows,
+  hist,
+  par,
+  plot,
+  rect
+)
+importFrom(jsonlite,
+  fromJSON,
+  minify,
+  prettify,
+  toJSON
+)
 importFrom(lhs,randomLHS)
-importFrom(mvtnorm,dmvnorm)
-importFrom(mvtnorm,rmvnorm)
+importFrom(mvtnorm,
+  dmvnorm,
+  rmvnorm
+)
 importFrom(pdist,pdist)
-importFrom(purrr,exec)
-importFrom(purrr,imap)
-importFrom(purrr,map)
-importFrom(purrr,map2_dbl)
-importFrom(purrr,map_chr)
-importFrom(purrr,map_dbl)
-importFrom(purrr,map_lgl)
-importFrom(rlang,as_string)
-importFrom(rlang,hash)
-importFrom(rlang,quo_get_expr)
-importFrom(stats,anova)
-importFrom(stats,as.formula)
-importFrom(stats,coef)
-importFrom(stats,cor)
-importFrom(stats,cov)
-importFrom(stats,dist)
-importFrom(stats,formula)
-importFrom(stats,lm)
-importFrom(stats,model.matrix)
-importFrom(stats,optim)
-importFrom(stats,pnorm)
-importFrom(stats,pt)
-importFrom(stats,qqline)
-importFrom(stats,qqnorm)
-importFrom(stats,reshape)
-importFrom(stats,rexp)
-importFrom(stats,rnorm)
-importFrom(stats,runif)
-importFrom(stats,sd)
-importFrom(stats,setNames)
-importFrom(stats,step)
-importFrom(stats,var)
-importFrom(stats,xtabs)
+importFrom(purrr,
+  exec,
+  imap,
+  map,
+  map2_dbl,
+  map_chr,
+  map_dbl,
+  map_lgl
+)
+importFrom(rlang,
+  as_string,
+  hash,
+  quo_get_expr
+)
+importFrom(stats,
+  anova,
+  as.formula,
+  coef,
+  complete.cases,
+  cor,
+  cov,
+  dist,
+  formula,
+  lm,
+  model.matrix,
+  optim,
+  pnorm,
+  pt,
+  qqline,
+  qqnorm,
+  reshape,
+  rexp,
+  rnorm,
+  runif,
+  sd,
+  setNames,
+  step,
+  var,
+  xtabs
+)
 importFrom(stringr,str_pad)
-importFrom(utils,stack)
-importFrom(utils,write.csv)
-importFrom(viridis,scale_colour_viridis)
-importFrom(viridis,scale_fill_viridis)
-importFrom(viridis,viridis)
+importFrom(utils,
+  stack,
+  write.csv
+)
+importFrom(viridis,
+  scale_colour_viridis,
+  scale_fill_viridis,
+  viridis
+)

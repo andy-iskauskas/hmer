@@ -134,6 +134,7 @@ behaviour_plot <- function(ems, points, model = missing(ems), out_names = unique
 #' @param intervals The interval values of the implausibility cutoff at which to evaluate.
 #' @param modified The statistic to modify: obs, disc, var or hp (see above)
 #' @param maxpoints The maximum number of points to evaluate at
+#' @param nth The level of nth implausibility to calculate (default 1)
 #'
 #' @return A ggplot object
 #'
